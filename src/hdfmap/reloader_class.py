@@ -2,6 +2,7 @@
 Reloader class
 """
 
+import h5py
 import numpy as np
 
 from .hdfmap_class import HdfMap
@@ -30,13 +31,16 @@ class HdfReloader:
     def __str__(self):
         return f"{repr(self)}\n{str(self.map)}"
 
-    def _load(self):
+    def _load(self) -> h5py.File:
         return load_hdf(self.filename)
 
-    def get_address(self, name_or_address: str):
-        return self.get_address(name_or_address)
+    def get_address(self, name_or_address: str) -> str or None:
+        return self.map.get_address(name_or_address)
 
-    def get_data(self, name_or_address: str | list[str], index=()):
+    def find_address(self, name: str) -> list[str]:
+        return self.map.find(name)
+
+    def get_data(self, name_or_address: str | list[str], index: slice = ()):
         name_or_address = np.reshape(name_or_address, -1)
         with self._load() as hdf:
             out = [self.map.get_data(hdf, name, index) for name in name_or_address]

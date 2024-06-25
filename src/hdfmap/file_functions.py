@@ -138,13 +138,15 @@ def search_hdf_files(topdir: str, search_str: str | None = None, extension: str 
     return output
 
 
-def create_hdf_map(hdf_filename: str) -> HdfMap:
+def create_hdf_map(hdf_filename: str, debug: bool = False) -> HdfMap:
     """
     Create a HdfMap from a hdf file
     :param hdf_filename: str filename of hdf file
+    :param debug: if True, displays debugging info
     :return: HdfMap
     """
     hdf_map = HdfMap()
+    hdf_map.debug(debug)
     with load_hdf(hdf_filename) as hdf:
         hdf_map.populate(hdf)
     size = hdf_map.most_common_size()
@@ -152,23 +154,23 @@ def create_hdf_map(hdf_filename: str) -> HdfMap:
     return hdf_map
 
 
-def create_nexus_map(hdf_filename: str, groups=None) -> NexusMap:
+def create_nexus_map(hdf_filename: str, groups: None | list[str] = None, debug: bool = False) -> NexusMap:
     """
     Create a HdfMap from a hdf file
     :param hdf_filename: str filename of hdf file
     :param groups: list of groups to collect datasets from
+    :param debug: if True, displays debugging info
     :return: NexusMap
     """
     hdf_map = NexusMap()
+    hdf_map.debug(debug)
     with load_hdf(hdf_filename) as hdf:
         hdf_map.populate(hdf, groups=groups)
-    size = hdf_map.most_common_size()
-    hdf_map.generate_scannables(size)
     return hdf_map
 
 
 def multifile_get_data(name_or_address: str, filenames: list[str], hdf_map: HdfMap | None = None,
-                       index=(), default=None):
+                       index=(), default=None, debug=False):
     """
 
     :param name_or_address: str
@@ -176,13 +178,17 @@ def multifile_get_data(name_or_address: str, filenames: list[str], hdf_map: HdfM
     :param hdf_map:
     :param index:
     :param default:
+    :param debug:
     :return:
     """
+    print('Multifile:', filenames)
     filenames = np.reshape(filenames, -1)
     if hdf_map is None:
-        hdf_map = create_hdf_map(filenames[0])
+        hdf_map = create_hdf_map(filenames[0], debug=debug)
     out = []
     for filename in filenames:
+        if debug:
+            print(f"\nHDF file: {filename}")
         with load_hdf(filename) as hdf:
             out.append(hdf_map.get_data(hdf, name_or_address, index=index, default=default))
     return out

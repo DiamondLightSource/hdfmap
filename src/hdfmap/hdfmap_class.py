@@ -1,7 +1,9 @@
 """
 hdfmap class definition
 """
+import typing
 
+import numpy as np
 import h5py
 
 from .eval_functions import eval_hdf, format_hdf
@@ -15,11 +17,12 @@ except ImportError:
 SEP = '/'  # HDF address separator
 
 
-def address_name(address: str | bytes) -> str:
+def address2name(address: str | bytes) -> str:
     """Convert hdf address to name"""
     if hasattr(address, 'decode'):  # Byte string
         address = address.decode('ascii')
     address = address.replace('.', '_')  # remove dots as cant be evaluated
+    # address = address.split('.')[-1]  # alternative to replacing dots
     name = address.split(SEP)[-1]
     return address.split(SEP)[-1] if name == 'value' else name
 
@@ -58,7 +61,7 @@ class HdfMap:
         map.combined    stores array and value addresses (arrays overwrite values)
         map.image_data  stores dataset addresses of image data
     E.G.
-        map.groups = {'/hdf/group': ('class', 'name')}
+        map.groups = {'/hdf/group': ('class', 'name', {attrs})}
         map.classes = {'class_name': ['/hdf/group1', '/hdf/group2']}
         map.datasets = {'/hdf/group/dataset': ('name', size, shape, {attrs})}
         map.arrays = {'name': '/hdf/group/dataset'}
@@ -89,6 +92,9 @@ class HdfMap:
         self.scannables = {}  # stores array dataset addresses with given size, by name
         self.combined = {}  # stores array and value addresses (arrays overwrite values)
         self.image_data = {}  # stores dataset addresses of image data
+
+    def __getitem__(self, item):
+        return self.get_address(item)
 
     def __repr__(self):
         return f"HdfMap based on '{self.filename}'"
@@ -169,9 +175,13 @@ class HdfMap:
         for key in hdf_group:
             obj = hdf_group.get(key)
             link = hdf_group.get(key, getlink=True)
+            if self._debug:
+                self._debug_logger(f"{key}: {repr(obj)} : {repr(link)}")
+            if obj is None:
+                continue  # dataset may be missing due to a broken link
             address = top_address + SEP + key  # build hdf address - a cross-file unique identifier
-            name = address_name(address)
-            altname = address_name(obj.attrs['local_name']) if 'local_name' in obj.attrs else name
+            name = address2name(address)
+            altname = address2name(obj.attrs['local_name']) if 'local_name' in obj.attrs else name
             if self._debug:
                 self._debug_logger(f"{address}  {name}, altname={altname}, link={repr(link)}")
 
@@ -183,7 +193,7 @@ class HdfMap:
                     nx_class = obj.attrs['NX_class']
                 except OSError:
                     nx_class = 'Group'  # if object doesn't have attrs
-                self.groups[address] = (nx_class, name)
+                self.groups[address] = (nx_class, name, dict(obj.attrs))
                 if nx_class not in self.classes:
                     self.classes[nx_class] = [address]
                 else:
@@ -223,6 +233,7 @@ class HdfMap:
         """Generate scannables list from a specific group, using the first item to define array size"""
         first_dataset = hdf_group[next(iter(hdf_group.keys()))]
         array_size = first_dataset.size
+        self._populate(hdf_group, top_address=hdf_group.name, recursive=False)
         self.scannables = {k: hdf_group[k].name for k in hdf_group if hdf_group[k].size == array_size}
         self.generate_combined()
 
@@ -247,11 +258,27 @@ class HdfMap:
         ]
         return max(set(array_shapes), key=array_shapes.count)
 
+    def scannables_length(self) -> int:
+        address = next(iter(self.scannables.values()))
+        shape = self.datasets[address][2]
+        return shape[0]
+
     def generate_scannables(self, array_size) -> None:
         """Populate self.scannables field with datasets size that match array_size"""
         self.scannables = {k: v for k, v in self.arrays.items() if self.datasets[v][1] == array_size}
         # create combined dict, scannables and arrays overwrite values with same name
         self.generate_combined()
+
+    def _scannables_dypes(self) -> np.dtype:
+        """Generate np.dtype array for scannables"""
+        return np.dtype([(name, 'f') for name in self.scannables.keys()])
+
+    def _scannables_format(self, string_spec='', format_spec='f', default_decimals=8) -> list[str]:
+        fmt = string_spec + '.%d' + format_spec
+        return [
+            '{:' + fmt % self.get_attr(address, 'decimals', default=default_decimals) + '}'
+            for address in self.scannables.values()
+        ]
 
     def _get_dataset(self, name_or_address: str, idx: int):
         """Return attribute of dataset"""
@@ -269,6 +296,10 @@ class HdfMap:
         if name_or_address in self.classes:
             return self.classes[name_or_address]
 
+    def find(self, name: str) -> list[str]:
+        """Search for name in addresses, return list of hdf addresses"""
+        return [address for address in self.datasets if name in address]
+
     def get_size(self, name_or_address: str) -> int:
         """Return size of dataset"""
         return self._get_dataset(name_or_address, 1)
@@ -278,11 +309,18 @@ class HdfMap:
         return self._get_dataset(name_or_address, 2)
 
     def get_attrs(self, name_or_address: str) -> dict:
-        """Return attributes of dataset"""
-        return self._get_dataset(name_or_address, 3)
+        """Return attributes of dataset or group"""
+        if name_or_address in self.datasets:
+            return self.datasets[name_or_address][3]
+        if name_or_address in self.groups:
+            return self.groups[name_or_address][2]
+        if name_or_address in self.combined:
+            return self.datasets[self.combined[name_or_address]][3]
+        if name_or_address in self.classes:
+            return self.groups[self.classes[name_or_address][0]][2]
 
-    def get_attr(self, name_or_address: str, attr_label: str, default: str = '') -> str:
-        """Return named attribute from dataset, or default"""
+    def get_attr(self, name_or_address: str, attr_label: str, default: str | typing.Any = '') -> str:
+        """Return named attribute from dataset or group, or default"""
         attrs = self.get_attrs(name_or_address)
         if attr_label in attrs:
             return attrs[attr_label]
@@ -309,6 +347,25 @@ class HdfMap:
         if address:
             return hdf_file[address][index]
         return default
+
+    def get_scannables_array(self, hdf_file: h5py.File):
+        """Return 2D array of all scannalbes in file"""
+        return np.array([hdf_file.get(address)[()] for address in self.scannables.values()],
+                        dtype=self._scannables_tdypes())
+
+    def get_scannables_str(self, hdf_file: h5py.File, delimiter=', '):
+        """Return str representation of scannables"""
+        formats = self._scannables_format()
+        length = self.scannables_length()
+        out = delimiter.join(self.scannables.keys()) + '\n'
+        out += '\n'.join([
+            delimiter.join([
+                fmt.format(hdf_file.get(address)[n])
+                for address, fmt in zip(self.scannables.values(), formats)
+            ])
+            for n in range(length)
+        ])
+        return out
 
     def eval(self, hdf_file: h5py.File, expression: str):
         """
