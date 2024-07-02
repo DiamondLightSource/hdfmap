@@ -4,7 +4,7 @@ Nexus Related functions and nexus class
 
 import h5py
 
-from .hdfmap_class import HdfMap
+from .hdfmap_class import HdfMap, SEP
 
 
 NX_LOCALNAME = 'local_name'
@@ -13,6 +13,8 @@ NX_MEASUREMENT = 'measurement'
 NX_SCAN_SHAPE_ADDRESS = 'entry1/scan_shape'
 NX_SIGNAL = 'signal'
 NX_AXES = 'axes'
+NX_DETECTOR = 'NXdetector'
+NX_DETECTOR_DATA = 'data'
 
 
 def get_nexus_axes_datasets(hdf_object: h5py.File) -> tuple[list[h5py.Dataset], h5py.Dataset]:
@@ -82,6 +84,7 @@ class NexusMap(HdfMap):
 
     def _load_defaults(self, hdf_file):
         """Load Nexus default axes and signal"""
+        super()._load_defaults(hdf_file)
         try:
             axes_datasets, signal_dataset = get_nexus_axes_datasets(hdf_file)
             if axes_datasets[0].name in hdf_file:
@@ -121,4 +124,17 @@ class NexusMap(HdfMap):
             if self._debug:
                 self._debug_logger(f"NX Data: {nx_data.name}")
             self.generate_scannables_from_group(nx_data)
+
+        # find the NXdetector group and assign the image data
+        if NX_DETECTOR in self.classes:
+            address = self.classes[NX_DETECTOR][0] + SEP + NX_DETECTOR_DATA
+            if self._debug:
+                self._debug_logger(f"NX Detector: {address} : {hdf_file.get(address)}")
+            if address in hdf_file:
+                self.image_data[NX_DETECTOR] = address
+
+    def get_image_address(self) -> str | None:
+        """Return address of first dataset named 'data'"""
+        if NX_DETECTOR in self.image_data:
+            return self.image_data[NX_DETECTOR]
 

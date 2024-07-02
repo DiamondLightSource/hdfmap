@@ -47,6 +47,14 @@ def find_varnames(expression: str) -> list[str]:
             if type(node) is ast.Name and node.id not in GLOBALS_NAMELIST]
 
 
+def extra_hdf_data(hdf_file: h5py.File) -> dict:
+    """Extract filename, filepath and other additional data fom hdf file"""
+    return {
+        'filepath': hdf_file.filename if hasattr(hdf_file, 'filename') else 'unknown',
+        'filename': os.path.basename(hdf_file.filename) if hasattr(hdf_file, 'filename') else 'unknown',
+    }
+
+
 def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], varnames: list[str] | None = None,
                        default: typing.Any = np.array('--')) -> dict[str, typing.Any]:
     """
@@ -69,10 +77,7 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], varna
     defaults = {name: default for name in varnames if name not in hdf_namespace}
     addresses = {'_' + name: hdf_namespace[name] for name in varnames if name in hdf_namespace}
     # add extra params
-    extras = {
-        'filepath': hdf_file.filename if hasattr(hdf_file, 'filename') else 'unknown',
-        'filename': os.path.basename(hdf_file.filename) if hasattr(hdf_file, 'filename') else 'unknown',
-    }
+    extras = extra_hdf_data(hdf_file)
     return {**defaults, **extras, **addresses, **namespace}
 
 
