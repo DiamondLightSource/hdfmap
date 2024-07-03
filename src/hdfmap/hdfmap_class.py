@@ -28,7 +28,7 @@ def address2name(address: str | bytes) -> str:
 
 
 def _disp_dict(mydict: dict, indent: int = 10) -> str:
-    return '\n'.join([f"{key:>indent}: {value}" for key, value in mydict.items()])
+    return '\n'.join([f"{key:>{indent}}: {value}" for key, value in mydict.items()])
 
 
 class HdfMap:
@@ -123,7 +123,7 @@ class HdfMap:
         out = f"{repr(self)}\n"
         out += "Groups:\n"
         out += _disp_dict(self.groups, 10)
-        out += 'Classes:\n'
+        out += '\n\nClasses:\n'
         out += _disp_dict(self.classes, 10)
         return out
 
@@ -316,8 +316,20 @@ class HdfMap:
         if name_or_address in self.classes:
             return self.classes[name_or_address]
 
+    def get_group_address(self, name_or_address):
+        """Return group address of object in HdfMap"""
+        address = self.get_address(name_or_address)
+        while address and address not in self.groups:
+            address = SEP.join(address.split(SEP)[:-1])
+        return address
+
     def find(self, name: str, name_only=True) -> list[str]:
-        """Search for name in addresses, return list of hdf addresses"""
+        """
+        Search for name in addresses, return list of hdf addresses
+        :param name: str to find in list of datasets
+        :param name_only: if True, search only the name of the dataset, not the full address
+        :return: list of hdf addresses
+        """
         if name_only:
             return [
                 address for address, (dataset_name, size, shape, attrs) in self.datasets.items()
