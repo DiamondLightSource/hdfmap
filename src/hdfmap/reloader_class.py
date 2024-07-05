@@ -31,6 +31,12 @@ class HdfReloader:
     def __str__(self):
         return f"{repr(self)}\n{str(self.map)}"
 
+    def __getitem__(self, item):
+        return self.get_data(item)
+
+    def __call__(self, expression):
+        return self.eval(expression)
+
     def _load(self) -> h5py.File:
         return load_hdf(self.filename)
 

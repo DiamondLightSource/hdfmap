@@ -1,6 +1,5 @@
 import os
 import pathlib
-import typing
 import h5py
 import numpy as np
 
@@ -10,7 +9,6 @@ from .nexus import NexusMap
 
 EXTENSIONS = ['.nxs', '.hdf', '.hdf5', '.h5']
 DEFAULT_EXTENSION = EXTENSIONS[0]
-MAX_TEXTVIEW_SIZE = 1000
 DEFAULT_ADDRESS = "entry1/scan_command"
 
 
@@ -45,61 +43,11 @@ def list_path_time_files(directory: str, extension=DEFAULT_EXTENSION) -> list[tu
     return folders
 
 
-def get_dataset_value(hdf_filename: str, hdf_address: str, default_value: typing.Any = '') -> typing.Any:
-    """
-    Open HDF file and return value from single dataset
-    :param hdf_filename: str filename of hdf file
-    :param hdf_address: str hdf address specifier of dataset
-    :param default_value: Any - returned value if hdf_address is not available in file
-    :return [dataset is array]: str "{type} {shape}"
-    :return [dataset is not array]: output of dataset[()]
-    :return [dataset doesn't exist]: default_value
-    """
-    try:
-        with load_hdf(hdf_filename) as hdf:
-            dataset = hdf.get(hdf_address)
-            if isinstance(dataset, h5py.Dataset):
-                if dataset.size > 1:
-                    return f"{dataset.dtype} {dataset.shape}"
-                return dataset[()]
-            return default_value
-    except Exception:
-        return default_value
-
-
-def get_dataset_str(hdf_filename: str, hdf_address: str) -> str:
-    """Generate string describing object in hdf file"""
-    with load_hdf(hdf_filename) as hdf:
-        obj = hdf.get(hdf_address)
-        if obj is None:
-            return f"{hdf_address}: doesn't exist in {hdf_filename}"
-        try:
-            link = repr(hdf.get(hdf_address, getlink=True))
-        except RuntimeError:
-            link = 'No link'
-        myclass = hdf.get(hdf_address, getclass=True)
-        out = f"File: {hdf_filename}\nAddress: {hdf_address}\n"
-        out += f"name: {obj.name}\n"
-        out += f"REPR: {repr(obj)}\n"
-        out += f"LINK: {link}\n"
-        out += f"Class: {repr(myclass)}\n"
-        out += '\nattrs:\n'
-        out += '\n'.join([f"  {key:10}: {obj.attrs[key]}" for key in obj.attrs])
-        if isinstance(obj, h5py.Dataset):
-            out += '\n\n--- Data ---\n'
-            out += f"Shape: {obj.shape}\nSize: {obj.size}\nValues:\n"
-            if obj.size > MAX_TEXTVIEW_SIZE:
-                out += '---To large to view---'
-            else:
-                out += str(obj[()])
-    return out
-
-
 def search_filename_in_folder(topdir: str, search_str: str = "*.nxs", case_sensitive: bool = False):
     """
     Search recursivley for filenames
     :param topdir: str address of directory to start in
-    :param search_str: str to search for, use * to specify unkonwn, e.g. "*.nxs"
+    :param search_str: str to search for, use * to specify unknown, e.g. "*.nxs"
     :param case_sensitive:
     :return: list
     """
@@ -154,35 +102,42 @@ def create_hdf_map(hdf_filename: str, debug: bool = False) -> HdfMap:
     return hdf_map
 
 
-def create_nexus_map(hdf_filename: str, groups: None | list[str] = None, debug: bool = False) -> NexusMap:
+def create_nexus_map(hdf_filename: str, groups: None | list[str] = None,
+                     default_entry_only: bool = False, debug: bool = False) -> NexusMap:
     """
-    Create a HdfMap from a hdf file
+    Create a HdfMap from a NeXus file, loading default parameters and allowing a reduced, single entry map
     :param hdf_filename: str filename of hdf file
     :param groups: list of groups to collect datasets from
+    :param default_entry_only: if True, only the first or default entry will be loaded
     :param debug: if True, displays debugging info
     :return: NexusMap
     """
     hdf_map = NexusMap()
     hdf_map.debug(debug)
     with load_hdf(hdf_filename) as hdf:
-        hdf_map.populate(hdf, groups=groups)
+        hdf_map.populate(hdf, groups=groups, default_entry_only=default_entry_only)
     return hdf_map
 
 
-def multifile_get_data(name_or_address: str, filenames: list[str], hdf_map: HdfMap | None = None,
-                       index=(), default=None, debug=False):
+def hdf_data(filenames: str | list[str], name_or_address: str | list[str], hdf_map: HdfMap = None,
+             index=(), default=None, debug=False, fixed_output=False):
     """
-
-    :param name_or_address: str
-    :param filenames: list of str filenames of hdf files
-    :param hdf_map:
-    :param index:
-    :param default:
-    :param debug:
-    :return:
+    General purpose function to retrieve data from HDF files
+    :param filenames: str or list of str - file paths
+    :param name_or_address: str or list of str - names or addresses of HDF datasets
+    :param hdf_map: HdfMap object, or None to generate from first file
+    :param index: dataset index or slice
+    :param default: value to give if dataset doesn't exist in file
+    :param debug: prints output if True
+    :param fixed_output: if True, always returns list of list
+    :return if single file, single dataset: single value
+    :return if multi file or multi dataset: list, len(filenames) or len(name_or_address)
+    :return if multi file and multi dataset: list[files: list[names]]
     """
-    print('Multifile:', filenames)
+    # cast as 1D arrays
     filenames = np.reshape(filenames, -1)
+    name_or_address = np.reshape(name_or_address, -1)
+    # generate hdf_map
     if hdf_map is None:
         hdf_map = create_hdf_map(filenames[0], debug=debug)
     out = []
@@ -190,41 +145,95 @@ def multifile_get_data(name_or_address: str, filenames: list[str], hdf_map: HdfM
         if debug:
             print(f"\nHDF file: {filename}")
         with load_hdf(filename) as hdf:
-            out.append(hdf_map.get_data(hdf, name_or_address, index=index, default=default))
+            out.append([hdf_map.get_data(hdf, name, index=index, default=default) for name in name_or_address])
+    if fixed_output:
+        return out
+    if filenames.size == 1 and name_or_address.size == 1:
+        return out[0][0]
+    if filenames.size == 1 and name_or_address.size > 1:
+        return out[0]
+    if name_or_address.size == 1:
+        return [val[0] for val in out]
     return out
 
 
-def multifile_eval(expression: str, filenames: list[str], hdf_map: HdfMap | None = None):
+def hdf_eval(filenames: str | list[str], expression: str, hdf_map: HdfMap = None, debug=False, fixed_output=False):
     """
-
-    :param expression:
-    :param filenames:
-    :param hdf_map:
-    :return:
+    Evaluate expression using dataset names
+    :param filenames: str or list of str - file paths
+    :param expression: str expression to evaluate in each file, e.g. "roi2_sum / Transmission"
+    :param hdf_map: HdfMap object, or None to generate from first file
+    :param debug: prints output if True
+    :param fixed_output: if True, always returns list len(filenames)
+    :return if single file: single output
+    :return if multi file: list, len(filenames)
     """
+    # cast as 1D arrays
     filenames = np.reshape(filenames, -1)
+    # generate hdf_map
     if hdf_map is None:
-        hdf_map = create_hdf_map(filenames[0])
+        hdf_map = create_hdf_map(filenames[0], debug=debug)
     out = []
     for filename in filenames:
+        if debug:
+            print(f"\nHDF file: {filename}")
         with load_hdf(filename) as hdf:
             out.append(hdf_map.eval(hdf, expression))
+    if not fixed_output and filenames.size == 1:
+        return out[0]
     return out
 
 
-def multifile_format(expression: str, filenames: list[str], hdf_map: HdfMap | None = None):
+def hdf_format(filenames: str | list[str], expression: str, hdf_map: HdfMap = None, debug=False, fixed_output=False):
     """
-
-    :param expression:
-    :param filenames:
-    :param hdf_map:
-    :return:
+    Evaluate string format expression using dataset names
+    :param filenames: str or list of str - file paths
+    :param expression: str expression to evaluate in each file, e.g. "the energy is {en:.2f} keV"
+    :param hdf_map: HdfMap object, or None to generate from first file
+    :param debug: prints output if True
+    :param fixed_output: if True, always returns list len(filenames)
+    :return if single file: single output
+    :return if multi file: list, len(filenames)
     """
+    # cast as 1D arrays
     filenames = np.reshape(filenames, -1)
+    # generate hdf_map
     if hdf_map is None:
-        hdf_map = create_hdf_map(filenames[0])
+        hdf_map = create_hdf_map(filenames[0], debug=debug)
     out = []
     for filename in filenames:
+        if debug:
+            print(f"\nHDF file: {filename}")
         with load_hdf(filename) as hdf:
             out.append(hdf_map.format_hdf(hdf, expression))
+    if not fixed_output and filenames.size == 1:
+        return out[0]
     return out
+
+
+def hdf_image(filenames: str | list[str], index: slice = None, hdf_map: HdfMap = None, debug=False, fixed_output=False):
+    """
+    Evaluate string format expression using dataset names
+    :param filenames: str or list of str - file paths
+    :param index: index or slice of dataset volume, or None to use middle index
+    :param hdf_map: HdfMap object, or None to generate from first file
+    :param debug: prints output if True
+    :param fixed_output: if True, always returns list len(filenames)
+    :return if single file: single output - numpy array
+    :return if multi file: list, len(filenames)
+    """
+    # cast as 1D arrays
+    filenames = np.reshape(filenames, -1)
+    # generate hdf_map
+    if hdf_map is None:
+        hdf_map = create_hdf_map(filenames[0], debug=debug)
+    out = []
+    for filename in filenames:
+        if debug:
+            print(f"\nHDF file: {filename}")
+        with load_hdf(filename) as hdf:
+            out.append(hdf_map.get_image(hdf, index=index))
+    if not fixed_output and filenames.size == 1:
+        return out[0]
+    return out
+

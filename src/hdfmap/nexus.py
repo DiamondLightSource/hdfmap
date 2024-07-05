@@ -98,40 +98,47 @@ class NexusMap(HdfMap):
         except KeyError:
             pass
 
-    def populate(self, hdf_file: h5py.File, groups=None):
+    def populate(self, hdf_file: h5py.File, groups=None, default_entry_only=False):
         """
-        Populate only datasets from first entry, with scannables from given groups
+        Populate only datasets from default or first entry, with scannables from given groups
         :param hdf_file: HDF File object
-        :param groups: list of group names or NXClass names to search for datasets
-        :return:
+        :param groups: list of group names or NXClass names to search for datasets, within default entry
+        :param default_entry_only: if True, only the first or default entry will be loaded
         """
         self.filename = hdf_file.filename
 
         # Add defaults to arrays
         self._load_defaults(hdf_file)
 
-        # find default or first entry
-        nx_entry = hdf_file[
-            hdf_file.attrs[NX_DEFAULT] if NX_DEFAULT in hdf_file.attrs else next(iter(hdf_file.keys()))
-        ]
-        if self._debug:
-            self._debug_logger(f"NX Entry: {nx_entry.name}")
-        self._populate(nx_entry, top_address=nx_entry.name, groups=groups)
+        if default_entry_only:
+            entries = [hdf_file.attrs[NX_DEFAULT] if NX_DEFAULT in hdf_file.attrs else next(iter(hdf_file))]
+        else:
+            entries = hdf_file.keys()
 
-        # find the default NXdata group and generate the scannables list
-        nx_data = nx_entry.get(nx_entry.attrs[NX_DEFAULT] if NX_DEFAULT in nx_entry.attrs else NX_MEASUREMENT)
-        if nx_data:
+        for entry in entries:
+            # find default or first entry
+            nx_entry = hdf_file[entry]
+            address = SEP + entry
             if self._debug:
-                self._debug_logger(f"NX Data: {nx_data.name}")
-            self.generate_scannables_from_group(nx_data)
+                self._debug_logger(f"NX Entry: {address}")
+            self._populate(nx_entry, top_address=address, groups=groups)  # nx_entry.name can be wrong!
+
+            # find the default NXdata group and generate the scannables list
+            nx_data = nx_entry.get(nx_entry.attrs[NX_DEFAULT] if NX_DEFAULT in nx_entry.attrs else NX_MEASUREMENT)
+            if nx_data:
+                if self._debug:
+                    self._debug_logger(f"NX Data: {nx_data.name}")
+                self.generate_scannables_from_group(nx_data)
 
         # find the NXdetector group and assign the image data
         if NX_DETECTOR in self.classes:
-            address = self.classes[NX_DETECTOR][0] + SEP + NX_DETECTOR_DATA
-            if self._debug:
-                self._debug_logger(f"NX Detector: {address} : {hdf_file.get(address)}")
-            if address in hdf_file:
-                self.image_data[NX_DETECTOR] = address
+            for class_address in self.classes[NX_DETECTOR]:
+                dataset_address = class_address + SEP + NX_DETECTOR_DATA
+                if self._debug:
+                    self._debug_logger(f"NX Detector: {dataset_address} : {hdf_file.get(dataset_address)}")
+                if dataset_address in hdf_file:
+                    self.image_data[NX_DETECTOR] = dataset_address  # last NXdetector
+                    self.image_data['_'.join(dataset_address.split('/')[-2:])] = dataset_address  # e.g. pil3_100k_data
 
     def get_image_address(self) -> str | None:
         """Return address of first dataset named 'data'"""

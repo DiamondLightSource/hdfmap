@@ -1,7 +1,7 @@
 # hdfmap
 Map objects within a HDF file and create a dataset namespace
 
-**Version 0.1**
+**Version 0.2**
 
 | By Dan Porter        | 
 |----------------------|
@@ -10,11 +10,11 @@ Map objects within a HDF file and create a dataset namespace
 
 ### Usage
 ```python
-from hdfmap import HdfReloader, multifile_get_data
+from hdfmap import HdfReloader, hdf_data
 hdf = HdfReloader('file.hdf')
 [data1, data2] = hdf.get_data(['dataset_name_1', 'dataset_name_2'])
 data = hdf.eval('dataset_name_1 * 100 + 2')
 string = hdf.format('my data is {dataset_name_1:.2f}')
 
-all_data = multifile_get_data('dataset_name', [f'file{n}.nxs' for n in range(100)])
+all_data = hdf_data([f'file{n}.nxs' for n in range(100)], 'dataset_name')
 ```

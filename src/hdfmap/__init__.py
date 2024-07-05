@@ -1,17 +1,21 @@
 """
+hdfmap
 
+By Dr Dan Porter
+Diamond Light Source Ltd
+2024
 """
 
 
 from .hdfmap_class import HdfMap
 from .nexus import NexusMap
 from .file_functions import load_hdf, create_hdf_map, create_nexus_map
-from .file_functions import multifile_get_data, multifile_eval, multifile_format
+from .file_functions import hdf_data, hdf_image, hdf_eval, hdf_format, list_files
 from .reloader_class import HdfReloader
 
 
-__version__ = "0.1.0"
-__date__ = "2024/06/24"
+__version__ = "0.2.0"
+__date__ = "2024/07/05"
 
 
 def version_info():

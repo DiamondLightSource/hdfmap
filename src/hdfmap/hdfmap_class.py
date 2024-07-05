@@ -31,6 +31,26 @@ def _disp_dict(mydict: dict, indent: int = 10) -> str:
     return '\n'.join([f"{key:>{indent}}: {value}" for key, value in mydict.items()])
 
 
+class _DictObj(dict):
+    """
+    Convert dict to class that looks like a class object with key names as attributes
+        obj = DictObj({'item1': 'value1'}, 'docs')
+        obj['item1'] -> 'value1'
+        obj.item1 -> 'value1'
+        help(obj) -> 'docs'
+    """
+
+    def __init__(self, ini_dict: dict, docstr=None):
+        # copy dict
+        super().__init__(**ini_dict)
+        # assign attributes
+        for name, value in ini_dict.items():
+            setattr(self, name, value)
+        # update doc string
+        if docstr:
+            self.__doc__ = docstr
+
+
 class HdfMap:
     """
     HdfMap object, container for addresses of different objects in an HDF file
@@ -180,6 +200,45 @@ class HdfMap:
     def _load_defaults(self, hdf_file: h5py.File):
         """Overloaded method, called before _populate"""
 
+    def _store_group(self, hdf_group: h5py.Group, address: str, name: str):
+        try:
+            nx_class = hdf_group.attrs['NX_class'].decode() if 'NX_class' in hdf_group.attrs else 'Group'
+        except AttributeError:
+            nx_class = hdf_group.attrs['NX_class']
+        except OSError:
+            nx_class = 'Group'  # if object doesn't have attrs
+        self.groups[address] = (nx_class, name, dict(hdf_group.attrs))
+        if nx_class not in self.classes:
+            self.classes[nx_class] = [address]
+        else:
+            self.classes[nx_class].append(address)
+        if self._debug:
+            self._debug_logger(f"{address}  HDFGroup: {nx_class}")
+        return nx_class
+
+    def _store_dataset(self, hdf_dataset: h5py.Dataset, address: str, name: str, altname: str):
+        self.datasets[address] = (name, hdf_dataset.size, hdf_dataset.shape, dict(hdf_dataset.attrs))
+        if hdf_dataset.ndim >= 3:
+            det_name = f"{address.split(SEP)[-2]}_{name}"
+            self.image_data[name] = address
+            self.image_data[det_name] = address
+            self.arrays[name] = address
+            self.arrays[altname] = address
+            if self._debug:
+                self._debug_logger(
+                    f"{address}  HDFDataset: image_data & array {name, hdf_dataset.size, hdf_dataset.shape}"
+                )
+        elif hdf_dataset.ndim > 0:
+            self.arrays[name] = address
+            self.arrays[altname] = address
+            if self._debug:
+                self._debug_logger(f"{address}  HDFDataset: array {name, hdf_dataset.size, hdf_dataset.shape}")
+        else:
+            self.values[name] = address
+            self.values[altname] = address
+            if self._debug:
+                self._debug_logger(f"{address}  HDFDataset: value")
+
     def _populate(self, hdf_group: h5py.Group, top_address: str = '',
                   recursive: bool = True, groups: None | list[str] = None):
         """
@@ -205,43 +264,13 @@ class HdfMap:
 
             # Group
             if isinstance(obj, h5py.Group):
-                try:
-                    nx_class = obj.attrs['NX_class'].decode() if 'NX_class' in obj.attrs else 'Group'
-                except AttributeError:
-                    nx_class = obj.attrs['NX_class']
-                except OSError:
-                    nx_class = 'Group'  # if object doesn't have attrs
-                self.groups[address] = (nx_class, name, dict(obj.attrs))
-                if nx_class not in self.classes:
-                    self.classes[nx_class] = [address]
-                else:
-                    self.classes[nx_class].append(address)
-                if self._debug:
-                    self._debug_logger(f"{address}  HDFGroup: {nx_class}")
+                nx_class = self._store_group(obj, address, name)
                 if recursive and (key in groups or nx_class in groups if groups else True):
                     self._populate(obj, address, recursive)
 
             # Dataset
             elif isinstance(obj, h5py.Dataset) and not isinstance(link, h5py.SoftLink):
-                self.datasets[address] = (name, obj.size, obj.shape, dict(obj.attrs))
-                if obj.ndim >= 3:
-                    det_name = f"{top_address.split(SEP)[-1]}_{name}"
-                    self.image_data[name] = address
-                    self.image_data[det_name] = address
-                    self.arrays[name] = address
-                    self.arrays[altname] = address
-                    if self._debug:
-                        self._debug_logger(f"{address}  HDFDataset: image_data & array {name, obj.size, obj.shape}")
-                elif obj.ndim > 0:
-                    self.arrays[name] = address
-                    self.arrays[altname] = address
-                    if self._debug:
-                        self._debug_logger(f"{address}  HDFDataset: array {name, obj.size, obj.shape}")
-                else:
-                    self.values[name] = address
-                    self.values[altname] = address
-                    if self._debug:
-                        self._debug_logger(f"{address}  HDFDataset: value")
+                self._store_dataset(obj, address, name, altname)
 
     def populate(self, hdf_file: h5py.File):
         """Populate all datasets from file"""
@@ -279,6 +308,8 @@ class HdfMap:
         return max(set(array_shapes), key=array_shapes.count)
 
     def scannables_length(self) -> int:
+        if not self.scannables:
+            return 0
         address = next(iter(self.scannables.values()))
         shape = self.datasets[address][2]
         return shape[0]
@@ -291,6 +322,7 @@ class HdfMap:
 
     def _scannables_dtypes(self) -> np.dtype:
         """Generate np.dtype array for scannables"""
+        # this is wrong because some datatypes could be non-numeric!
         return np.dtype([(name, 'f') for name in self.scannables.keys()])
 
     def _scannables_format(self, string_spec='', format_spec='f', default_decimals=8) -> list[str]:
@@ -314,7 +346,7 @@ class HdfMap:
         if name_or_address in self.combined:
             return self.combined[name_or_address]
         if name_or_address in self.classes:
-            return self.classes[name_or_address]
+            return self.classes[name_or_address][0]
 
     def get_group_address(self, name_or_address):
         """Return group address of object in HdfMap"""
@@ -336,6 +368,18 @@ class HdfMap:
                 if name in dataset_name
             ]
         return [address for address in self.datasets if name in address]
+
+    def find_attr(self, attr_name: str) -> list[str]:
+        """
+        Search for hdf objects with a particular attribute (checks datasets and groups for obj.attr[name])
+        :param attr_name: str name of hdfobj.attr
+        :return: list of hdf addresses
+        """
+        return [
+            address for address, (_, _, _, attr) in self.datasets.items() if attr_name in attr
+        ] + [
+            address for address, (_, _, attr) in self.groups.items() if attr_name in attr
+        ]
 
     def get_size(self, name_or_address: str) -> int:
         """Return size of dataset"""
@@ -368,16 +412,11 @@ class HdfMap:
         if self.image_data:
             return next(iter(self.image_data.values()))
 
-    def get_class_address(self, nx_class: str) -> str | None:
-        """Return HDF address of first group with nx_class attribute"""
-        if nx_class in self.classes:
-            return self.classes[nx_class][0]
-
-    def get_class_datasets(self, nx_class: str) -> list[str] | None:
+    def get_group_datasets(self, name_or_address: str) -> list[str] | None:
         """Return list of HDF dataset addresses from first group with nx_class attribute"""
-        class_address = self.get_class_address(nx_class)
-        if class_address:
-            return [address for address in self.datasets if address.startswith(class_address)]
+        group_address = self.get_group_address(name_or_address)
+        if group_address:
+            return [address for address in self.datasets if address.startswith(group_address)]
 
     "--------------------------------------------------------"
     "---------------------- FILE READERS --------------------"
@@ -386,7 +425,7 @@ class HdfMap:
     def get_data(self, hdf_file: h5py.File, name_or_address: str, index=(), default=None):
         """Return data from dataset in file"""
         address = self.get_address(name_or_address)
-        if address:
+        if address and address in hdf_file:
             return hdf_file[address][index]
         return default
 
@@ -421,24 +460,70 @@ class HdfMap:
         if image_address and image_address in hdf_file:
             return hdf_file[image_address][index]
 
-    def get_scannables_array(self, hdf_file: h5py.File) -> np.array:
-        """Return 2D array of all scannalbes in file"""
-        return np.array([hdf_file.get(address)[()] for address in self.scannables.values()],
-                        dtype=self._scannables_dtypes())
+    def _get_scannables(self, hdf_file: h5py.File) -> list[tuple[str, str]]:
+        """Return numeric scannables available in file"""
+        return [
+            (name, address) for name, address in self.scannables.items()
+            if hdf_file.get(address) and np.issubdtype(hdf_file.get(address).dtype, np.number)
+        ]
 
-    def get_scannables_str(self, hdf_file: h5py.File, delimiter=', '):
-        """Return str representation of scannables"""
-        formats = self._scannables_format()
+    def get_scannables_array(self, hdf_file: h5py.File) -> np.ndarray:
+        """Return 2D array of all scannalbes in file"""
+        _scannables = self._get_scannables(hdf_file)
+        dtypes = np.dtype([
+            (name, hdf_file[address].dtype) for name, address in _scannables
+        ])
+        return np.array([hdf_file.get(address)[()] for name, address in _scannables], dtype=dtypes)
+
+    def get_scannables_str(self, hdf_file: h5py.File, delimiter=', ',
+                           string_spec='', format_spec='f', default_decimals=8) -> str:
+        """
+        Return str representation of scannables as a table
+        The table starts with a header row given by names of the scannables.
+        Each row contains the numeric values for each scannable, formated by the given string spec:
+                {value: "string_spec.decimals format_spec"}
+            e.g. {value: "5.8f"}
+        decimals is taken from each scannables "decimals" attribute if it exits, otherwise uses default
+        :param hdf_file: h5py.File object
+        :param delimiter: str seperator between each column
+        :param string_spec: str first element of float format specifier - length of string
+        :param format_spec: str type element of format specifier - 'f'=float, 'e'=exponential, 'g'=general
+        :param default_decimals: int default number of decimals given
+        :return: str
+        """
+        _scannables = self._get_scannables(hdf_file)
+        fmt = string_spec + '.%d' + format_spec
+        formats = [
+            '{:' + fmt % self.get_attr(address, 'decimals', default=default_decimals) + '}'
+            for name, address in _scannables
+        ]
+
         length = self.scannables_length()
-        out = delimiter.join(self.scannables.keys()) + '\n'
+        out = delimiter.join([name for name, _ in _scannables]) + '\n'
         out += '\n'.join([
             delimiter.join([
                 fmt.format(hdf_file.get(address)[n])
-                for address, fmt in zip(self.scannables.values(), formats)
+                for (_, address), fmt in zip(_scannables, formats)
             ])
             for n in range(length)
         ])
         return out
+
+    def get_data_object(self, hdf_file: h5py.File) -> _DictObj:
+        """
+        Return data object
+            data_object.scannable -> array
+            data_object.metadata.value -> metadata
+            data_object['scannable'] -> array
+            data_object.metadata['value'] -> metadata
+        :param hdf_file: h5py.File object
+        :return: data_object (similar to dict)
+        """
+        doc = f"""DataObject for '{hdf_file.filename}'"""
+        metadata = self.get_metadata(hdf_file)
+        scannables = self.get_scannables(hdf_file)
+        scannables['metadata'] = _DictObj(metadata, docstr=doc)
+        return _DictObj(scannables, docstr=doc)
 
     def eval(self, hdf_file: h5py.File, expression: str):
         """
