@@ -116,6 +116,10 @@ def create_nexus_map(hdf_filename: str, groups: None | list[str] = None,
     hdf_map.debug(debug)
     with load_hdf(hdf_filename) as hdf:
         hdf_map.populate(hdf, groups=groups, default_entry_only=default_entry_only)
+    if not hdf_map.scannables:
+        print('NXdata not found, getting scannables from most common array size')
+        size = hdf_map.most_common_size()
+        hdf_map.generate_scannables(size)
     return hdf_map
 
 

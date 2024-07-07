@@ -5,8 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4a4c2dfc-1537-4c6a-8899-ef3e92d66874" name="Changes" comment="added dataloader_class.py, added get_metadata, get_scannables to hdfmap">
+      <change afterPath="$PROJECT_DIR$/check_files.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/hdfmap.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/hdfmap.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hdfmap/file_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/hdfmap/file_functions.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/hdfmap/hdfmap_class.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/hdfmap/hdfmap_class.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/hdfmap/nexus.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/hdfmap/nexus.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,21 +28,21 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "DanPorter"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;DanPorter&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/DanPorter/hdfmap.git",
-    "accountId": "d3566e80-7aa3-4637-941e-7ea07f62997f"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/DanPorter/hdfmap.git&quot;,
+    &quot;accountId&quot;: &quot;d3566e80-7aa3-4637-941e-7ea07f62997f&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 7
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
   <component name="ProjectId" id="2iBRDiDrA6qLCNrs4FbrbkPzKYa" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
@@ -46,20 +51,58 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "Python.check_files.executor": "Run",
     "Python.main.executor": "Run",
     "Python.reloader_class.executor": "Debug",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "/scratch/grp66007/python/hdfmap/tests",
-    "settings.editor.selected.configurable": "com.intellij.pycharm.community.ide.impl.configuration.PythonContentEntriesConfigurable"
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/grp66007/OneDrive - Diamond Light Source Ltd/PythonProjects/hdfmap",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
 }]]></component>
-  <component name="RunManager" selected="Python.main">
+  <component name="PyConsoleOptionsProvider">
+    <option name="myPythonConsoleState">
+      <console-settings module-name="hdfmap" sdk-home="$USER_HOME$/AppData/Local/Programs/Python/Python312/python.exe">
+        <option name="sdk">
+          <Sdk />
+        </option>
+        <option name="mySdkHome" value="$USER_HOME$/AppData/Local/Programs/Python/Python312/python.exe" />
+        <option name="mySdk">
+          <Sdk />
+        </option>
+        <option name="myModuleName" value="hdfmap" />
+      </console-settings>
+    </option>
+  </component>
+  <component name="RunManager" selected="Python.check_files">
+    <configuration name="check_files" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="hdfmap" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/check_files.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="hdfmap" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
       <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src" />
       <option name="IS_MODULE_SDK" value="true" />
@@ -98,6 +141,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.check_files" />
         <item itemvalue="Python.reloader_class" />
       </list>
     </recent_temporary>
@@ -105,7 +149,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-5b207ade9991-746f403e7f0c-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-241.17890.14" />
+        <option value="bundled-python-sdk-0509580d9d50-746f403e7f0c-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-241.14494.241" />
       </set>
     </attachedChunks>
   </component>

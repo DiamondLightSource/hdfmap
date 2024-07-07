@@ -131,6 +131,7 @@ class HdfMap:
         self.scannables = {}  # stores array dataset addresses with given size, by name
         self.combined = {}  # stores array and value addresses (arrays overwrite values)
         self.image_data = {}  # stores dataset addresses of image data
+        self._default_image_address = None
 
     def __getitem__(self, item):
         return self.get_address(item)
@@ -278,12 +279,18 @@ class HdfMap:
         self._load_defaults(hdf_file)
         self._populate(hdf_file)
 
-    def generate_scannables_from_group(self, hdf_group: h5py.Group):
+    def generate_scannables_from_group(self, hdf_group: h5py.Group, group_address: str = None):
         """Generate scannables list from a specific group, using the first item to define array size"""
         first_dataset = hdf_group[next(iter(hdf_group.keys()))]
         array_size = first_dataset.size
-        self._populate(hdf_group, top_address=hdf_group.name, recursive=False)
-        self.scannables = {k: hdf_group[k].name for k in hdf_group if hdf_group[k].size == array_size}
+        # watch out - hdf_group.name may not point to a location in the file!
+        address = hdf_group.name if group_address is None else group_address
+        self._populate(hdf_group, top_address=address, recursive=False)
+        self.scannables = {
+            k: address + SEP + k
+            for k in hdf_group
+            if hdf_group[k].size == array_size
+        }
         self.generate_combined()
 
     def generate_combined(self):
@@ -345,6 +352,8 @@ class HdfMap:
             return name_or_address
         if name_or_address in self.combined:
             return self.combined[name_or_address]
+        if name_or_address in self.image_data:
+            return self.image_data[name_or_address]
         if name_or_address in self.classes:
             return self.classes[name_or_address][0]
 
@@ -407,8 +416,21 @@ class HdfMap:
             return attrs[attr_label]
         return default
 
+    def set_image_address(self, name_or_address: str):
+        """Set the default image address, used by get_image"""
+        if name_or_address is None:
+            self._default_image_address = None
+        else:
+            address = self.get_address(name_or_address)
+            if address:
+                self._default_image_address = address
+        if self._debug:
+            self._debug_logger(f"Default image address: {self._default_image_address}")
+
     def get_image_address(self) -> str | None:
         """Return HDF address of first dataset in self.image_data"""
+        if self._default_image_address:
+            return self._default_image_address
         if self.image_data:
             return next(iter(self.image_data.values()))
 
@@ -458,7 +480,7 @@ class HdfMap:
         if self._debug:
             self._debug_logger(f"image address: {image_address}")
         if image_address and image_address in hdf_file:
-            return hdf_file[image_address][index]
+            return hdf_file[image_address][index].squeeze()  # remove trailing dimensions
 
     def _get_scannables(self, hdf_file: h5py.File) -> list[tuple[str, str]]:
         """Return numeric scannables available in file"""

@@ -117,7 +117,12 @@ class NexusMap(HdfMap):
 
         for entry in entries:
             # find default or first entry
-            nx_entry = hdf_file[entry]
+            nx_entry = hdf_file.get(entry)
+            if nx_entry is None:
+                if self._debug:
+                    self._debug_logger(f"NX Entry {entry} doesn't exist - may be a missing link.")
+                    self._debug_logger(f"Missing link: {hdf_file.get(entry, getlink=True)}")
+                continue  # group may be missing due to a broken link
             address = SEP + entry
             if self._debug:
                 self._debug_logger(f"NX Entry: {address}")
@@ -130,6 +135,9 @@ class NexusMap(HdfMap):
                     self._debug_logger(f"NX Data: {nx_data.name}")
                 self.generate_scannables_from_group(nx_data)
 
+        if self._debug and not self.scannables:
+            self._debug_logger("!!!Warning: No NXdata found, scannables not populated!")
+
         # find the NXdetector group and assign the image data
         if NX_DETECTOR in self.classes:
             for class_address in self.classes[NX_DETECTOR]:
@@ -137,11 +145,13 @@ class NexusMap(HdfMap):
                 if self._debug:
                     self._debug_logger(f"NX Detector: {dataset_address} : {hdf_file.get(dataset_address)}")
                 if dataset_address in hdf_file:
-                    self.image_data[NX_DETECTOR] = dataset_address  # last NXdetector
+                    if NX_DETECTOR not in self.image_data:
+                        self.image_data[NX_DETECTOR] = dataset_address  # first NXdetector
                     self.image_data['_'.join(dataset_address.split('/')[-2:])] = dataset_address  # e.g. pil3_100k_data
 
     def get_image_address(self) -> str | None:
         """Return address of first dataset named 'data'"""
+        if self._default_image_address:
+            return self._default_image_address
         if NX_DETECTOR in self.image_data:
             return self.image_data[NX_DETECTOR]
-
