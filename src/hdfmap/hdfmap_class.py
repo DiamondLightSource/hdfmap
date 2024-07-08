@@ -531,7 +531,7 @@ class HdfMap:
         ])
         return out
 
-    def get_data_object(self, hdf_file: h5py.File) -> _DictObj:
+    def get_data_block(self, hdf_file: h5py.File) -> _DictObj:
         """
         Return data object
             data_object.scannable -> array

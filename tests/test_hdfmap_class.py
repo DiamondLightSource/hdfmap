@@ -75,7 +75,7 @@ class TestHdfMap(TestCase):
 
     def test_get_data_object(self):
         with hdfmap.load_hdf(FILE_HKL) as hdf:
-            d = self.map.get_data_object(hdf)
+            d = self.map.get_data_block(hdf)
             self.assertEqual(d.metadata.filepath, FILE_HKL, "Filename not included in data object metadata")
             self.assertEqual(int(100*d.metadata.en), 358, "metadata energy is wrong")
             self.assertEqual(d.h.shape, (101, ), "scannable h is wrong shape")
