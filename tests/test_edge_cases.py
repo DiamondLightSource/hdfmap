@@ -1,7 +1,5 @@
-"""
-hdfmap example
-"""
-
+from unittest import TestCase
+import h5py
 import hdfmap
 
 
@@ -29,3 +27,20 @@ def check_nexus(*args, **kwargs):
         print(f"       image: {image.shape if image is not None else None}")
     print(f"\n")
     return mymap
+
+
+FILES = []
+FOLDERS = []
+
+
+class Test(TestCase):
+
+    def setUp(self):
+        self.files = [file for file in FILES if h5py.is_hdf5(file)]
+        for folder in FOLDERS:
+            self.files += hdfmap.list_files(folder)
+
+    def test_edge_cases(self):
+        for file in self.files:
+            mymap = check_nexus(file)
+            self.assertIsInstance(mymap, hdfmap.NexusMap, f"{file} is not NexusMap")

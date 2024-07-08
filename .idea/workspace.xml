@@ -4,14 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4a4c2dfc-1537-4c6a-8899-ef3e92d66874" name="Changes" comment="added dataloader_class.py, added get_metadata, get_scannables to hdfmap">
-      <change afterPath="$PROJECT_DIR$/check_files.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/hdfmap.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/hdfmap.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="4a4c2dfc-1537-4c6a-8899-ef3e92d66874" name="Changes" comment="check against i13 data&#10;more fixes, tests passed">
+      <change afterPath="$PROJECT_DIR$/tests/test_edge_cases.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/check_files.py" beforeDir="false" afterPath="$PROJECT_DIR$/check_files.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/hdfmap/file_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/hdfmap/file_functions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hdfmap/hdfmap_class.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/hdfmap/hdfmap_class.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/hdfmap/nexus.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/hdfmap/nexus.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,18 +46,19 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.check_files.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.reloader_class.executor": "Debug",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "ignore.virus.scanning.warn.message": "true",
-    "last_opened_file_path": "C:/Users/grp66007/OneDrive - Diamond Light Source Ltd/PythonProjects/hdfmap",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python tests.Python tests in tests.executor&quot;: &quot;Debug&quot;,
+    &quot;Python.check_files.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.reloader_class.executor&quot;: &quot;Debug&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/grp66007/OneDrive - Diamond Light Source Ltd/PythonProjects/hdfmap&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
-}]]></component>
+}</component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
       <console-settings module-name="hdfmap" sdk-home="$USER_HOME$/AppData/Local/Programs/Python/Python312/python.exe">
@@ -139,9 +137,25 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="Python tests in tests" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
+      <module name="hdfmap" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
     <recent_temporary>
       <list>
         <item itemvalue="Python.check_files" />
+        <item itemvalue="Python tests.Python tests in tests" />
         <item itemvalue="Python.reloader_class" />
       </list>
     </recent_temporary>
@@ -194,13 +208,22 @@
       <option name="project" value="LOCAL" />
       <updated>1719933503776</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="check against i13 data&#10;more fixes, tests passed">
+      <option name="closed" value="true" />
+      <created>1720366355704</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1720366355704</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="initial_commit" />
     <MESSAGE value="building functionality" />
     <MESSAGE value="added dataloader_class.py, added get_metadata, get_scannables to hdfmap" />
-    <option name="LAST_COMMIT_MESSAGE" value="added dataloader_class.py, added get_metadata, get_scannables to hdfmap" />
+    <MESSAGE value="check against i13 data&#10;more fixes, tests passed" />
+    <option name="LAST_COMMIT_MESSAGE" value="check against i13 data&#10;more fixes, tests passed" />
   </component>
 </project>

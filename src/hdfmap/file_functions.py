@@ -19,10 +19,13 @@ def load_hdf(hdf_filename: str) -> h5py.File:
 
 def list_files(folder_directory: str, extension=DEFAULT_EXTENSION) -> list[str]:
     """Return list of files in directory with extension, returning list of full file paths"""
-    return sorted(
-        (file.path for file in os.scandir(folder_directory) if file.is_file() and file.name.endswith(extension)),
-        key=lambda x: os.path.getmtime(x)
-    )
+    try:
+        return sorted(
+            (file.path for file in os.scandir(folder_directory) if file.is_file() and file.name.endswith(extension)),
+            key=lambda x: os.path.getmtime(x)
+        )
+    except FileNotFoundError:
+        return []
 
 
 def list_path_time_files(directory: str, extension=DEFAULT_EXTENSION) -> list[tuple[str, float, int]]:
