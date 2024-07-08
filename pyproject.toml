@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools >= 61.0", "wheel", "numpy", "h5py", "hdf5plugin"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hdfmap"
+version = "0.2"
+dependencies = [
+  "numpy",
+  "h5py",
+  "hdf5plugin",
+]
+requires-python = ">=3.10"
+authors = [
+  {name = "Dan Porter", email = "d.g.porter@outlook.com"},
+]
+maintainers = [
+  {name = "Dan Porter", email = "d.g.porter@outlook.com"},
+]
+description = "Map objects within a HDF file and create a dataset namespace"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = [
+  'nexus',
+]
+classifiers = [
+  'Programming Language :: Python :: 3.10',
+  'Intended Audience :: Science/Research',
+  'Topic :: Scientific/Engineering :: Physics',
+  'License :: OSI Approved :: Apache Software License',
+  'Development Status :: 3 - Alpha',
+]
+
+[project.urls]
+Homepage = "https://github.com/DanPorter/hdfmap"
+Documentation = "https://github.com/DanPorter/hdfmap"
+Repository = "https://github.com/DanPorter/hdfmap"
+"Bug Tracker" = "https://github.com/DanPorter/hdfmap"
+Changelog = "https://github.com/DanPorter/hdfmap/blob/master/README.md"
+
+[project.scripts]
+dansdiffraction = "Dans_Diffraction:start_gui"
+
+[project.gui-scripts]
+dansdiffraction = "Dans_Diffraction:start_gui"

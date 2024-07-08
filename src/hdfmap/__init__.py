@@ -15,7 +15,7 @@ from .reloader_class import HdfReloader
 
 
 __version__ = "0.2.0"
-__date__ = "2024/07/05"
+__date__ = "2024/07/08"
 
 
 def version_info():
