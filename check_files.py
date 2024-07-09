@@ -29,3 +29,23 @@ def check_nexus(*args, **kwargs):
         print(f"       image: {image.shape if image is not None else None}")
     print(f"\n")
     return mymap
+
+
+if __name__ == '__main__':
+    # import os
+    # check_nexus(os.path.dirname(__file__) + '/tests/data/1040323.nxs')
+    # mymap = check_nexus('/dls/i06/data/2024/mm32821-10/i06-343988.nxs')
+    mymap = check_nexus('/dls/science/groups/das/ExampleData/hdfmap_tests/i13/i13-1-368910.nxs')
+
+    # from tkinter import filedialog
+    #
+    # filename = filedialog.askopenfilename(
+    #     title='Select file to open',
+    #     initialdir='/dls/i16/data',
+    #     filetypes=[('NXS file', '.nxs'),
+    #                ('HDF file', '.h5'), ('HDF file', '.hdf'), ('HDF file', '.hdf5'),
+    #                ('All files', '.*')]
+    # )
+    # if filename:
+    #     check_nexus(filename)
+
