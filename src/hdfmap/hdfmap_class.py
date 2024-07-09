@@ -344,7 +344,7 @@ class HdfMap:
         self.scannables = {
             k: build_address(address, k)
             for k in hdf_group
-            if hdf_group[k].size == array_size
+            if isinstance(hdf_group[k], h5py.Dataset) and hdf_group[k].size == array_size
         }
         self.generate_combined()
 
