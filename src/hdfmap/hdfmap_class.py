@@ -81,11 +81,11 @@ class HdfMap:
             outstr = map.format(hdf, 'the data looks like: {data}')
 
     Objects within the HDF file are separated into Groups and Datasets. Each object has a
-    defined 'address' and 'name paramater, as well as other attributes
+    defined 'address' and 'name' paramater, as well as other attributes
         address -> '/entry/measurement/data' -> the location of an object within the file
         name -> 'data' -> an address expressed as a simple variable name
     Address are unique location within the file but can be used to identify similar objects in other files
-    Names may not be unique within a file and generated from the address.
+    Names may not be unique within a file and are generated from the address.
 
     Names of different types of datasets are stored for arrays (size > 0) and values (size 0)
     Names for scannables relate to all arrays of a particular size
@@ -116,10 +116,10 @@ class HdfMap:
         map.get_size('name_or_address') -> return dataset size
         map.get_shape('name_or_address') -> return dataset size
         map.get_attr('name_or_address', 'attr') -> return value of dataset attribute
-        map.get_address('name') -> returns address of dataset name
-        map.get_image_address() -> returns address of detector dataset
-        map.get_class_address('class name') -> return address of group with class
-        map.get_class_datasets('class name') -> return list of dataset addresses in class
+        map.get_address('name_or_group_or_class') -> returns address of object with name
+        map.get_image_address() -> returns default address of detector dataset (or largest dataset)
+        map.get_group_address('name_or_address_or_class') -> return address of group with class
+        map.get_group_datasets('name_or_address_or_class') -> return list of dataset addresses in class
     File Methods:
         map.get_metadata(h5py.File) -> returns dict of value datasets
         map.get_scannables(h5py.File) -> returns dict of scannable datasets
@@ -335,7 +335,11 @@ class HdfMap:
         self.generate_combined()
 
     def generate_scannables_from_group(self, hdf_group: h5py.Group, group_address: str = None):
-        """Generate scannables list from a specific group, using the first item to define array size"""
+        """
+        Generate scannables list from a specific group, using the first item to define array size
+        :param hdf_group: h5py.Group
+        :param group_address: str address of group hdf_group if hdf_group.name is incorrect
+        """
         first_dataset = hdf_group[next(iter(hdf_group.keys()))]
         array_size = first_dataset.size
         # watch out - hdf_group.name may not point to a location in the file!
@@ -343,8 +347,19 @@ class HdfMap:
         self._populate(hdf_group, top_address=address, recursive=False)
         self.scannables = {
             k: build_address(address, k)
-            for k in hdf_group
-            if isinstance(hdf_group[k], h5py.Dataset) and hdf_group[k].size == array_size
+            for k in hdf_group if isinstance(hdf_group[k], h5py.Dataset) and hdf_group[k].size == array_size
+        }
+        self.generate_combined()
+
+    def generate_scannables_from_names(self, names: list[str]):
+        """Generate scannables list from a set of dataset names, using the first item to define array size"""
+        # concert names or addresses to name (to match altname)
+        array_names = [address2name(name) for name in names if address2name(name) in self.arrays]
+        if self._debug:
+            self._debug_logger(f"Scannables from names: {array_names}")
+        array_size = self.datasets[self.arrays[array_names[0]]][1]
+        self.scannables = {
+            name: self.arrays[name] for name in array_names if self.datasets[self.arrays[name]][1] == array_size
         }
         self.generate_combined()
 
@@ -573,4 +588,3 @@ class HdfMap:
         :return: eval_hdf(f"expression")
         """
         return format_hdf(hdf_file, expression, self.combined, self._debug)
-

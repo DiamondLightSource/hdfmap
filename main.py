@@ -8,9 +8,10 @@ import h5py
 import hdfmap
 
 
-nxs_file = '../tests/data/1049598.nxs'
-new_file = '../tests/data/1040323.nxs'
+nxs_file = 'tests/data/1049598.nxs'
+new_file = 'tests/data/1040323.nxs'
 
+new_map = hdfmap.create_nexus_map(new_file)
 nxs_map = hdfmap.create_nexus_map(nxs_file, groups=['instrument', 'sample'])
 print(nxs_map)
 print(nxs_map.info_scannables())

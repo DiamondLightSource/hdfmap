@@ -11,7 +11,11 @@ from .file_functions import load_hdf, create_hdf_map
 
 class HdfReloader:
     """
-    Hdf Reloader
+    HDF Reloader
+    contains the filename and hdfmap for a HDF file, the hdfmap contains all the dataset addresses and a
+    namespace, allowing data to be called from the file using variable names, loading only the required datasets
+    for each operation.
+    E.G.
         hdf = HdfReloader('file.hdf')
         [data1, data2] = hdf.get_data(['dataset_name_1', 'dataset_name_2'])
         data = hdf.eval('dataset_name_1 * 100 + 2')
@@ -53,6 +57,14 @@ class HdfReloader:
         if name_or_address.size == 1:
             return out[0]
         return out
+
+    def get_metadata(self, defaults=None):
+        with self._load() as hdf:
+            return self.map.get_metadata(hdf, default=defaults)
+
+    def get_scannables(self):
+        with self._load() as hdf:
+            return self.map.get_scannables(hdf)
 
     def eval(self, expression: str):
         with self._load() as hdf:

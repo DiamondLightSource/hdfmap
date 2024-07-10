@@ -1,2 +1,4 @@
 ;;directories to ignore
 .idea/
+.build/
+.src/hdfmap.egg-info

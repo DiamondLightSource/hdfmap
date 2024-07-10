@@ -10,7 +10,7 @@ from .hdfmap_class import HdfMap, build_address
 NX_LOCALNAME = 'local_name'
 NX_DEFAULT = 'default'
 NX_MEASUREMENT = 'measurement'
-NX_SCAN_SHAPE_ADDRESS = 'entry1/scan_shape'
+NX_SCANFIELDS = 'scan_fields'
 NX_SIGNAL = 'signal'
 NX_AXES = 'axes'
 NX_DETECTOR = 'NXdetector'
@@ -48,7 +48,7 @@ def get_nexus_axes_datasets(hdf_file: h5py.File) -> tuple[list[str], str]:
     return axes_addresses, signal_address
 
 
-def get_strict_nexus_axes_datasets(hdf_object: h5py.File) -> tuple[list[h5py.Dataset], h5py.Dataset]:
+def get_strict_nexus_axes_datasets(hdf_file: h5py.File) -> tuple[list[h5py.Dataset], h5py.Dataset]:
     """
     Nexus compliant method of finding default plotting axes in hdf files
      - find "default" entry group in top File group
@@ -58,13 +58,13 @@ def get_strict_nexus_axes_datasets(hdf_object: h5py.File) -> tuple[list[h5py.Dat
      - generate addresses of signal and axes
      if not nexus compliant, raises KeyError
     This method is very fast but only works on nexus compliant files
-    :param hdf_object: open HDF file object, i.e. h5py.File(...)
+    :param hdf_file: open HDF file object, i.e. h5py.File(...)
     :return axes_datasets: list of dataset objects for axes
     :return signal_dataset: dataset object for plot axis
     """
     # From: https://manual.nexusformat.org/examples/python/plotting/index.html
     # find the default NXentry group
-    nx_entry = hdf_object[hdf_object.attrs["default"]]
+    nx_entry = hdf_file[hdf_file.attrs["default"]]
     # find the default NXdata group
     nx_data = nx_entry[nx_entry.attrs["default"]]
     # find the axes field(s)
@@ -75,6 +75,12 @@ def get_strict_nexus_axes_datasets(hdf_object: h5py.File) -> tuple[list[h5py.Dat
     # find the signal field
     signal_dataset = nx_data[nx_data.attrs["signal"]]
     return axes_datasets, signal_dataset
+
+
+def get_nexus_scannables(hdf_file: h5py.File) -> list[str]:
+    """
+
+    """
 
 
 class NexusMap(HdfMap):
@@ -143,12 +149,20 @@ class NexusMap(HdfMap):
             self._store_group(nx_entry, address, entry)
             self._populate(nx_entry, top_address=address, groups=groups)  # nx_entry.name can be wrong!
 
-            # find the default NXdata group and generate the scannables list
-            nx_data = nx_entry.get(nx_entry.attrs[NX_DEFAULT] if NX_DEFAULT in nx_entry.attrs else NX_MEASUREMENT)
-            if nx_data:
+            # find 'scan_fields' to generate scannables list
+            if NX_SCANFIELDS in self.arrays:
+                scan_fields_address = self.arrays[NX_SCANFIELDS]
+                scan_fields = hdf_file[scan_fields_address][()]
                 if self._debug:
-                    self._debug_logger(f"NX Data: {nx_data.name}")
-                self.generate_scannables_from_group(nx_data)
+                    self._debug_logger(f"NX ScanFields: {scan_fields_address}: {scan_fields}")
+                self.generate_scannables_from_names(scan_fields)
+            else:
+                # find the default NXdata group and generate the scannables list
+                nx_data = nx_entry.get(nx_entry.attrs[NX_DEFAULT] if NX_DEFAULT in nx_entry.attrs else NX_MEASUREMENT)
+                if nx_data:
+                    if self._debug:
+                        self._debug_logger(f"NX Data: {nx_data.name}")
+                    self.generate_scannables_from_group(nx_data)
 
         if self._debug and not self.scannables:
             self._debug_logger("!!!Warning: No NXdata found, scannables not populated!")

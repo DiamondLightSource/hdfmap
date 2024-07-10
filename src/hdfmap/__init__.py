@@ -1,5 +1,31 @@
 """
 hdfmap
+Map objects within an HDF file and create a dataset namespace.
+
+--- Usage ---
+# HdfMap from NeXus file:
+from hdfmap import create_nexus_map, load_hdf
+hmap = create_nexus_map('file.nxs')
+with load_hdf('file.nxs') as nxs:
+    address = hmap.get_address('energy')
+    energy = nxs[address][()]
+    string = hmap.format_hdf(nxs, "the energy is {energy:.2f} keV")
+    d = hmap.get_data_block(nxs)  # classic data table, d.scannable, d.metadata
+
+# Shortcuts - single file reloader class
+from hdfmap import HdfReloader
+hdf = HdfReloader('file.hdf')
+[data1, data2] = hdf.get_data(['dataset_name_1', 'dataset_name_2'])
+data = hdf.eval('dataset_name_1 * 100 + 2')
+string = hdf.format('my data is {dataset_name_1:.2f}')
+
+# Shortcuts - multifile load data
+from hdfmap import hdf_data, hdf_eval, hdf_format, hdf_image
+all_data = hdf_data([f'file{n}.nxs' for n in range(100)], 'dataset_name')
+normalised_data = hdf_eval(filenames, 'total / Transmission / (rc / 300.)')
+descriptions = hdf_eval(filenames, 'Energy: {en:5.3f} keV')
+image_stack = hdf_image(filenames, index=31)
+
 
 By Dr Dan Porter
 Diamond Light Source Ltd
@@ -9,20 +35,20 @@ Diamond Light Source Ltd
 
 from .hdfmap_class import HdfMap
 from .nexus import NexusMap
-from .file_functions import load_hdf, create_hdf_map, create_nexus_map
-from .file_functions import hdf_data, hdf_image, hdf_eval, hdf_format, list_files
+from .file_functions import list_files, load_hdf, create_hdf_map, create_nexus_map
+from .file_functions import hdf_data, hdf_image, hdf_eval, hdf_format, nexus_data_block
 from .reloader_class import HdfReloader
 
 
-__version__ = "0.2.0"
-__date__ = "2024/07/08"
+__version__ = "0.3.0"
+__date__ = "2024/07/10"
 
 
-def version_info():
+def version_info() -> str:
     return 'hdfmap version %s (%s)' % (__version__, __date__)
 
 
-def module_info():
+def module_info() -> str:
     import sys
     out = 'Python version %s' % sys.version
     out += '\n at: %s' % sys.executable

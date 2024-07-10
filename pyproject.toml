@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hdfmap"
-version = "0.2"
+version = "0.3"
 dependencies = [
   "numpy",
   "h5py",
@@ -12,10 +12,10 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 authors = [
-  {name = "Dan Porter", email = "d.g.porter@outlook.com"},
+  {name = "Dan Porter", email = "dan.porter@diamond.ac.uk"},
 ]
 maintainers = [
-  {name = "Dan Porter", email = "d.g.porter@outlook.com"},
+  {name = "Dan Porter", email = "dan.porter@diamond.ac.uk"},
 ]
 description = "Map objects within a HDF file and create a dataset namespace"
 readme = "README.md"
@@ -38,8 +38,4 @@ Repository = "https://github.com/DanPorter/hdfmap"
 "Bug Tracker" = "https://github.com/DanPorter/hdfmap"
 Changelog = "https://github.com/DanPorter/hdfmap/blob/master/README.md"
 
-[project.scripts]
-dansdiffraction = "Dans_Diffraction:start_gui"
 
-[project.gui-scripts]
-dansdiffraction = "Dans_Diffraction:start_gui"
