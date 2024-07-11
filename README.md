@@ -34,6 +34,12 @@ descriptions = hdf_format(filenames, 'Energy: {en:5.3f} keV')
 image_stack = hdf_image(filenames, index=31)
 ```
 
+### Installation
+*Requires:* Python >=3.10, Numpy, h5py
+```bash
+python -m pip install --upgrade git+https://github.com/DanPorter/hdfmap.git
+```
+
 ### Description
 Another generic hdf reader but the idea here is to build up a namespace dict of `{'name': 'address'}` 
 for every dataset, then group them in hopefully a useful way. 

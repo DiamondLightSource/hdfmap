@@ -28,6 +28,11 @@ class TestHdfMap(TestCase):
         self.map.generate_scannables(3)
         self.assertEqual(self.map.scannables_length(), 3, "Scannable size should be 3")
 
+    # def test_get_item(self):
+    #     self.assertEqual(self.map['sum'], '/entry1/measurement/sum', '__get_item__ failed')
+    #     self.assertEqual('sum' in self.map, True, '__contains__ failed')
+    #     self.assertEqual(len([address for address in self.map]), 10, '__iter__ failed')
+
     def test_get_address(self):
         self.assertEqual(self.map.get_address('/entry1/measurement/sum'), '/entry1/measurement/sum',
                          'address is wrong')

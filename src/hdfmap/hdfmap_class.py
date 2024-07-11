@@ -146,7 +146,8 @@ class HdfMap:
         self._default_image_address = None
 
     def __getitem__(self, item):
-        return self.get_address(item)
+        # TODO: make this work correctly for __contains__, __getitem__ and __iter__
+        return self.combined[item]
 
     def __repr__(self):
         return f"HdfMap based on '{self.filename}'"
@@ -220,6 +221,7 @@ class HdfMap:
             nx_class = hdf_group.attrs['NX_class']
         except OSError:
             nx_class = 'NoClass'  # if object doesn't have attrs
+        # TODO: replace groups tuple with Group class
         self.groups[address] = (
             nx_class,
             name,
@@ -239,6 +241,7 @@ class HdfMap:
         return nx_class
 
     def _store_dataset(self, hdf_dataset: h5py.Dataset, address: str, name: str, altname: str):
+        # TODO: replace datasets tuple with Dataset class
         self.datasets[address] = (name, hdf_dataset.size, hdf_dataset.shape, dict(hdf_dataset.attrs))
         if hdf_dataset.ndim >= 3:
             det_name = f"{address.split(SEP)[-2]}_{name}"
