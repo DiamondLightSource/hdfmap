@@ -5,6 +5,9 @@ hdfmap example
 import hdfmap
 
 
+# hdfmap.set_logging_levels('info')
+
+
 def check_nexus(*args, **kwargs):
     mymap = hdfmap.create_nexus_map(*args, **kwargs)
     print(f"\n{repr(mymap)}")
@@ -15,7 +18,7 @@ def check_nexus(*args, **kwargs):
     print(f"scan_command: {mymap['scan_command']}")
     print(f"        axes: {mymap['axes']}")
     print(f"      signal: {mymap['signal']}")
-    print(f"       image: {mymap.get_image_address()}")
+    print(f"       image: {mymap.get_image_path()}")
     print('Data:')
     with hdfmap.load_hdf(mymap.filename) as hdf:
         cmd = mymap.get_data(hdf, 'scan_command')
@@ -33,8 +36,8 @@ def check_nexus(*args, **kwargs):
 if __name__ == '__main__':
     # import os
     # check_nexus(os.path.dirname(__file__) + '/tests/data/1040323.nxs')
-    # mymap = check_nexus('/dls/i06/data/2024/mm32821-10/i06-343988.nxs')
-    mymap = check_nexus('/dls/science/groups/das/ExampleData/hdfmap_tests/i13/i13-1-368910.nxs')
+    mymap = check_nexus('/dls/i06/data/2024/mm32821-10/i06-343988.nxs')
+    # mymap = check_nexus('/dls/science/groups/das/ExampleData/hdfmap_tests/i13/i13-1-368910.nxs')
 
     # from tkinter import filedialog
     #
