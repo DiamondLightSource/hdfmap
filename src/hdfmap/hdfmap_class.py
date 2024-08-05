@@ -494,13 +494,14 @@ class HdfMap:
 
     def get_data(self, hdf_file: h5py.File, name_or_path: str, index=(), default=None, direct_load=False):
         """
-        Return data from dataset in file
+        Return data from dataset in file, converted into either datetime, str or squeezed numpy.array objects
+        See hdfmap.eval_functions.dataset2data for more information.
         :param hdf_file: hdf file object
         :param name_or_path: str name or path pointing to dataset in hdf file
         :param index: index or slice of data in hdf file
         :param default: value to return if name not found in hdf file
         :param direct_load: return str, datetime or squeezed array if False, otherwise load data directly
-        :return: dataset[()]
+        :return: dataset2data(dataset) -> datetime, str or squeezed array as required.
         """
         path = self.get_path(name_or_path)
         if path and path in hdf_file:

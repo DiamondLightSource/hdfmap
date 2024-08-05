@@ -1,7 +1,7 @@
 # hdfmap
 Map objects within an HDF file and create a dataset namespace.
 
-**Version 0.3**
+**Version 0.5**
 
 | By Dan Porter        | 
 |----------------------|
@@ -14,12 +14,18 @@ Map objects within an HDF file and create a dataset namespace.
 from hdfmap import create_nexus_map, load_hdf
 
 # HdfMap from NeXus file:
-hmap = create_nexus_map('file.nxs')
+m = create_nexus_map('file.nxs')
+m['energy']  # >> '/entry/instrument/monochromator/energy'
+m['signal']  # >> '/entry/measurement/sum'
+m['axes']  # >> '/entry/measurement/theta'
+m.get_image_path()  # >> '/entry/instrument/pil3_100k/data'
+
 with load_hdf('file.nxs') as nxs:
-    path = hmap.get_path('energy')
-    energy = nxs[path][()]
-    string = hmap.format_hdf(nxs, "the energy is {energy:.2f} keV")
-    d = hmap.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
+    path = m.get_path('scan_command')
+    cmd = nxs[path][()]  # returns bytes data direct from file
+    cmd = m.get_data(nxs, 'scan_command')  # returns converted str output
+    string = m.format_hdf(nxs, "the energy is {energy:.2f} keV")
+    d = m.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
 
 # Shortcuts - single file reloader class
 from hdfmap import NexusLoader
