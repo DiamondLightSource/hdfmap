@@ -8,8 +8,8 @@ from .logging import create_logger
 from .hdfmap_class import HdfMap, build_hdf_path, generate_identifier
 
 NX_CLASS = 'NX_class'
-NX_ENTRY = b'NXentry'
-NX_DATA = b'NXdata'
+NX_ENTRY = 'NXentry'
+NX_DATA = 'NXdata'
 NX_LOCALNAME = 'local_name'
 NX_DEFAULT = 'default'
 NX_MEASUREMENT = 'measurement'
@@ -21,14 +21,16 @@ NX_DETECTOR_DATA = 'data'
 logger = create_logger(__name__)
 
 
-def check_nexus_class(hdf_group: h5py.Group, nxclass: bytes) -> bool:
+def check_nexus_class(hdf_group: h5py.Group, nxclass: str) -> bool:
     """
     Check if hdf_group is a certain NX_class
-    :param hdf_group:
-    :param nxclass:
-    :return:
+    :param hdf_group: hdf or nexus group object
+    :param nxclass: str name in NX_class attribute
+    :return: True/False
     """
-    return True if hdf_group and NX_CLASS in hdf_group.attrs and hdf_group.attrs[NX_CLASS] == nxclass else False
+    return hdf_group and NX_CLASS in hdf_group.attrs and hdf_group.attrs.get(NX_CLASS) and (
+        group_class.decode() if isinstance(group_class := hdf_group.attrs.get(NX_CLASS), bytes) else group_class
+    ) == nxclass
 
 
 def default_nxentry(hdf_file: h5py.File) -> str | bytes:
@@ -74,7 +76,10 @@ def find_nexus_data(hdf_file: h5py.File) -> tuple[list[str], str]:
     else:
         axes_paths = [build_hdf_path(nx_entry_name, nx_data_name, _axes) for _axes in axes]
     # get the signal field
-    signal_path = build_hdf_path(nx_entry_name, nx_data_name, nx_data.attrs[NX_SIGNAL])
+    if NX_SIGNAL in nx_data.attrs:
+        signal_path = build_hdf_path(nx_entry_name, nx_data_name, nx_data.attrs[NX_SIGNAL])
+    else:
+        signal_path = build_hdf_path(nx_entry_name, nx_data_name, NX_DETECTOR_DATA)
     return axes_paths, signal_path
 
 
@@ -94,16 +99,16 @@ def find_nexus_data_strict(hdf_file: h5py.File) -> tuple[list[h5py.Dataset], h5p
     """
     # From: https://manual.nexusformat.org/examples/python/plotting/index.html
     # find the default NXentry group
-    nx_entry = hdf_file[hdf_file.attrs["default"]]
+    nx_entry = hdf_file[hdf_file.attrs[NX_DEFAULT]]
     # find the default NXdata group
-    nx_data = nx_entry[nx_entry.attrs["default"]]
+    nx_data = nx_entry[nx_entry.attrs[NX_DEFAULT]]
     # find the axes field(s)
-    if isinstance(nx_data.attrs["axes"], (str, bytes)):
-        axes_datasets = [nx_data[nx_data.attrs["axes"]]]
+    if isinstance(nx_data.attrs[NX_AXES], (str, bytes)):
+        axes_datasets = [nx_data[nx_data.attrs[NX_AXES]]]
     else:
-        axes_datasets = [nx_data[_axes] for _axes in nx_data.attrs["axes"]]
+        axes_datasets = [nx_data[_axes] for _axes in nx_data.attrs[NX_AXES]]
     # find the signal field
-    signal_dataset = nx_data[nx_data.attrs["signal"]]
+    signal_dataset = nx_data[nx_data.attrs[NX_SIGNAL]]
     return axes_datasets, signal_dataset
 
 

@@ -73,7 +73,7 @@ def test_get_data(hdf_map):
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         en = hdf['/entry1/before_scan/mono/en'][()]
         h = hdf['/entry1/measurement/h'][()]
-        cmd = hdf['/entry1/scan_command'][()].decode()
+        cmd = hdf['/entry1/scan_command'].asstr()[()]
         assert hdf_map.get_data(hdf, 'en') == en, "'en' produces wrong result"
         assert (hdf_map.get_data(hdf, 'h') == h).all(), "'h' produces wrong result"
         assert hdf_map.get_data(hdf, 'scan_command')[:8] == cmd[:8], "'cmd' produces wrong result"
@@ -81,7 +81,7 @@ def test_get_data(hdf_map):
 
 def test_get_image(hdf_map):
     with hdfmap.load_hdf(FILE_HKL) as hdf:
-        assert hdf_map.get_image(hdf, None).shape == (195, 487)
+        assert hdf_map.get_image(hdf).shape == (195, 487)
 
 
 def test_get_dataholder(hdf_map):

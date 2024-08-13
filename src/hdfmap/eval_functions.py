@@ -45,7 +45,7 @@ def round_string_floats(string):
 
 def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=False) -> datetime.datetime | str | np.ndarray:
     """
-    Read the data from a h5py Dataset and convert to a typical
+    Read the data from a h5py Dataset and convert to a either datetime, str or squeezed numpy array
     :param dataset: h5py.Dataset containing data
     :param index: index of array (not used if dataset is string/ bytes type)
     :param direct_load: loads the data directly without conversion if True
@@ -64,6 +64,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
             return round_string_floats(data)  # str
     except TypeError:
         # float or array
+        # TODO: convert bytes arrays to str arrays (check if dataset.asstr doesn't already do this)
         return np.squeeze(dataset[index])  # np.ndarray
 
 

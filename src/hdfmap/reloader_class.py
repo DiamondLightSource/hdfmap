@@ -78,7 +78,6 @@ class HdfLoader:
         :param direct_load: return str, datetime or squeezed array if False, otherwise load data directly
         :return: dataset2data(dataset) -> datetime, str or squeezed array as required.
         """
-        name_or_path = np.reshape(name_or_path, -1)
         with self._load() as hdf:
             out = [self.map.get_data(hdf, name, index, default, direct_load) for name in name_or_path]
         if name_or_path.size == 1:

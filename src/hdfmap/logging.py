@@ -9,25 +9,16 @@ import logging
 # Setup config - doesn't work properly without this
 logging.basicConfig()   # setup logging
 
-LEVELS = {
-    'notset': logging.NOTSET,
-    'debug': logging.DEBUG,
-    'info': logging.INFO,
-    'warning': logging.WARNING,
-    'error': logging.ERROR,
-    'critical': logging.CRITICAL
-}
-
 
 def create_logger(name: str) -> logging.Logger:
     """Create new logger instance"""
     return logging.getLogger(name)
 
 
-def set_logging_levels(level: str | int):
+def set_all_logging_level(level: str | int):
     """
     Set logging level of all loggers
-    Logging Levels
+    Logging Levels (see builtin module logging)
         'notset'   |  0
         'debug'    |  10
         'info'     |  20
@@ -38,8 +29,8 @@ def set_logging_levels(level: str | int):
     :return: None
     """
     try:
-        level = level.lower()
-        level = LEVELS[level]
+        level = level.upper()
+        level = logging.getLevelNamesMapping()[level]
     except AttributeError:
         level = int(level)
 

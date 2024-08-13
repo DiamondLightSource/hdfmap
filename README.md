@@ -1,7 +1,7 @@
 # hdfmap
 Map objects within an HDF file and create a dataset namespace.
 
-**Version 0.5**
+**Version 0.3**
 
 | By Dan Porter        | 
 |----------------------|

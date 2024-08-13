@@ -1,10 +1,10 @@
-import os
+from os import path
 import json
 import hdfmap
 
 
 # Edge case files, create this list from create_test_files.py
-TEST_FILES = os.path.join(os.path.dirname(__file__), 'data', 'test_files.json')
+TEST_FILES = path.join(path.dirname(__file__), 'data', 'test_files.json')
 with open(TEST_FILES, 'r') as f:
     CHECK_FILES = json.load(f)
 
@@ -12,7 +12,7 @@ with open(TEST_FILES, 'r') as f:
 def test_edge_cases():
     n = 0
     for chk in CHECK_FILES:
-        assert os.path.isfile(chk['filename']) is True, f"{chk['filename']} doesn't exist"
+        assert path.isfile(chk['filename']) is True, f"{chk['filename']} doesn't exist"
         mymap = hdfmap.create_nexus_map(chk['filename'])
         assert isinstance(mymap, hdfmap.NexusMap), f"{chk['filename']} is not NexusMap"
         assert len(mymap.combined) == chk['len_combined'], "{chk['filename']} has wrong size of combined"

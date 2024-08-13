@@ -5,7 +5,7 @@ import hdfmap
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
 FILE_NEW_NEXUS = DATA_FOLDER + '/1040323.nxs'  # new nexus format
 
-hdfmap.set_logging_levels('debug')
+hdfmap.set_all_logging_level('debug')
 
 
 

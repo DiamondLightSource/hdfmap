@@ -5,8 +5,8 @@ Test hdfmap
 import hdfmap
 
 
-nxs_file = 'tests/data/1049598.nxs'
-new_file = 'tests/data/1040323.nxs'
+nxs_file = '../tests/data/1049598.nxs'
+new_file = '../tests/data/1040323.nxs'
 
 format_string = '#{entry_identifier}: {start_time} : E={incident_energy:.3f} keV : {scan_command}'
 #hdf = hdfmap.load_hdf(nxs_file)

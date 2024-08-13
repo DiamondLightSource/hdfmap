@@ -3,6 +3,7 @@ hdfmap class definition
 """
 import typing
 from collections import defaultdict
+from types import SimpleNamespace
 
 import numpy as np
 import h5py
@@ -18,7 +19,8 @@ except ImportError:
 # parameters
 SEP = '/'  # HDF path separator
 LOCAL_NAME = 'local_name'  # dataset attribute name for alt_name
-VALUE = 'value'  # omit this name in paths when determining identifier
+OMIT = '/value'  # omit this name in paths when determining identifier
+
 # logger
 logger = create_logger(__name__)
 
@@ -55,9 +57,8 @@ def generate_identifier(hdf_path: str | bytes) -> str:
     """
     if hasattr(hdf_path, 'decode'):  # Byte string
         hdf_path = hdf_path.decode('ascii')
-    omit = f"/{VALUE}"
-    if hdf_path.endswith(omit):
-        hdf_path = hdf_path[:-len(omit)]  # omit 'value'
+    if hdf_path.endswith(OMIT):
+        hdf_path = hdf_path[:-len(OMIT)]  # omit 'value'
     substrings = hdf_path.split(SEP)
     name = expression_safe_name(substrings[-1])
     # remove replication (handles local_names 'name.name' convention)
@@ -78,31 +79,23 @@ def disp_dict(mydict: dict, indent: int = 10) -> str:
     return '\n'.join([f"{key:>{indent}}: {value}" for key, value in mydict.items()])
 
 
-class DataHolder(dict):
+class DataHolder(SimpleNamespace):
     """
     Convert dict to class that looks like a class object with key names as attributes
     Replicates slightly the old scisoftpy.dictutils.DataHolder class, also known as DLS dat format.
-        obj = DataHolder({'item1': 'value1'}, 'docs')
+        obj = DataHolder(**{'item1': 'value1'})
         obj['item1'] -> 'value1'
         obj.item1 -> 'value1'
-        help(obj) -> 'docs'
     """
 
-    def __init__(self, ini_dict: dict, docstr: str = None):
-        # copy dict
-        super().__init__(**ini_dict)
-        # assign attributes
-        for name, value in ini_dict.items():
-            setattr(self, name, value)
-        # update doc string
-        if docstr:
-            self.__doc__ = docstr
+    def __getitem__(self, item):
+        return self.__dict__.__getitem__(item)
 
-    def __repr__(self):
-        return "DataHolder({})"
+    def __iter__(self):
+        return self.__dict__.__iter__()
 
-    def __str__(self):
-        return f"DataHolder({{\n{disp_dict(self)}\n}})"
+    def keys(self):
+        return self.__dict__.keys()
 
 
 class HdfMap:
@@ -180,9 +173,10 @@ class HdfMap:
 
     def __init__(self, file: h5py.File | None = None):
         self.filename = ''
+        self.all_paths = []
         self.groups = {}  # stores attributes of each group by path
         self.datasets = {}  # stores attributes of each dataset by path
-        self.classes = defaultdict(lambda: [])  # stores lists of group paths by nx_class
+        self.classes = defaultdict(list)  # stores lists of group paths by nx_class
         self.arrays = {}  # stores array dataset paths by name
         self.values = {}  # stores value dataset paths by name
         self.scannables = {}  # stores array dataset paths with given size, by name
@@ -275,6 +269,8 @@ class HdfMap:
         return nx_class
 
     def _store_dataset(self, hdf_dataset: h5py.Dataset, hdf_path: str, name: str):
+        # TODO: add group_name to namespace as standard, helps with names like s5/x + s4/x
+        # group_name = f"{hdf_path.split(SEP)[-2]}_{name}"
         alt_name = generate_identifier(hdf_dataset.attrs[LOCAL_NAME]) if LOCAL_NAME in hdf_dataset.attrs else None
         self.datasets[hdf_path] = Dataset(name, hdf_dataset.size, hdf_dataset.shape, dict(hdf_dataset.attrs))
         if hdf_dataset.ndim >= 3:
@@ -314,6 +310,8 @@ class HdfMap:
             if obj is None:
                 continue  # dataset may be missing due to a broken link
             hdf_path = root + SEP + key  # build hdf path - a cross-file unique identifier
+            # TODO: store all paths in file, useful for checking if anything was missed, but might be slow
+            # self.all_paths.append(hdf_path)
             name = generate_identifier(hdf_path)
             logger.info(f"{hdf_path}:  {name}, link={repr(link)}")
 
@@ -447,7 +445,7 @@ class HdfMap:
             path for path, (_, _, attr, _) in self.groups.items() if attr_name in attr
         ]
 
-    def get_attrs(self, name_or_path: str) -> dict:
+    def get_attrs(self, name_or_path: str) -> dict | None:
         """Return attributes of dataset or group"""
         if name_or_path in self.datasets:
             return self.datasets[name_or_path].attrs
@@ -458,7 +456,7 @@ class HdfMap:
         if name_or_path in self.classes:
             return self.groups[self.classes[name_or_path][0]].attrs
 
-    def get_attr(self, name_or_path: str, attr_label: str, default: str | typing.Any = '') -> str:
+    def get_attr(self, name_or_path: str, attr_label: str, default: str | typing.Any = '') -> str | None:
         """Return named attribute from dataset or group, or default"""
         attrs = self.get_attrs(name_or_path)
         if attrs and attr_label in attrs:
@@ -524,7 +522,7 @@ class HdfMap:
             if path in hdf_file
         }
 
-    def get_image(self, hdf_file: h5py.File, index: slice = None) -> np.ndarray:
+    def get_image(self, hdf_file: h5py.File, index: slice = None) -> np.ndarray | None:
         """
         Get image data from file, using default image path
         :param hdf_file: hdf file object
@@ -598,11 +596,10 @@ class HdfMap:
         :param hdf_file: h5py.File object
         :return: data_object (similar to dict)
         """
-        doc = f"""DataObject for '{hdf_file.filename}'"""
         metadata = self.get_metadata(hdf_file)
         scannables = self.get_scannables(hdf_file)
-        scannables['metadata'] = DataHolder(metadata, docstr=doc)
-        return DataHolder(scannables, docstr=doc)
+        scannables['metadata'] = DataHolder(**metadata)
+        return DataHolder(**scannables)
 
     def eval(self, hdf_file: h5py.File, expression: str):
         """
@@ -625,7 +622,7 @@ class HdfMap:
     def info_data(self, hdf_file):
         """Return string showing metadata values associated with names"""
         out = repr(self) + '\n'
-        out = "Combined Namespace:\n"
+        out += "Combined Namespace:\n"
         out += '\n'.join([
             f"{name:>30}: " +
             f"{str(data if np.size(data := dataset2data(hdf_file[path])) <= 1 else self.datasets[path].shape):20}" +
