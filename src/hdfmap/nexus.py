@@ -28,9 +28,10 @@ def check_nexus_class(hdf_group: h5py.Group, nxclass: str) -> bool:
     :param nxclass: str name in NX_class attribute
     :return: True/False
     """
-    return hdf_group and NX_CLASS in hdf_group.attrs and hdf_group.attrs.get(NX_CLASS) and (
-        group_class.decode() if isinstance(group_class := hdf_group.attrs.get(NX_CLASS), bytes) else group_class
-    ) == nxclass
+    return (hdf_group and
+            NX_CLASS in hdf_group.attrs and
+            (group_class := hdf_group.attrs.get(NX_CLASS)) is not None and
+            (group_class.decode() if isinstance(group_class, bytes) else group_class) == nxclass)
 
 
 def default_nxentry(hdf_file: h5py.File) -> str | bytes:
