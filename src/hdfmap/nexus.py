@@ -29,7 +29,6 @@ def check_nexus_class(hdf_group: h5py.Group, nxclass: str) -> bool:
     :return: True/False
     """
     return (hdf_group and
-            NX_CLASS in hdf_group.attrs and
             (group_class := hdf_group.attrs.get(NX_CLASS)) is not None and
             (group_class.decode() if isinstance(group_class, bytes) else group_class) == nxclass)
 
