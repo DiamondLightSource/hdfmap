@@ -5,7 +5,7 @@ Nexus Related functions and nexus class
 import h5py
 
 from .logging import create_logger
-from .hdfmap_class import HdfMap, build_hdf_path, generate_identifier
+from .hdfmap_class import HdfMap, build_hdf_path, generate_identifier, disp_dict
 
 NX_CLASS = 'NX_class'
 NX_ENTRY = 'NXentry'
@@ -132,10 +132,30 @@ class NexusMap(HdfMap):
     def __repr__(self):
         return f"NexusMap based on '{self.filename}'"
 
+    def all_nxclasses(self) -> list[str]:
+        """Return list of unique NX_class attributes used in NXgroups"""
+        return list({
+            nxclass.decode() if isinstance(nxclass, bytes) else nxclass
+            for path, grp in self.groups.items() if (nxclass := grp.attrs.get(NX_CLASS))
+        })
+
+    def info_nexus(self) -> str:
+        """Return str info on nexus format"""
+        out = f"{repr(self)}\n"
+        out += f"{NX_CLASS}:\n"
+        nx_classes = self.all_nxclasses()
+        out += disp_dict({k: v for k, v in self.classes.items() if k in nx_classes}, 20)
+        out += '\nDefaults:\n'
+        out += f"  @{NX_DEFAULT}: {self.find_attr(NX_DEFAULT)}\n"
+        out += f"  @{NX_AXES}: {self.find_attr(NX_AXES)}\n"
+        out += f"  @{NX_SIGNAL}: {self.find_attr(NX_SIGNAL)}\n"
+        return out
+
     def _default_nexus_paths(self, hdf_file):
         """Load Nexus default axes and signal"""
         try:
             axes_paths, signal_path = find_nexus_data(hdf_file)
+            # TODO: add method of including multiple axes, e.g. axes1, axes2, ..., or self.get_axes
             if axes_paths and axes_paths[0] in hdf_file:
                 self.arrays[NX_AXES] = axes_paths[0]
                 logger.info(f"DEFAULT axes: {axes_paths}")
@@ -207,6 +227,7 @@ class NexusMap(HdfMap):
                 continue  # group may be missing due to a broken link
             hdf_path = build_hdf_path(entry)
             logger.debug(f"NX Entry: {hdf_path}")
+            self.all_paths.append(hdf_path)
             self._store_group(nx_entry, hdf_path, entry)
             self._populate(nx_entry, root=hdf_path, groups=groups)  # nx_entry.name can be wrong!
 

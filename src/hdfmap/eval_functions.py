@@ -19,6 +19,7 @@ GLOBALS_NAMELIST = dir(builtins) + list(GLOBALS.keys())
 logger = create_logger(__name__)
 # regex patterns
 special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
+long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
 
 
 def expression_safe_name(string: str, replace: str = '_') -> str:
@@ -37,15 +38,14 @@ def round_string_floats(string):
     :param string: string, e.g. '#810002 scan eta 74.89533603616637 76.49533603616636 0.02 pil3_100k 1 roi2'
     :return: shorter string, e.g. '#810002 scan eta 74.895 76.495 0.02 pil3_100k 1 roi2'
     """
-    #return re.sub(r'(\d\d\d)\d{4,}', r'\1', string)
     def subfun(m):
         return str(round(float(m.group()), 3))
-    return re.sub(r'\d+\.\d{5,}', subfun, string)
+    return long_floats.sub(subfun, string)
 
 
 def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=False) -> datetime.datetime | str | np.ndarray:
     """
-    Read the data from a h5py Dataset and convert to a either datetime, str or squeezed numpy array
+    Read the data from a h5py Dataset and convert to either datetime, str or squeezed numpy array
     :param dataset: h5py.Dataset containing data
     :param index: index of array (not used if dataset is string/ bytes type)
     :param direct_load: loads the data directly without conversion if True
@@ -55,17 +55,21 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
     """
     if direct_load:
         return dataset[index]
+    if np.issubdtype(dataset, np.number):
+        return np.squeeze(dataset[index])  # numeric np.ndarray
     try:
-        data = dataset.asstr()[()]
-        # check if time stamp
+        # timestamp -> datetime64 -> datetime
+        timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        # single datetime obj vs array of datetime obj
+        return timestamp[()] if timestamp.ndim == 0 else timestamp
+    except ValueError:
         try:
-            return datetime.datetime.fromisoformat(data)  # datetime
+            string_dataset = dataset.asstr()[()]
+            if dataset.ndim == 0:
+                return round_string_floats(string_dataset)  # bytes or str -> str
+            return string_dataset  # str array
         except ValueError:
-            return round_string_floats(data)  # str
-    except TypeError:
-        # float or array
-        # TODO: convert bytes arrays to str arrays (check if dataset.asstr doesn't already do this)
-        return np.squeeze(dataset[index])  # np.ndarray
+            return np.squeeze(dataset[index])  # other np.ndarray
 
 
 def check_unsafe_eval(eval_str: str) -> None:
@@ -115,7 +119,9 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     """
     if identifiers is None:
         identifiers = list(hdf_namespace.keys())
-    # TODO: add ROI commands
+    # TODO: add ROI commands e.g. nroi[1,2,3,4] -> default_image([1,2,3,4])
+    # TODO: add name@attribute e.g. incident_energy@units -> 'eV'
+    # TODO: add name.label e.g. axes.label -> 'eta [Deg]'
     namespace = {
         name: dataset2data(hdf_file[hdf_namespace[name]])
         for name in identifiers if name in hdf_namespace and hdf_namespace[name] in hdf_file
@@ -124,7 +130,8 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
         name: default
         for name in identifiers if (name not in hdf_namespace) or (hdf_namespace[name] not in hdf_file)
     }
-    hdf_paths = {'_' + name: hdf_namespace[name] for name in identifiers if name in hdf_namespace}
+    hdf_paths = {name: hdf_namespace[name[1:]] for name in identifiers
+                 if name.startswith('_') and name[1:] in hdf_namespace}
     # add extra params
     extras = extra_hdf_data(hdf_file)
     return {**defaults, **extras, **hdf_paths, **namespace}
@@ -139,7 +146,7 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     :return: eval(expression)
     """
     if expression in hdf_file:
-        return hdf_file[expression][()]
+        return dataset2data(hdf_file[expression])
     check_unsafe_eval(expression)
     # find identifiers matching names in the namespace
     identifiers = [name for name in hdf_namespace if name in special_characters.split(expression)]

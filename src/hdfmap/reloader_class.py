@@ -80,7 +80,7 @@ class HdfLoader:
         """
         with self._load() as hdf:
             out = [self.map.get_data(hdf, name, index, default, direct_load) for name in name_or_path]
-        if name_or_path.size == 1:
+        if len(name_or_path) == 1:
             return out[0]
         return out
 

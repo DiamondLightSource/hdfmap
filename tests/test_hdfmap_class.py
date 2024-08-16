@@ -15,7 +15,7 @@ def hdf_map():
 
 def test_populate(hdf_map):
     assert len(hdf_map.datasets) == 360, "Wrong number of datasets loaded"
-    assert len(hdf_map.combined) == 265, "Wrong number of names in map.combined"
+    assert len(hdf_map.combined) == 570, "Wrong number of names in map.combined"
 
 
 def test_most_common_size(hdf_map):
@@ -34,7 +34,7 @@ def test_generate_scannables(hdf_map):
 def test_get_item(hdf_map):
     assert hdf_map['sum'] == '/entry1/pil3_100k/sum', '__get_item__ failed'
     assert 'sum' in hdf_map, '__contains__ failed'
-    assert len([path for path in hdf_map]) == 265, '__iter__ failed'
+    assert len([path for path in hdf_map]) == 570, '__iter__ failed'
 
 
 def test_get_path(hdf_map):
@@ -48,8 +48,8 @@ def test_get_group_path(hdf_map):
 
 
 def test_find(hdf_map):
-    assert len(hdf_map.find_paths('eta')) == 11, "Can't find eta in names"
-    assert len(hdf_map.find_paths('eta', False)) == 11, "Can't find eta anywhere"
+    assert len(hdf_map.find_paths('eta')) == 17, "Can't find eta in names"
+    assert len(hdf_map.find_paths('eta', False)) == 17, "Can't find eta anywhere"
 
 
 def test_find_attr(hdf_map):
@@ -95,26 +95,28 @@ def test_get_dataholder(hdf_map):
 def test_get_metadata(hdf_map):
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         meta = hdf_map.get_metadata(hdf)
-    assert len(meta) == 213, "Length of metadata wrong"
+        meta_small = hdf_map.get_metadata(hdf, name_list=['scan_command', 'incident_energy'])
+    assert len(meta) == 423, "Length of metadata wrong"
     assert meta['filename'] == '1049598.nxs', "filename is wrong"
+    assert abs(meta_small['incident_energy'] - 3.58) < 0.01, "Energy is wrong"
 
 
 def test_get_scannables(hdf_map):
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         scannables = hdf_map.get_scannables(hdf)
-    assert len(scannables) == 49, "Length of scannables is wrong"
+    assert len(scannables) == 131, "Length of scannables is wrong"
 
 
 def test_get_scannables_array(hdf_map):
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         scannables = hdf_map.get_scannables_array(hdf)
-        assert scannables.shape == (48, 101), "scannables array is wrong shape"
+        assert scannables.shape == (129, 101), "scannables array is wrong shape"
 
 
 def test_create_scannables_table(hdf_map):
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         scannables = hdf_map.create_scannables_table(hdf, '\t')
-        assert len(scannables) == 61581, "scannables str is wrong length"
+        assert len(scannables) == 165703, "scannables str is wrong length"
 
 
 def test_eval(hdf_map):

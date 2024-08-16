@@ -34,6 +34,7 @@ class Group(typing.NamedTuple):
 
 class Dataset(typing.NamedTuple):
     name: str
+    names: list[str]
     size: int
     shape: tuple[int]
     attrs: dict
@@ -177,8 +178,9 @@ class HdfMap:
         self.groups = {}  # stores attributes of each group by path
         self.datasets = {}  # stores attributes of each dataset by path
         self.classes = defaultdict(list)  # stores lists of group paths by nx_class
-        self.arrays = {}  # stores array dataset paths by name
-        self.values = {}  # stores value dataset paths by name
+        self.arrays = {}  # stores array dataset paths by name, altname + group_name
+        self.values = {}  # stores value dataset paths by name, altname + group_name
+        self.metadata = {}  # stores value dataset path by altname only
         self.scannables = {}  # stores array dataset paths with given size, by name
         self.combined = {}  # stores array and value paths (arrays overwrite values)
         self.image_data = {}  # stores dataset paths of image data
@@ -202,26 +204,26 @@ class HdfMap:
     def __str__(self):
         return f"{repr(self)}\n{self.info_names()}\n{self.info_scannables()}"
 
-    def info_groups(self):
+    def info_groups(self) -> str:
         """Return str info on groups"""
         out = f"{repr(self)}\n"
         out += "Groups:\n"
-        out += disp_dict(self.groups, 10)
+        out += disp_dict(self.groups, 20)
         out += '\n\nClasses:\n'
-        out += disp_dict(self.classes, 10)
+        out += disp_dict(self.classes, 20)
         return out
 
-    def info_datasets(self):
+    def info_datasets(self) -> str:
         """Return str info on datasets"""
         out = f"{repr(self)}\n"
         out += "Datasets:\n"
-        out += disp_dict(self.datasets, 10)
+        out += disp_dict(self.datasets, 20)
         return out
 
-    def info_dataset_types(self):
+    def info_dataset_types(self) -> str:
         """Return str info on dataset types"""
         out = "Values:\n"
-        out += disp_dict(self.values, 10)
+        out += disp_dict(self.values, 20)
         out += "Arrays:\n"
         out += '\n'.join([
             f"{name:>30}: {str(self.datasets[path].shape):10} : {path:60}"
@@ -234,7 +236,7 @@ class HdfMap:
         ])
         return out
 
-    def info_names(self):
+    def info_names(self) -> str:
         """Return str info on combined namespace"""
         out = "Combined Namespace:\n"
         out += '\n'.join([
@@ -243,7 +245,7 @@ class HdfMap:
         ])
         return out
 
-    def info_scannables(self):
+    def info_scannables(self) -> str:
         """Return str info on scannables namespace"""
         out = "Scannables Namespace:\n"
         out += '\n'.join([
@@ -254,7 +256,7 @@ class HdfMap:
 
     def _store_group(self, hdf_group: h5py.Group, path: str, name: str):
 
-        nx_class = hdf_group.attrs.get('NX_class', 'Group')
+        nx_class = hdf_group.attrs.get('NX_class', default='Group')
         if hasattr(nx_class, 'decode'):
             nx_class = nx_class.decode()
         self.groups[path] = Group(
@@ -269,27 +271,30 @@ class HdfMap:
         return nx_class
 
     def _store_dataset(self, hdf_dataset: h5py.Dataset, hdf_path: str, name: str):
-        # TODO: add group_name to namespace as standard, helps with names like s5/x + s4/x
-        # group_name = f"{hdf_path.split(SEP)[-2]}_{name}"
+        # New: add group_name to namespace as standard, helps with names like s5/x + s4/x
+        # this significantly increases the number of names in namespaces
+        group_name = generate_identifier(f"{hdf_path.split(SEP)[-2]}_{name}")
         alt_name = generate_identifier(hdf_dataset.attrs[LOCAL_NAME]) if LOCAL_NAME in hdf_dataset.attrs else None
-        self.datasets[hdf_path] = Dataset(name, hdf_dataset.size, hdf_dataset.shape, dict(hdf_dataset.attrs))
+        names = {n: hdf_path for n in {name, group_name, alt_name} if n}
+        self.datasets[hdf_path] = Dataset(
+            name=name,
+            names=list(names),
+            size=hdf_dataset.size,
+            shape=hdf_dataset.shape,
+            attrs=dict(hdf_dataset.attrs),
+        )
         if hdf_dataset.ndim >= 3:
-            det_name = f"{hdf_path.split(SEP)[-2]}_{name}"
             self.image_data[name] = hdf_path
-            self.image_data[det_name] = hdf_path
-            self.arrays[name] = hdf_path
-            if alt_name:
-                self.arrays[alt_name] = hdf_path
+            self.image_data[group_name] = hdf_path
+            self.arrays.update(names)
             logger.debug(f"{hdf_path}  HDFDataset: image_data & array {name, hdf_dataset.size, hdf_dataset.shape}")
         elif hdf_dataset.ndim > 0:
-            self.arrays[name] = hdf_path
-            if alt_name:
-                self.arrays[alt_name] = hdf_path
+            self.arrays.update(names)
             logger.debug(f"{hdf_path}  HDFDataset: array {name, hdf_dataset.size, hdf_dataset.shape}")
         else:
-            self.values[name] = hdf_path
+            self.values.update(names)
             if alt_name:
-                self.values[alt_name] = hdf_path
+                self.metadata[alt_name] = hdf_path
             logger.debug(f"{hdf_path}  HDFDataset: value")
 
     def _populate(self, hdf_group: h5py.Group, root: str = '',
@@ -310,8 +315,8 @@ class HdfMap:
             if obj is None:
                 continue  # dataset may be missing due to a broken link
             hdf_path = root + SEP + key  # build hdf path - a cross-file unique identifier
-            # TODO: store all paths in file, useful for checking if anything was missed, but might be slow
-            # self.all_paths.append(hdf_path)
+            # New: store all paths in file, useful for checking if anything was missed, but might be slow
+            self.all_paths.append(hdf_path)
             name = generate_identifier(hdf_path)
             logger.info(f"{hdf_path}:  {name}, link={repr(link)}")
 
@@ -334,6 +339,12 @@ class HdfMap:
 
     def generate_combined(self):
         self.combined = {**self.values, **self.arrays, **self.scannables}
+
+    def all_attrs(self) -> dict:
+        """Return dict of all attributes in self.datasets and self.groups"""
+        ds_attrs = {k: v for path, ds in self.datasets.items() for k, v in ds.attrs.items()}
+        grp_attrs = {k: v for path, grp in self.groups.items() for k, v in grp.attrs.items()}
+        return {**grp_attrs, **ds_attrs}
 
     def most_common_size(self) -> int:
         """Return most common array size > 1"""
@@ -440,9 +451,9 @@ class HdfMap:
         :return: list of hdf paths
         """
         return [
-            path for path, (_, _, _, attr) in self.datasets.items() if attr_name in attr
+            path for path, ds in self.datasets.items() if attr_name in ds.attrs
         ] + [
-            path for path, (_, _, attr, _) in self.groups.items() if attr_name in attr
+            path for path, grp in self.groups.items() if attr_name in grp.attrs
         ]
 
     def get_attrs(self, name_or_path: str) -> dict | None:
@@ -506,12 +517,24 @@ class HdfMap:
             return dataset2data(hdf_file[path], index, direct_load)
         return default
 
-    def get_metadata(self, hdf_file: h5py.File, default=None, direct_load=False) -> dict:
-        """Return metadata from file (values associated with hdfmap.values)"""
+    def get_metadata(self, hdf_file: h5py.File, default=None, direct_load=False, name_list: list = None) -> dict:
+        """
+        Return metadata dict from file, loading data for each item in the metadata list
+        The metadata list is taken from name_list, otherwise self.metadata or self.values
+        :param hdf_file: hdf file object
+        :param default: Value to return for names not associated with a dataset
+        :param direct_load: if True, loads data from hdf file directory, without conversion
+        :param name_list: if available, uses this list of dataset names to generate the metadata list
+        :return:
+        """
         extra = extra_hdf_data(hdf_file)
+        if name_list:
+            metadata_paths = {name: self.combined.get(name, '') for name in name_list}
+        else:
+            metadata_paths = self.metadata if len(self.metadata) > 0 else self.values
         metadata = {
             name: dataset2data(hdf_file[path], direct_load=direct_load) if path in hdf_file else default
-            for name, path in self.values.items()
+            for name, path in metadata_paths.items()
         }
         return {**extra, **metadata}
 
