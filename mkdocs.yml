@@ -1,0 +1,22 @@
+site_name: HdfMap
+plugins:
+  - techdocs-diamond
+  - search
+nav:
+  - index.md
+  - installation.md
+  - usage.md
+  - how-it-works.md
+  - examples.md
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
