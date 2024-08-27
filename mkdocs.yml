@@ -2,12 +2,17 @@ site_name: HdfMap
 plugins:
   - techdocs-diamond
   - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
 nav:
   - index.md
   - installation.md
   - usage.md
   - how-it-works.md
   - examples.md
+  - code_description.md
 markdown_extensions:
   - pymdownx.superfences:
       custom_fences:
