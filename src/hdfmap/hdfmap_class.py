@@ -9,7 +9,7 @@ import numpy as np
 import h5py
 
 from .logging import create_logger
-from .eval_functions import expression_safe_name, extra_hdf_data, eval_hdf, format_hdf, dataset2data
+from .eval_functions import expression_safe_name, extra_hdf_data, eval_hdf, format_hdf, dataset2data, dataset2str
 
 try:
     import hdf5plugin  # required for compressed data
@@ -119,7 +119,7 @@ class HdfMap:
     Objects within the HDF file are separated into Groups and Datasets. Each object has a
     defined 'path' and 'name' paramater, as well as other attributes
         path -> '/entry/measurement/data' -> the location of an object within the file
-        name -> 'data' -> an path expressed as a simple variable name
+        name -> 'data' -> a path expressed as a simple variable name
     Paths are unique location within the file but can be used to identify similar objects in other files
     Names may not be unique within a file and are generated from the final element of the hdf path.
      - When multiple paths produce the same name, the name is overwritten each time, so the last path in the
@@ -164,10 +164,11 @@ class HdfMap:
     File Methods:
         map.get_metadata(h5py.File) -> returns dict of value datasets
         map.get_scannables(h5py.File) -> returns dict of scannable datasets
-        map.get_scannalbes_array(h5py.File) -> returns numpy array of scannable datasets
-        map.get_data_block(h5py.File) -> returns dict like object with metadata and scannables
+        map.get_scannables_array(h5py.File) -> returns numpy array of scannable datasets
+        map.get_dataholder(h5py.File) -> returns dict like object with metadata and scannables
         map.get_image(h5py.File, index) -> returns image data
         map.get_data(h5py.File, 'name') -> returns data from dataset
+        map.get_string(h5py.File, 'name') -> returns string summary of dataset
         map.eval(h5py.File, 'expression') -> returns output of expression
         map.format(h5py.File, 'string {name}') -> returns output of str expression
     """
@@ -208,8 +209,21 @@ class HdfMap:
         """Return str info on groups"""
         out = f"{repr(self)}\n"
         out += "Groups:\n"
-        out += disp_dict(self.groups, 20)
-        out += '\n\nClasses:\n'
+        for path, group in self.groups.items():
+            out += f"{path} [{group.nx_class}: '{group.name}']\n"
+            out += '\n'.join(f"  @{attr}: {self.get_attr(path, attr)}" for attr in group.attrs)
+            out += '\n'
+            for dataset_name in group.datasets:
+                dataset_path = build_hdf_path(path, dataset_name)
+                if dataset_path in self.datasets:
+                    dataset = self.datasets[dataset_path]
+                    out += f"  {dataset_name}: {dataset.shape}\n"
+        return out
+
+    def info_classes(self) -> str:
+        """Return str info on group class names"""
+        out = f"{repr(self)}\n"
+        out += 'Classes:\n'
         out += disp_dict(self.classes, 20)
         return out
 
@@ -418,13 +432,30 @@ class HdfMap:
             return SEP
         return hdf_path
 
-    def find_paths(self, string: str, name_only=True) -> list[str]:
+    def get_group_dataset_path(self, group_name, dataset_name) -> str | None:
+        """Return path of dataset defined by group and dataset name/attribute"""
+        if group_name in self.groups:
+            group_paths = [group_name]
+        else:
+            group_paths = self.classes[group_name]
+        for group_path in group_paths:
+            group = self.groups[group_path]
+            for name in group.datasets:
+                dataset_path = build_hdf_path(group_path, name)
+                dataset = self.datasets[dataset_path]
+                if dataset_name in dataset.names:
+                    return dataset_path
+
+    def find_paths(self, string: str, name_only=True, whole_word=False) -> list[str]:
         """
         Find any dataset paths that contain the given string argument
         :param string: str to find in list of datasets
         :param name_only: if True, search only the name of the dataset, not the full path
+        :param whole_word: if True, search only for whole-word names (case in-sensitive)
         :return: list of hdf paths
         """
+        if whole_word:
+            return [path for name, path in self.combined.items() if string.lower() == name.lower()]
         # find string in combined
         combined_paths = [path for name, path in self.combined.items() if string in name]
         if name_only:
@@ -517,7 +548,23 @@ class HdfMap:
             return dataset2data(hdf_file[path], index, direct_load)
         return default
 
-    def get_metadata(self, hdf_file: h5py.File, default=None, direct_load=False, name_list: list = None) -> dict:
+    def get_string(self, hdf_file: h5py.File, name_or_path: str, index=(), default='') -> str:
+        """
+        Return data from dataset in file, converted into string summary of data
+        See hdfmap.eval_functions.dataset2str for more information.
+        :param hdf_file: hdf file object
+        :param name_or_path: str name or path pointing to dataset in hdf file
+        :param index: index or slice of data in hdf file
+        :param default: value to return if name not found in hdf file
+        :return: dataset2str(dataset) -> str
+        """
+        path = self.get_path(name_or_path)
+        if path and path in hdf_file:
+            return dataset2str(hdf_file[path], index)
+        return default
+
+    def get_metadata(self, hdf_file: h5py.File, default=None, direct_load=False,
+                     name_list: list = None, string_output=False) -> dict:
         """
         Return metadata dict from file, loading data for each item in the metadata list
         The metadata list is taken from name_list, otherwise self.metadata or self.values
@@ -525,18 +572,43 @@ class HdfMap:
         :param default: Value to return for names not associated with a dataset
         :param direct_load: if True, loads data from hdf file directory, without conversion
         :param name_list: if available, uses this list of dataset names to generate the metadata list
-        :return:
+        :param string_output: if True, returns string summary of each value
+        :return: {name: value}
         """
         extra = extra_hdf_data(hdf_file)
         if name_list:
             metadata_paths = {name: self.combined.get(name, '') for name in name_list}
         else:
             metadata_paths = self.metadata if len(self.metadata) > 0 else self.values
-        metadata = {
-            name: dataset2data(hdf_file[path], direct_load=direct_load) if path in hdf_file else default
-            for name, path in metadata_paths.items()
-        }
+        if string_output:
+            extra = {key: f"'{val}'" for key, val in extra.items()}
+            metadata = {
+                name: dataset2str(hdf_file[path]) if path in hdf_file else str(default)
+                for name, path in metadata_paths.items()
+            }
+        else:
+            metadata = {
+                name: dataset2data(hdf_file[path], direct_load=direct_load) if path in hdf_file else default
+                for name, path in metadata_paths.items()
+            }
         return {**extra, **metadata}
+
+    def create_metadata_list(self, hdf_file: h5py.File, default=None, name_list: list = None,
+                             line_separator: str = '\n', value_separator: str = '=') -> str:
+        """
+        Return a metadata string, using self.get_metadata
+        :param hdf_file: hdf file object
+        :param default: Value to return for names not associated with a dataset
+        :param name_list: if available, uses this list of dataset names to generate the metadata list
+        :param line_separator: str separating each metadata parameter
+        :param value_separator: str separating name from value
+        :return: multi-line string
+        """
+        return line_separator.join(
+            f"{name}{value_separator}{value}"
+            for name, value in self.get_metadata(hdf_file, default=default,
+                                                 name_list=name_list, string_output=True).items()
+        )
 
     def get_scannables(self, hdf_file: h5py.File) -> dict:
         """Return scannables from file (values associated with hdfmap.scannables)"""
@@ -642,13 +714,17 @@ class HdfMap:
         """
         return format_hdf(hdf_file, expression, self.combined)
 
-    def info_data(self, hdf_file):
+    def create_dataset_summary(self, hdf_file: h5py.File) -> str:
+        """Create summary of all datasets in file"""
+        return '\n'.join(f"{path:60}: {self.get_string(hdf_file, path)}" for path in self.datasets)
+
+    def info_data(self, hdf_file: h5py.File) -> str:
         """Return string showing metadata values associated with names"""
         out = repr(self) + '\n'
         out += "Combined Namespace:\n"
         out += '\n'.join([
             f"{name:>30}: " +
-            f"{str(data if np.size(data := dataset2data(hdf_file[path])) <= 1 else self.datasets[path].shape):20}" +
+            f"{dataset2str(hdf_file[path]):20}" +
             f": {path:60}"
             for name, path in self.combined.items()
         ])

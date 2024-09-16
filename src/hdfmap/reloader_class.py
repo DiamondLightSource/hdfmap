@@ -18,9 +18,10 @@ class HdfLoader:
     for each operation.
     E.G.
         hdf = HdfLoader('file.hdf')
-        [data1, data2] = hdf.get_data(['dataset_name_1', 'dataset_name_2'])
+        [data1, data2] = hdf.get_data(*['dataset_name_1', 'dataset_name_2'])
         data = hdf.eval('dataset_name_1 * 100 + 2')
         string = hdf.format('my data is {dataset_name_1:.2f}')
+        print(hdf.summary())
     """
 
     def __init__(self, hdf_filename: str, hdf_map: HdfMap | None = None):
@@ -51,14 +52,15 @@ class HdfLoader:
         """Return hdf path of object in HdfMap"""
         return self.map.get_path(name_or_path)
 
-    def find_hdf_paths(self, string: str, name_only: bool = True) -> list[str]:
+    def find_hdf_paths(self, string: str, name_only: bool = True, whole_word: bool = False) -> list[str]:
         """
         Find any dataset paths that contain the given string argument
         :param string: str to find in list of datasets
         :param name_only: if True, search only the name of the dataset, not the full path
+        :param whole_word: if True, search only for case in-sensitive name
         :return: list of hdf paths
         """
-        return self.map.find_paths(string, name_only)
+        return self.map.find_paths(string, name_only, whole_word)
 
     def find_names(self, string: str) -> list[str]:
         """
@@ -84,6 +86,21 @@ class HdfLoader:
             return out[0]
         return out
 
+    def get_string(self, *name_or_path, index: slice = (), default=''):
+        """
+        Return data from dataset in file, converted into summary string
+        See hdfmap.eval_functions.dataset2data for more information.
+        :param name_or_path: str name or path pointing to dataset in hdf file
+        :param index: index or slice of data in hdf file
+        :param default: value to return if name not found in hdf file
+        :return: dataset2str(dataset) -> str
+        """
+        with self._load() as hdf:
+            out = [self.map.get_string(hdf, name, index, default) for name in name_or_path]
+        if len(name_or_path) == 1:
+            return out[0]
+        return out
+
     def get_image(self, index: slice = None) -> np.ndarray:
         """
         Get image data from file, using default image path
@@ -101,6 +118,11 @@ class HdfLoader:
         """Return scannables from file (values associated with hdfmap.scannables)"""
         with self._load() as hdf:
             return self.map.get_scannables(hdf)
+
+    def summary(self) -> str:
+        """Return string summary of datasets"""
+        with self._load() as hdf:
+            return self.map.create_dataset_summary(hdf)
 
     def eval(self, expression: str):
         """

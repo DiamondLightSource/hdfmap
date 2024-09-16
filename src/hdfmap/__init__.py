@@ -10,7 +10,7 @@ with load_hdf('file.nxs') as nxs:
     address = hmap.get_address('energy')
     energy = nxs[address][()]
     string = hmap.format_hdf(nxs, "the energy is {energy:.2f} keV")
-    d = hmap.get_data_block(nxs)  # classic data table, d.scannable, d.metadata
+    d = hmap.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
 
 # Shortcuts - single file reloading class
 from hdfmap import NexusLoader
@@ -46,8 +46,8 @@ __all__ = [
     set_all_logging_level
 ]
 
-__version__ = "0.4.0"
-__date__ = "2024/08/16"
+__version__ = "0.5.0"
+__date__ = "2024/09/16"
 
 
 def version_info() -> str:

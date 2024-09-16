@@ -123,7 +123,7 @@ map.image_data = {'name': '/hdf/group/dataset'}
 | `map.get_metadata(h5py.File)`            | returns dict of value datasets                        |
 | `map.get_scannables(h5py.File)`          | returns dict of scannable datasets                    |
 | `map.get_scannalbes_array(h5py.File)`    | returns numpy array of scannable datasets             |
-| `map.get_data_block(h5py.File)`          | returns dict like object with metadata and scannables |
+| `map.get_dataholder(h5py.File)`          | returns dict like object with metadata and scannables |
 | `map.get_image(h5py.File, index)`        | returns image data                                    |
 | `map.get_data(h5py.File, 'name')`        | returns data from dataset                             |
 | `map.eval(h5py.File, 'expression')`      | returns output of expression using dataset names      |
