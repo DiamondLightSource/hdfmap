@@ -63,6 +63,15 @@ def generate_identifier(hdf_path: str | bytes) -> str:
     return '_'.join(dict.fromkeys(name.split('_')))
 
 
+def generate_alt_name(hdf_dataset: h5py.Dataset) -> str:
+    """Generate alt_name of dataset if 'local_name' in attributes"""
+    if LOCAL_NAME in hdf_dataset.attrs:
+        alt_name = hdf_dataset.attrs[LOCAL_NAME]
+        if hasattr(alt_name, 'decode'):
+            alt_name = alt_name.decode()
+        return expression_safe_name(alt_name.split('.')[-1])
+
+
 def build_hdf_path(*args: str | bytes) -> str:
     """
     Build path from string or bytes arguments
@@ -284,7 +293,8 @@ class HdfMap:
         # New: add group_name to namespace as standard, helps with names like s5/x + s4/x
         # this significantly increases the number of names in namespaces
         group_name = generate_identifier(f"{hdf_path.split(SEP)[-2]}_{name}")
-        alt_name = generate_identifier(hdf_dataset.attrs[LOCAL_NAME]) if LOCAL_NAME in hdf_dataset.attrs else None
+        # alt_name = generate_identifier(hdf_dataset.attrs[LOCAL_NAME]) if LOCAL_NAME in hdf_dataset.attrs else None
+        alt_name = generate_alt_name(hdf_dataset)
         names = {n: hdf_path for n in {name, group_name, alt_name} if n}
         self.datasets[hdf_path] = Dataset(
             name=name,
