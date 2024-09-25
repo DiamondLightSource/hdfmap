@@ -58,6 +58,11 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
     if np.issubdtype(dataset, np.number):
         return np.squeeze(dataset[index])  # numeric np.ndarray
     try:
+        # str integers will be cast as timestamps (years), capture as int
+        return np.squeeze(dataset[index]).astype(int)
+    except ValueError:
+        pass
+    try:
         # timestamp -> datetime64 -> datetime
         timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
         # single datetime obj vs array of datetime obj

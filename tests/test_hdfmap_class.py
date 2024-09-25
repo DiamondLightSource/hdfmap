@@ -75,9 +75,11 @@ def test_get_data(hdf_map):
         en = hdf['/entry1/before_scan/mono/en'][()]
         h = hdf['/entry1/measurement/h'][()]
         cmd = hdf['/entry1/scan_command'].asstr()[()]
+        scanno = int(hdf['/entry1/entry_identifier'][()])
         assert hdf_map.get_data(hdf, 'en') == en, "'en' produces wrong result"
         assert (hdf_map.get_data(hdf, 'h') == h).all(), "'h' produces wrong result"
         assert hdf_map.get_data(hdf, 'scan_command')[:8] == cmd[:8], "'cmd' produces wrong result"
+        assert hdf_map.get_data(hdf, 'entry_identifier') == scanno, "'entry_identifier' gives wrong result"
 
 
 def test_get_string(hdf_map):
