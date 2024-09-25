@@ -3,7 +3,7 @@ hdfmap Example
 """
 
 import hdfmap
-
+import hdfmap.hdf_loader
 
 nxs_file = 'tests/data/1049598.nxs'
 new_file = 'tests/data/1040323.nxs'
@@ -20,12 +20,12 @@ print(rdr.eval('h[len(h)//2]'))
 print(rdr.format('The energy is {en} keV'))
 
 print(f"\n\nFile: {nxs_file}\nScannables:")
-with hdfmap.load_hdf(nxs_file) as nxs:
+with hdfmap.hdf_loader.load_hdf(nxs_file) as nxs:
     print(nxs_map.create_metadata_list(nxs))
     print(nxs_map.create_scannables_table(nxs))
 
 print(f"\n\nCreate DataObject: {nxs_file}")
-with hdfmap.load_hdf(nxs_file) as nxs:
+with hdfmap.hdf_loader.load_hdf(nxs_file) as nxs:
     d = nxs_map.get_dataholder(nxs)
 print(d.metadata.scan_command)
 

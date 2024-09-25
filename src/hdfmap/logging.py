@@ -30,7 +30,8 @@ def set_all_logging_level(level: str | int):
     """
     try:
         level = level.upper()
-        level = logging.getLevelNamesMapping()[level]
+        # level = logging.getLevelNamesMapping()[level]  # Python >3.11
+        level = logging._nameToLevel[level]
     except AttributeError:
         level = int(level)
 

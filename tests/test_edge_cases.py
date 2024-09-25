@@ -1,7 +1,7 @@
 from os import path
 import json
 import hdfmap
-
+import hdfmap.hdf_loader
 
 # Edge case files, create this list from create_test_files.py
 TEST_FILES = path.join(path.dirname(__file__), 'data', 'test_files.json')
@@ -28,8 +28,9 @@ def test_edge_cases():
 
 def test_old_i16_file():
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1040311.nxs'
+    assert path.isfile(filename) is True, f"{filename} doesn't exist"
     mymap = hdfmap.create_nexus_map(filename)
-    with hdfmap.load_hdf(filename) as hdf:
+    with hdfmap.hdf_loader.load_hdf(filename) as hdf:
         value, address = mymap.eval(hdf, 'np.sum(sum), _sum')
     assert abs(value + 407) < 0.01, 'expression "np.sum(sum)" gives wrong result'
     assert address == '/entry1/measurement/sum', 'expression "_sum" returns wrong address'
@@ -37,8 +38,9 @@ def test_old_i16_file():
 
 def test_new_i16_file():
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1040323.nxs'
+    assert path.isfile(filename) is True, f"{filename} doesn't exist"
     mymap = hdfmap.create_nexus_map(filename)
-    with hdfmap.load_hdf(filename) as hdf:
+    with hdfmap.hdf_loader.load_hdf(filename) as hdf:
         h, k, l, hkl, _h, fname = mymap.eval(hdf, 'h, k, l, hkl, _h, filename')
     assert h.shape == (21,), 'expression "h" has wrong shape'
     assert hkl == '--', 'default for expression "hkl" is incorrect'

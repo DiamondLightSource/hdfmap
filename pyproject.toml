@@ -32,11 +32,11 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/DanPorter/hdfmap"
-Documentation = "https://github.com/DanPorter/hdfmap"
-Repository = "https://github.com/DanPorter/hdfmap"
-"Bug Tracker" = "https://github.com/DanPorter/hdfmap"
-Changelog = "https://github.com/DanPorter/hdfmap/blob/master/README.md"
+Homepage = "https://github.com/DiamondLightSource/hdfmap"
+Documentation = "https://diamondlightsource.github.io/hdfmap/"
+Repository = "https://github.com/DiamondLightSource/hdfmap"
+"Bug Tracker" = "https://github.com/DiamondLightSource/hdfmap"
+Changelog = "https://github.com/DiamondLightSource/hdfmap/blob/master/README.md"
 
 
 [tool.pytest.ini_options]

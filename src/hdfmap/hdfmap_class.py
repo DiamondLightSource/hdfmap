@@ -8,13 +8,10 @@ from types import SimpleNamespace
 import numpy as np
 import h5py
 
+from . import load_hdf
 from .logging import create_logger
 from .eval_functions import expression_safe_name, extra_hdf_data, eval_hdf, format_hdf, dataset2data, dataset2str
 
-try:
-    import hdf5plugin  # required for compressed data
-except ImportError:
-    print('Warning: hdf5plugin not available.')
 
 # parameters
 SEP = '/'  # HDF path separator
@@ -130,14 +127,13 @@ class HdfMap:
     Names for scannables relate to all arrays of a particular size
     A combined list of names is provided where scannables > arrays > values
 
-
-
     Attributes:
         map.groups      stores attributes of each group by path
         map.classes     stores list of group paths by nx_class
         map.datasets    stores attributes of each dataset by path
         map.arrays      stores array dataset paths by name
         map.values      stores value dataset paths by name
+        map.metadata   stores value dataset path by altname only
         map.scannables  stores array dataset paths with given size, by name
         map.combined    stores array and value paths (arrays overwrite values)
         map.image_data  stores dataset paths of image data
@@ -371,11 +367,11 @@ class HdfMap:
         return max(set(array_shapes), key=array_shapes.count)
 
     def scannables_length(self) -> int:
+        """Return the length of the first axis of scannables array"""
         if not self.scannables:
             return 0
         path = next(iter(self.scannables.values()))
-        shape = self.datasets[path].shape
-        return shape[0]
+        return self.datasets[path].size
 
     def generate_scannables(self, array_size):
         """Populate self.scannables field with datasets size that match array_size"""
@@ -522,6 +518,17 @@ class HdfMap:
         if self.image_data:
             return next(iter(self.image_data.values()))
 
+    def get_image_shape(self) -> tuple:
+        """Return the scan shape of the detector dataset"""
+        path = self.get_image_path()
+        if path:
+            return self.datasets[path].shape
+        return 0, 0
+
+    def get_image_index(self, index: int) -> tuple:
+        """Return image slice index for index along total scan size"""
+        return np.unravel_index(index, self.get_image_shape()[:-2])
+
     def get_group_datasets(self, name_or_path: str) -> list[str] | None:
         """Find the path associate with the given name and return all datasets in that group"""
         group_path = self.get_group_path(name_or_path)
@@ -531,6 +538,19 @@ class HdfMap:
     "--------------------------------------------------------"
     "---------------------- FILE READERS --------------------"
     "--------------------------------------------------------"
+
+    def load_hdf(self, filename: str | None = None, name_or_path: str = None) -> h5py.File | h5py.Dataset:
+        """
+        Load hdf file or hdf dataset in open state
+        :param filename: str filename of hdf file, or None to use self.filename
+        :param name_or_path: if given, returns the dataset
+        :return: h5py.File object or h5py.dataset object if dataset name given
+        """
+        if filename is None:
+            filename = self.filename
+        if name_or_path is None:
+            return load_hdf(filename)
+        return load_hdf(filename).get(self.get_path(name_or_path))
 
     def get_data(self, hdf_file: h5py.File, name_or_path: str, index=(), default=None, direct_load=False):
         """
@@ -579,7 +599,7 @@ class HdfMap:
         if name_list:
             metadata_paths = {name: self.combined.get(name, '') for name in name_list}
         else:
-            metadata_paths = self.metadata if len(self.metadata) > 0 else self.values
+            metadata_paths = self.metadata if self.metadata else self.values
         if string_output:
             extra = {key: f"'{val}'" for key, val in extra.items()}
             metadata = {
@@ -610,14 +630,15 @@ class HdfMap:
                                                  name_list=name_list, string_output=True).items()
         )
 
-    def get_scannables(self, hdf_file: h5py.File) -> dict:
+    def get_scannables(self, hdf_file: h5py.File, flatten: bool = False) -> dict:
         """Return scannables from file (values associated with hdfmap.scannables)"""
         return {
-            name: hdf_file[path][()] for name, path in self.scannables.items()
+            name: hdf_file[path][()].flatten() if flatten else hdf_file[path][()]
+            for name, path in self.scannables.items()
             if path in hdf_file
         }
 
-    def get_image(self, hdf_file: h5py.File, index: slice = None) -> np.ndarray | None:
+    def get_image(self, hdf_file: h5py.File, index: int | tuple | slice = None) -> np.ndarray | None:
         """
         Get image data from file, using default image path
         :param hdf_file: hdf file object
@@ -625,26 +646,28 @@ class HdfMap:
         :return: numpy array of image
         """
         if index is None:
-            index = self.scannables_length() // 2
+            index = self.get_image_index(self.scannables_length() // 2)
+        if isinstance(index, int):
+            index = self.get_image_index(index)
         image_path = self.get_image_path()
         logger.debug(f"image path: {image_path}")
         if image_path and image_path in hdf_file:
             return hdf_file[image_path][index].squeeze()  # remove trailing dimensions
 
-    def _get_numeric_scannables(self, hdf_file: h5py.File) -> list[tuple[str, str]]:
+    def _get_numeric_scannables(self, hdf_file: h5py.File) -> list[tuple[str, str, np.ndarray]]:
         """Return numeric scannables available in file"""
         return [
-            (name, path) for name, path in self.scannables.items()
-            if hdf_file.get(path) and np.issubdtype(hdf_file.get(path).dtype, np.number)
+            (name, path, dataset[()].flatten()) for name, path in self.scannables.items()
+            if (dataset := hdf_file.get(path)) and np.issubdtype(dataset.dtype, np.number)
         ]
 
     def get_scannables_array(self, hdf_file: h5py.File) -> np.ndarray:
-        """Return 2D array of all scannables in file"""
+        """Return 2D array of all numeric scannables in file"""
         _scannables = self._get_numeric_scannables(hdf_file)
         dtypes = np.dtype([
-            (name, hdf_file[path].dtype) for name, path in _scannables
+            (name, hdf_file[path].dtype) for name, path, array in _scannables
         ])
-        return np.array([hdf_file.get(path)[()] for name, path in _scannables], dtype=dtypes)
+        return np.array([array for name, path, array in _scannables], dtype=dtypes)
 
     def create_scannables_table(self, hdf_file: h5py.File, delimiter=', ',
                                 string_spec='', format_spec='f', default_decimals=8) -> str:
@@ -666,21 +689,21 @@ class HdfMap:
         fmt = string_spec + '.%d' + format_spec
         formats = [
             '{:' + fmt % self.get_attr(path, 'decimals', default=default_decimals) + '}'
-            for name, path in _scannables
+            for name, path, array in _scannables
         ]
 
         length = self.scannables_length()
-        out = delimiter.join([name for name, _ in _scannables]) + '\n'
+        out = delimiter.join([name for name, _, _ in _scannables]) + '\n'
         out += '\n'.join([
             delimiter.join([
-                fmt.format(hdf_file.get(path)[n])
-                for (_, path), fmt in zip(_scannables, formats)
+                fmt.format(array[n])
+                for (_, path, array), fmt in zip(_scannables, formats)
             ])
             for n in range(length)
         ])
         return out
 
-    def get_dataholder(self, hdf_file: h5py.File) -> DataHolder:
+    def get_dataholder(self, hdf_file: h5py.File, flatten_scannables: bool = False) -> DataHolder:
         """
         Return DataHolder object - a simple replication of scisoftpy.dictutils.DataHolder
         Also known as DLS dat format.
@@ -689,10 +712,11 @@ class HdfMap:
             dataholder['scannable'] -> array
             dataholder.metadata['value'] -> metadata
         :param hdf_file: h5py.File object
+        :param flatten_scannables: bool, it True the scannables will be flattened arrays
         :return: data_object (similar to dict)
         """
         metadata = self.get_metadata(hdf_file)
-        scannables = self.get_scannables(hdf_file)
+        scannables = self.get_scannables(hdf_file, flatten=flatten_scannables)
         scannables['metadata'] = DataHolder(**metadata)
         return DataHolder(**scannables)
 

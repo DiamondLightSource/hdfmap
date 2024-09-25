@@ -5,9 +5,8 @@ Reloader class
 import h5py
 import numpy as np
 
-from .hdfmap_class import HdfMap
-from .nexus import NexusMap
-from .file_functions import load_hdf, create_hdf_map, create_nexus_map
+from . import load_hdf, HdfMap, NexusMap
+from .file_functions import create_hdf_map, create_nexus_map
 
 
 class HdfLoader:
