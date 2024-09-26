@@ -3,6 +3,7 @@ hdfmap example
 """
 
 import hdfmap
+import hdfmap.hdf_loader
 
 
 # hdfmap.set_logging_levels('info')
@@ -20,7 +21,7 @@ def check_nexus(*args, **kwargs):
     print(f"      signal: {mymap['signal']}")
     print(f"       image: {mymap.get_image_path()}")
     print('Data:')
-    with hdfmap.load_hdf(mymap.filename) as hdf:
+    with hdfmap.hdf_loader.load_hdf(mymap.filename) as hdf:
         cmd = mymap.get_data(hdf, 'scan_command')
         axes = mymap.get_data(hdf, 'axes')
         signal = mymap.get_data(hdf, 'signal')

@@ -5,7 +5,7 @@ Map objects within an HDF file and create a dataset namespace.
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![](https://img.shields.io/github/forks/DiamondLightSource/hdfmap?label=GitHub%20Repo&style=social)](https://github.com/DiamondLightSource/hdfmap)
 
-**Version 0.4**
+**Version 0.5**
 
 | By Dan Porter        | 
 |----------------------|
@@ -123,7 +123,7 @@ map.image_data = {'name': '/hdf/group/dataset'}
 | `map.get_metadata(h5py.File)`            | returns dict of value datasets                        |
 | `map.get_scannables(h5py.File)`          | returns dict of scannable datasets                    |
 | `map.get_scannalbes_array(h5py.File)`    | returns numpy array of scannable datasets             |
-| `map.get_data_block(h5py.File)`          | returns dict like object with metadata and scannables |
+| `map.get_dataholder(h5py.File)`          | returns dict like object with metadata and scannables |
 | `map.get_image(h5py.File, index)`        | returns image data                                    |
 | `map.get_data(h5py.File, 'name')`        | returns data from dataset                             |
 | `map.eval(h5py.File, 'expression')`      | returns output of expression using dataset names      |

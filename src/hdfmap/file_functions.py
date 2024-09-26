@@ -1,21 +1,13 @@
 import os
-import h5py
 import numpy as np
 
+from . import load_hdf, HdfMap, NexusMap
 from .logging import create_logger
-from .hdfmap_class import HdfMap
-from .nexus import NexusMap
 
 
 EXTENSIONS = ['.nxs', '.hdf', '.hdf5', '.h5']
 DEFAULT_EXTENSION = EXTENSIONS[0]
-DEFAULT_HDF_PATH = "entry1/scan_command"
 logger = create_logger(__name__)
-
-
-def load_hdf(hdf_filename: str) -> h5py.File:
-    """Load hdf file, return h5py.File object"""
-    return h5py.File(hdf_filename, 'r')
 
 
 def list_files(folder_directory: str, extension=DEFAULT_EXTENSION) -> list[str]:
@@ -207,4 +199,3 @@ def nexus_data_block(filenames: str | list[str], hdf_map: HdfMap = None, fixed_o
     if not fixed_output and len(filenames) == 1:
         return out[0]
     return out
-

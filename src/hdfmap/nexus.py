@@ -147,23 +147,33 @@ class NexusMap(HdfMap):
         out += disp_dict({k: v for k, v in self.classes.items() if k in nx_classes}, 20)
         out += '\nDefaults:\n'
         out += f"  @{NX_DEFAULT}: {self.find_attr(NX_DEFAULT)}\n"
-        out += f"  @{NX_AXES}: {self.find_attr(NX_AXES)}\n"
-        out += f"  @{NX_SIGNAL}: {self.find_attr(NX_SIGNAL)}\n"
+        out += f"  @{NX_AXES}: {self.get_path(NX_AXES)}\n"
+        out += f"  @{NX_SIGNAL}: {self.get_path(NX_SIGNAL)}\n"
         return out
 
     def _default_nexus_paths(self, hdf_file):
         """Load Nexus default axes and signal"""
         try:
             axes_paths, signal_path = find_nexus_data(hdf_file)
-            # TODO: add method of including multiple axes, e.g. axes1, axes2, ..., or self.get_axes
             if axes_paths and axes_paths[0] in hdf_file:
                 self.arrays[NX_AXES] = axes_paths[0]
+                n = 0
+                for axes_path in axes_paths:
+                    if axes_path in hdf_file and isinstance(hdf_file[axes_path], h5py.Dataset):
+                        self.arrays[f"{NX_AXES}{n}"] = axes_path
+                        n += 1
                 logger.info(f"DEFAULT axes: {axes_paths}")
             if signal_path in hdf_file:
                 self.arrays[NX_SIGNAL] = signal_path
                 logger.info(f"DEFAULT signal: {signal_path}")
         except KeyError:
             pass
+
+    def nexus_defaults(self):
+        """Return default axes and signal paths"""
+        axes_paths = [self.arrays[axes] for n in range(10) if (axes := f"{NX_AXES}{n}") in self.arrays]
+        signal_path = self.arrays[NX_SIGNAL]
+        return axes_paths, signal_path
 
     def _scannables_from_scan_fields_or_nxdata(self, hdf_file: h5py.File):
         """Generate scannables from scan_field names or default NXdata"""

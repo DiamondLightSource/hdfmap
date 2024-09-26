@@ -58,6 +58,11 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
     if np.issubdtype(dataset, np.number):
         return np.squeeze(dataset[index])  # numeric np.ndarray
     try:
+        # str integers will be cast as timestamps (years), capture as int
+        return np.squeeze(dataset[index]).astype(int)
+    except ValueError:
+        pass
+    try:
         # timestamp -> datetime64 -> datetime
         timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
         # single datetime obj vs array of datetime obj
@@ -70,6 +75,40 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
             return string_dataset  # str array
         except ValueError:
             return np.squeeze(dataset[index])  # other np.ndarray
+
+
+def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
+    """
+    Read the data from a h5py Dataset and convert to a representative string
+        Strings are given with quotes
+        numbers are shorted by attribute 'decimals'
+        numeric arrays are summarised as "dtype (shape)"
+        string arrays are summarised as "['str0', ...]
+
+    :param dataset: h5py.Dataset containing data
+    :param index: index of array (not used if dataset is string/ bytes type)
+    :return str: string representation of data
+    """
+    if np.issubdtype(dataset, np.number):
+        if dataset.size > 1:
+            return f"{dataset.dtype} {dataset.shape}"
+        value = np.squeeze(dataset[index])  # numeric np.ndarray
+        if 'decimals' in dataset.attrs:
+            value = value.round(dataset.attrs['decimals'])
+        return str(value)
+    try:
+        # timestamp -> datetime64 -> datetime
+        timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        # single datetime obj vs array of datetime obj
+        return f"'{timestamp[()]}'" if timestamp.ndim == 0 else f"['{timestamp[0]}', ...({len(timestamp)})]"
+    except ValueError:
+        try:
+            string_dataset = dataset.asstr()[()]
+            if dataset.ndim == 0:
+                return f"'{round_string_floats(string_dataset)}'"  # bytes or str -> str
+            return f"['{string_dataset[0]}', ...({len(string_dataset)})]"  # str array
+        except ValueError:
+            return str(np.squeeze(dataset[index]))  # other np.ndarray
 
 
 def check_unsafe_eval(eval_str: str) -> None:

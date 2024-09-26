@@ -2,29 +2,29 @@
 hdfmap
 Map objects within an HDF file and create a dataset namespace.
 
---- Usage ---
-# HdfMap from NeXus file:
-from hdfmap import create_nexus_map, load_hdf
-hmap = create_nexus_map('file.nxs')
-with load_hdf('file.nxs') as nxs:
-    address = hmap.get_address('energy')
-    energy = nxs[address][()]
-    string = hmap.format_hdf(nxs, "the energy is {energy:.2f} keV")
-    d = hmap.get_data_block(nxs)  # classic data table, d.scannable, d.metadata
+# Usage
+### HdfMap from NeXus file
+    from hdfmap import create_nexus_map, load_hdf
+    hmap = create_nexus_map('file.nxs')
+    with load_hdf('file.nxs') as nxs:
+        address = hmap.get_address('energy')
+        energy = nxs[address][()]
+        string = hmap.format_hdf(nxs, "the energy is {energy:.2f} keV")
+        d = hmap.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
 
-# Shortcuts - single file reloading class
-from hdfmap import NexusLoader
-scan = NexusLoader('file.nxs')
-[data1, data2] = scan.get_data(['dataset_name_1', 'dataset_name_2'])
-data = scan.eval('dataset_name_1 * 100 + 2')
-string = scan.format('my data is {dataset_name_1:.2f}')
+### Shortcuts - single file reloading class
+    from hdfmap import NexusLoader
+    scan = NexusLoader('file.nxs')
+    [data1, data2] = scan.get_data(['dataset_name_1', 'dataset_name_2'])
+    data = scan.eval('dataset_name_1 * 100 + 2')
+    string = scan.format('my data is {dataset_name_1:.2f}')
 
-# Shortcuts - multifile load data
-from hdfmap import hdf_data, hdf_eval, hdf_format, hdf_image
-all_data = hdf_data([f"file{n}.nxs" for n in range(100)], 'dataset_name')
-normalised_data = hdf_eval(filenames, 'total / Transmission / (rc / 300.)')
-descriptions = hdf_eval(filenames, 'Energy: {en:5.3f} keV')
-image = hdf_image(filenames, index=31)
+### Shortcuts - multifile load data
+    from hdfmap import hdf_data, hdf_eval, hdf_format, hdf_image
+    all_data = hdf_data([f"file{n}.nxs" for n in range(100)], 'dataset_name')
+    normalised_data = hdf_eval(filenames, 'total / Transmission / (rc / 300.)')
+    descriptions = hdf_eval(filenames, 'Energy: {en:5.3f} keV')
+    image = hdf_image(filenames, index=31)
 
 
 By Dr Dan Porter
@@ -33,9 +33,10 @@ Diamond Light Source Ltd
 """
 
 from .logging import set_all_logging_level
+from .hdf_loader import load_hdf
 from .hdfmap_class import HdfMap
 from .nexus import NexusMap
-from .file_functions import list_files, load_hdf, create_hdf_map, create_nexus_map
+from .file_functions import list_files, create_hdf_map, create_nexus_map
 from .file_functions import hdf_data, hdf_image, hdf_eval, hdf_format, nexus_data_block
 from .reloader_class import HdfLoader, NexusLoader
 
@@ -46,8 +47,8 @@ __all__ = [
     set_all_logging_level
 ]
 
-__version__ = "0.4.0"
-__date__ = "2024/08/16"
+__version__ = "0.5.0"
+__date__ = "2024/09/25"
 
 
 def version_info() -> str:
