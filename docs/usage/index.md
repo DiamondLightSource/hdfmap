@@ -18,6 +18,7 @@ with load_hdf('file.nxs') as nxs:
     cmd = nxs[path][()]  # returns bytes data direct from file
     cmd = m.get_data(nxs, 'scan_command')  # returns converted str output
     string = m.format_hdf(nxs, "the energy is {energy:.2f} keV")
+    image = m.get_image(nxs, 30)  # returns image number 30 in list (even in multi-dimension)
     d = m.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
 
 # Shortcuts - single file reloader class
@@ -27,6 +28,10 @@ scan = NexusLoader('file.hdf')
 [data1, data2] = scan.get_data(['dataset_name_1', 'dataset_name_2'])
 data = scan.eval('dataset_name_1 * 100 + 2')
 string = scan.format('my data is {dataset_name_1:.2f}')
+data1, data2 = scan('dataset_name_1, dataset_name_2')
+path1, path2 = scan('_dataset_name_1, _dataset_name_2')
+xdata, xlabel = scan('axes0, _axes0')
+ydata, ylabel = scan('signal, _signal')
 
 # Shortcuts - multifile load data (generate map from first file)
 from hdfmap import hdf_data, hdf_eval, hdf_format, hdf_image

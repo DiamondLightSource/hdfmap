@@ -102,4 +102,23 @@ image_list = hdf_image(files, index=0)
 data_list = hdf_eval(files, 'signal / Transmission')
 ```
 
+### Multi-Dimension Scans
+Where files have multiple axes (e.g. a scan of x and y), the NeXus file will have a list of default @axes arguments.
+The reserved name 'axes' only gives the first axis, but additional axes paths are stored as names 'axes#'
+where # is the axis number.
+```python
+from hdfmap import NexusLoader
+
+scan = NexusLoader('scan_file.nxs')
+axes_paths, signal_path = scan.map.nexus_defaults()
+
+axes_x = scan('axes0')
+axes_y = scan('axes1')
+signal = scan('signal')
+
+# Image data from MD scans
+scan_shape = scan.map.get_image_shape()
+index_slice = scan.map.get_image_index(30)  # returns (i,j,k) 
+```
+
 

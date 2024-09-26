@@ -8,7 +8,7 @@ DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
 
 @pytest.fixture
 def files():
-    files = ff.list_files(DATA_FOLDER)
+    files = ff.list_files(DATA_FOLDER, extension='.nxs')
     yield files
 
 

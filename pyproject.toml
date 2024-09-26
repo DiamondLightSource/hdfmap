@@ -38,8 +38,3 @@ Repository = "https://github.com/DiamondLightSource/hdfmap"
 "Bug Tracker" = "https://github.com/DiamondLightSource/hdfmap"
 Changelog = "https://github.com/DiamondLightSource/hdfmap/blob/master/README.md"
 
-
-[tool.pytest.ini_options]
-pythonpath = [
-  "src",
-]

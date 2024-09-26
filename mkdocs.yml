@@ -26,6 +26,9 @@ nav:
       - description/nexus_NexusMap.md
       - description/reloader_class.md
     - Modules:
+        - description/hdfmap.md
+        - description/nexus.md
+        - description/hdf_loader.md
         - description/eval_functions.md
         - description/file_functions.md
 markdown_extensions:

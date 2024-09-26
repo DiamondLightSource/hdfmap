@@ -3,12 +3,15 @@ import json
 import hdfmap
 import hdfmap.hdf_loader
 
+from . import only_dls_file_system
+
 # Edge case files, create this list from create_test_files.py
 TEST_FILES = path.join(path.dirname(__file__), 'data', 'test_files.json')
 with open(TEST_FILES, 'r') as f:
     CHECK_FILES = json.load(f)
 
 
+@only_dls_file_system
 def test_edge_cases():
     n = 0
     for chk in CHECK_FILES:
@@ -26,6 +29,7 @@ def test_edge_cases():
     print(f"Completed {n} edge case files")
 
 
+@only_dls_file_system
 def test_old_i16_file():
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1040311.nxs'
     assert path.isfile(filename) is True, f"{filename} doesn't exist"
@@ -36,6 +40,7 @@ def test_old_i16_file():
     assert address == '/entry1/measurement/sum', 'expression "_sum" returns wrong address'
 
 
+@only_dls_file_system
 def test_new_i16_file():
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1040323.nxs'
     assert path.isfile(filename) is True, f"{filename} doesn't exist"

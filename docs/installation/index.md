@@ -6,7 +6,7 @@ The module is designed to be used either in an interactive environment or in pyt
 *Requires:* Python >=3.10, Numpy, h5py
 
 
-=== "pypi"
+=== "PyPi"
 
     ### pip installation from stable version
     ```bash

@@ -123,59 +123,62 @@ class HdfMap:
             outstr = map.format(hdf, 'the data looks like: {data}')
 
     Objects within the HDF file are separated into Groups and Datasets. Each object has a
-    defined 'path' and 'name' paramater, as well as other attributes
-        path -> '/entry/measurement/data' -> the location of an object within the file
-        name -> 'data' -> a path expressed as a simple variable name
+    defined 'path' and 'name' paramater, as well as other attribute:
+
+    - path -> '/entry/measurement/data' -> the location of an object within the file
+    - name -> 'data' -> a path expressed as a simple variable name
+
     Paths are unique location within the file but can be used to identify similar objects in other files
     Names may not be unique within a file and are generated from the final element of the hdf path.
-     - When multiple paths produce the same name, the name is overwritten each time, so the last path in the
+
+    - When multiple paths produce the same name, the name is overwritten each time, so the last path in the
     file has priority.
-     - Names are also stored using the 'local_name' attribute, if it exists
+    - Names are also stored using the 'local_name' attribute, if it exists
 
     Names of different types of datasets are stored for arrays (size > 0) and values (size 0)
     Names for scannables relate to all arrays of a particular size
     A combined list of names is provided where scannables > arrays > values
 
-    Attributes:
-        map.groups      stores attributes of each group by path
-        map.classes     stores list of group paths by nx_class
-        map.datasets    stores attributes of each dataset by path
-        map.arrays      stores array dataset paths by name
-        map.values      stores value dataset paths by name
-        map.metadata   stores value dataset path by altname only
-        map.scannables  stores array dataset paths with given size, by name
-        map.combined    stores array and value paths (arrays overwrite values)
-        map.image_data  stores dataset paths of image data
-    E.G.
-        map.groups = {'/hdf/group': ('class', 'name', {attrs}, [datasets])}
-        map.classes = {'class_name': ['/hdf/group1', '/hdf/group2']}
-        map.datasets = {'/hdf/group/dataset': ('name', size, shape, {attrs})}
-        map.arrays = {'name': '/hdf/group/dataset'}
-        map.values = {'name': '/hdf/group/dataset'}
-        map.scannables = {'name': '/hdf/group/dataset'}
-        map.image_data = {'name': '/hdf/group/dataset'}
+    ### Attributes
+    - map.groups      stores attributes of each group by path
+    - map.classes     stores list of group paths by nx_class
+    - map.datasets    stores attributes of each dataset by path
+    - map.arrays      stores array dataset paths by name
+    - map.values      stores value dataset paths by name
+    - map.metadata   stores value dataset path by altname only
+    - map.scannables  stores array dataset paths with given size, by name
+    - map.combined    stores array and value paths (arrays overwrite values)
+    - map.image_data  stores dataset paths of image data
+    #### E.G.
+    - map.groups = {'/hdf/group': ('class', 'name', {attrs}, [datasets])}
+    - map.classes = {'class_name': ['/hdf/group1', '/hdf/group2']}
+    - map.datasets = {'/hdf/group/dataset': ('name', size, shape, {attrs})}
+    - map.arrays = {'name': '/hdf/group/dataset'}
+    - map.values = {'name': '/hdf/group/dataset'}
+    - map.scannables = {'name': '/hdf/group/dataset'}
+    - map.image_data = {'name': '/hdf/group/dataset'}
 
-    Methods:
-        map.populate(h5py.File) -> populates the dictionaries using the  given file
-        map.generate_scannables(array_size) -> populates scannables namespace with arrays of same size
-        map.most_common_size -> returns the most common dataset size > 1
-        map.get_size('name_or_path') -> return dataset size
-        map.get_shape('name_or_path') -> return dataset size
-        map.get_attr('name_or_path', 'attr') -> return value of dataset attribute
-        map.get_path('name_or_group_or_class') -> returns path of object with name
-        map.get_image_path() -> returns default path of detector dataset (or largest dataset)
-        map.get_group_path('name_or_path_or_class') -> return path of group with class
-        map.get_group_datasets('name_or_path_or_class') -> return list of dataset pathes in class
-    File Methods:
-        map.get_metadata(h5py.File) -> returns dict of value datasets
-        map.get_scannables(h5py.File) -> returns dict of scannable datasets
-        map.get_scannables_array(h5py.File) -> returns numpy array of scannable datasets
-        map.get_dataholder(h5py.File) -> returns dict like object with metadata and scannables
-        map.get_image(h5py.File, index) -> returns image data
-        map.get_data(h5py.File, 'name') -> returns data from dataset
-        map.get_string(h5py.File, 'name') -> returns string summary of dataset
-        map.eval(h5py.File, 'expression') -> returns output of expression
-        map.format(h5py.File, 'string {name}') -> returns output of str expression
+    ### Methods
+    - map.populate(h5py.File) -> populates the dictionaries using the  given file
+    - map.generate_scannables(array_size) -> populates scannables namespace with arrays of same size
+    - map.most_common_size -> returns the most common dataset size > 1
+    - map.get_size('name_or_path') -> return dataset size
+    - map.get_shape('name_or_path') -> return dataset size
+    - map.get_attr('name_or_path', 'attr') -> return value of dataset attribute
+    - map.get_path('name_or_group_or_class') -> returns path of object with name
+    - map.get_image_path() -> returns default path of detector dataset (or largest dataset)
+    - map.get_group_path('name_or_path_or_class') -> return path of group with class
+    - map.get_group_datasets('name_or_path_or_class') -> return list of dataset pathes in class
+    ### File Methods
+    - map.get_metadata(h5py.File) -> returns dict of value datasets
+    - map.get_scannables(h5py.File) -> returns dict of scannable datasets
+    - map.get_scannables_array(h5py.File) -> returns numpy array of scannable datasets
+    - map.get_dataholder(h5py.File) -> returns dict like object with metadata and scannables
+    - map.get_image(h5py.File, index) -> returns image data
+    - map.get_data(h5py.File, 'name') -> returns data from dataset
+    - map.get_string(h5py.File, 'name') -> returns string summary of dataset
+    - map.eval(h5py.File, 'expression') -> returns output of expression
+    - map.format(h5py.File, 'string {name}') -> returns output of str expression
     """
 
     def __init__(self, file: h5py.File | None = None):

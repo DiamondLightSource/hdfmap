@@ -19,7 +19,7 @@ def hdf_map():
 
 def test_populate(hdf_map):
     assert len(hdf_map.datasets) == 431, "Wrong number of datasets"
-    assert len(hdf_map.combined) == 635, "Wrong number of names in map.combined"
+    assert len(hdf_map.combined) == 633, "Wrong number of names in map.combined"
     assert hdf_map.scannables_length() == 21, "Wrong length for scannables"
     assert hdf_map['axes'] == '/entry/measurement/h', "Wrong path for default axes"
     assert hdf_map.get_image_path() == '/entry/instrument/pil3_100k/data', "Wrong image path"

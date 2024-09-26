@@ -118,7 +118,7 @@ def test_get_metadata(hdf_map):
 def test_create_metadata_list(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
         meta = hdf_map.create_metadata_list(hdf)
-    assert len(meta) == 11435, "Length of metadata list wrong"
+    assert len(meta) == 11391, "Length of metadata list wrong"
 
 
 def test_get_scannables(hdf_map):

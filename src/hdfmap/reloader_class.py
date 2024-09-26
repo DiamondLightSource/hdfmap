@@ -11,11 +11,11 @@ from .file_functions import create_hdf_map, create_nexus_map
 
 class HdfLoader:
     """
-    HDF Loader
-    contains the filename and hdfmap for a HDF file, the hdfmap contains all the dataset paths and a
+    HDF Loader contains the filename and hdfmap for a HDF file, the hdfmap contains all the dataset paths and a
     namespace, allowing data to be called from the file using variable names, loading only the required datasets
     for each operation.
-    E.G.
+
+    ### E.G.
         hdf = HdfLoader('file.hdf')
         [data1, data2] = hdf.get_data(*['dataset_name_1', 'dataset_name_2'])
         data = hdf.eval('dataset_name_1 * 100 + 2')
@@ -23,7 +23,7 @@ class HdfLoader:
         print(hdf.summary())
     """
 
-    def __init__(self, hdf_filename: str, hdf_map: HdfMap | None = None):
+    def __init__(self, hdf_filename: str, hdf_map: HdfMap | NexusMap | None = None):
         self.filename = hdf_filename
         if hdf_map is None:
             self.map = create_hdf_map(hdf_filename)

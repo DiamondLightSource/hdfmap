@@ -3,6 +3,8 @@ from time import perf_counter
 import hdfmap
 import hdfmap.hdf_loader
 
+from . import only_dls_file_system
+
 # Folder with over 1000 files
 THOUSAND_FILES = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/cm37262-1'
 NFILES = 1332  # number of files to test (max 1332)
@@ -10,6 +12,7 @@ NFILES = 1332  # number of files to test (max 1332)
 FORMAT_STRING = '#{entry_identifier}: {start_time} : E={incident_energy:.3f} keV : {scan_command}'
 
 
+@only_dls_file_system
 def test_compare_time_for_many_files():
     files = hdfmap.list_files(THOUSAND_FILES)[:NFILES]
     assert len(files) > 1, "Files not found"
