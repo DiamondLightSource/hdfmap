@@ -20,6 +20,7 @@ logger = create_logger(__name__)
 # regex patterns
 special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
 long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
+datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
 
 
 def expression_safe_name(string: str, replace: str = '_') -> str:
@@ -63,8 +64,9 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
     except ValueError:
         pass
     try:
-        # timestamp -> datetime64 -> datetime
-        timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        # timestamp -> np.datetime64 -> datetime, results in Numpy warnings for timezones, wrong time
+        # timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        timestamp = np.squeeze(datetime_converter(dataset))
         # single datetime obj vs array of datetime obj
         return timestamp[()] if timestamp.ndim == 0 else timestamp
     except ValueError:
@@ -98,7 +100,8 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
         return str(value)
     try:
         # timestamp -> datetime64 -> datetime
-        timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        # timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        timestamp = np.squeeze(datetime_converter(dataset))
         # single datetime obj vs array of datetime obj
         return f"'{timestamp[()]}'" if timestamp.ndim == 0 else f"['{timestamp[0]}', ...({len(timestamp)})]"
     except ValueError:

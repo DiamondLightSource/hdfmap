@@ -76,17 +76,19 @@ def test_get_data(hdf_map):
         h = hdf['/entry1/measurement/h'][()]
         cmd = hdf['/entry1/scan_command'].asstr()[()]
         scanno = int(hdf['/entry1/entry_identifier'][()])
+        time = hdf_map.get_data(hdf, 'start_time').strftime('%y/%m/%d %H:%M')
         assert hdf_map.get_data(hdf, 'en') == en, "'en' produces wrong result"
         assert (hdf_map.get_data(hdf, 'h') == h).all(), "'h' produces wrong result"
         assert hdf_map.get_data(hdf, 'scan_command')[:8] == cmd[:8], "'cmd' produces wrong result"
         assert hdf_map.get_data(hdf, 'entry_identifier') == scanno, "'entry_identifier' gives wrong result"
+        assert time == '24/05/17 15:13', "'start_time' gives wrong time"
 
 
 def test_get_string(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
         assert hdf_map.get_string(hdf, 'en') == '3.5800002233729673'
         assert hdf_map.get_string(hdf, 'h') == 'float64 (101,)'
-        assert hdf_map.get_string(hdf, 'start_time') == "'2024-05-17 14:13:27.025000'"
+        assert hdf_map.get_string(hdf, 'start_time') == "'2024-05-17 15:13:27.025000+01:00'"
 
 
 def test_get_image(hdf_map):
@@ -118,7 +120,7 @@ def test_get_metadata(hdf_map):
 def test_create_metadata_list(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
         meta = hdf_map.create_metadata_list(hdf)
-    assert len(meta) == 11391, "Length of metadata list wrong"
+    assert len(meta) == 11361, "Length of metadata list wrong"
 
 
 def test_get_scannables(hdf_map):
