@@ -161,6 +161,7 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     # TODO: add ROI commands e.g. nroi[1,2,3,4] -> default_image([1,2,3,4])
     # TODO: add name@attribute e.g. incident_energy@units -> 'eV'
     # TODO: add name.label e.g. axes.label -> 'eta [Deg]'
+    # TODO: add class_name e.g. NXdetector_data
     namespace = {
         name: dataset2data(hdf_file[hdf_namespace[name]])
         for name in identifiers if name in hdf_namespace and hdf_namespace[name] in hdf_file
@@ -191,6 +192,7 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     identifiers = [name for name in hdf_namespace if name in special_characters.split(expression)]
     # find other non-builtin identifiers
     identifiers += [name for name in find_identifiers(expression) if name not in identifiers]
+    # TODO: add default
     namespace = generate_namespace(hdf_file, hdf_namespace, identifiers)
     logger.info(f"Expression: {expression}\nidentifiers: {identifiers}\n")
     logger.debug(f"namespace: {namespace}\n")

@@ -398,15 +398,20 @@ class HdfMap:
         :param hdf_group: h5py.Group
         :param group_path: str path of group hdf_group if hdf_group.name is incorrect
         """
-        first_dataset = hdf_group[next(iter(hdf_group))]
-        array_size = first_dataset.size
         # watch out - hdf_group.name may not point to a location in the file!
         hdf_path = hdf_group.name if group_path is None else group_path
-        self._populate(hdf_group, root=hdf_path, recursive=False)
-        self.scannables = {
-            k: build_hdf_path(hdf_path, k)
-            for k in hdf_group if isinstance(hdf_group[k], h5py.Dataset) and hdf_group[k].size == array_size
-        }
+        # catch empty groups
+        if len(hdf_group) == 0:
+            logger.warning(f"HDF Group {hdf_path} has no datasets for scannables")
+            self.scannables = {}
+        else:
+            first_dataset = hdf_group[next(iter(hdf_group))]
+            array_size = first_dataset.size
+            self._populate(hdf_group, root=hdf_path, recursive=False)
+            self.scannables = {
+                k: build_hdf_path(hdf_path, k)
+                for k in hdf_group if isinstance(hdf_group[k], h5py.Dataset) and hdf_group[k].size == array_size
+            }
         logger.debug(f"Scannables from group: {list(self.scannables.keys())}")
         self.generate_combined()
 
@@ -611,8 +616,11 @@ class HdfMap:
         extra = extra_hdf_data(hdf_file)
         if name_list:
             metadata_paths = {name: self.combined.get(name, '') for name in name_list}
+        elif self.metadata:
+            metadata_paths = self.metadata
         else:
-            metadata_paths = self.metadata if self.metadata else self.values
+            logger.warning("'local_names' metadata is not available, using all size=1 datasets.")
+            metadata_paths = self.values
         if string_output:
             extra = {key: f"'{val}'" for key, val in extra.items()}
             metadata = {
@@ -663,7 +671,7 @@ class HdfMap:
         if isinstance(index, int):
             index = self.get_image_index(index)
         image_path = self.get_image_path()
-        logger.debug(f"image path: {image_path}")
+        logger.info(f"image path: {image_path}")
         if image_path and image_path in hdf_file:
             return hdf_file[image_path][index].squeeze()  # remove trailing dimensions
 
@@ -749,6 +757,7 @@ class HdfMap:
         :param expression: str expression using {name} format specifiers
         :return: eval_hdf(f"expression")
         """
+        # TODO: add default parameter
         return format_hdf(hdf_file, expression, self.combined)
 
     def create_dataset_summary(self, hdf_file: h5py.File) -> str:
