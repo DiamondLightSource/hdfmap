@@ -1,7 +1,6 @@
 import pytest
 import os
 import hdfmap
-import hdfmap.hdf_loader
 
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
 FILE_HKL = DATA_FOLDER + "/1049598.nxs"  # hkl scan, pilatus
@@ -9,7 +8,7 @@ FILE_HKL = DATA_FOLDER + "/1049598.nxs"  # hkl scan, pilatus
 
 @pytest.fixture
 def hdf_map():
-    with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
+    with hdfmap.load_hdf(FILE_HKL) as hdf:
         hdf_map = hdfmap.HdfMap(hdf)
     yield hdf_map
 

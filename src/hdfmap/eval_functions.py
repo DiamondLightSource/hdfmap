@@ -57,6 +57,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
     if direct_load:
         return dataset[index]
     if np.issubdtype(dataset, np.number):
+        logger.debug(f"Dataset {repr(dataset)} is numeric, return numpy array")
         return np.squeeze(dataset[index])  # numeric np.ndarray
     try:
         # str integers will be cast as timestamps (years), capture as int
@@ -67,15 +68,18 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
         # timestamp -> np.datetime64 -> datetime, results in Numpy warnings for timezones, wrong time
         # timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
         timestamp = np.squeeze(datetime_converter(dataset))
+        logger.debug(f"Dataset {repr(dataset)} is timestamp, return array of datetime objects")
         # single datetime obj vs array of datetime obj
         return timestamp[()] if timestamp.ndim == 0 else timestamp
     except ValueError:
         try:
             string_dataset = dataset.asstr()[()]
+            logger.debug(f"Dataset {repr(dataset)} is string")
             if dataset.ndim == 0:
                 return round_string_floats(string_dataset)  # bytes or str -> str
             return string_dataset  # str array
         except ValueError:
+            logger.debug(f"Dataset {repr(dataset)} is an unexpected type")
             return np.squeeze(dataset[index])  # other np.ndarray
 
 
@@ -92,6 +96,7 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
     :return str: string representation of data
     """
     if np.issubdtype(dataset, np.number):
+        logger.debug(f"Dataset {repr(dataset)} is numeric")
         if dataset.size > 1:
             return f"{dataset.dtype} {dataset.shape}"
         value = np.squeeze(dataset[index])  # numeric np.ndarray
@@ -102,15 +107,18 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
         # timestamp -> datetime64 -> datetime
         # timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
         timestamp = np.squeeze(datetime_converter(dataset))
+        logger.debug(f"Dataset {repr(dataset)} is timestamp")
         # single datetime obj vs array of datetime obj
         return f"'{timestamp[()]}'" if timestamp.ndim == 0 else f"['{timestamp[0]}', ...({len(timestamp)})]"
     except ValueError:
         try:
             string_dataset = dataset.asstr()[()]
+            logger.debug(f"Dataset {repr(dataset)} is string")
             if dataset.ndim == 0:
                 return f"'{round_string_floats(string_dataset)}'"  # bytes or str -> str
             return f"['{string_dataset[0]}', ...({len(string_dataset)})]"  # str array
         except ValueError:
+            logger.debug(f"Dataset {repr(dataset)} is an unexpected type")
             return str(np.squeeze(dataset[index]))  # other np.ndarray
 
 
