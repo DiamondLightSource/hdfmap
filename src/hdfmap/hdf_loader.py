@@ -38,7 +38,7 @@ def hdf_tree_string(hdf_filename: str) -> str:
             h5py_obj = hdf_file.get(name)
             if isinstance(obj, h5py.ExternalLink) and isinstance(h5py_obj, h5py.Dataset):
                 attrs = ', '.join([f"@{attr}={item}" for attr, item in h5py_obj.attrs.items()])
-                detail = f"LINK: {obj.dtype}, {obj.shape}"
+                detail = f"LINK: {h5py_obj.dtype}, {h5py_obj.shape}"
                 output.append(f"{name:60}  :  {detail:20}   :  {attrs}")
 
         hdf_file.visititems(visit_paths)
