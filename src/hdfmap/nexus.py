@@ -35,17 +35,23 @@ def check_nexus_class(hdf_group: h5py.Group, nxclass: str) -> bool:
 
 def default_nxentry(hdf_file: h5py.File) -> str | bytes:
     """Return the default NXentry path, or the first NXentry if there is no default, errors if no NXentry"""
-    return entry if (
-            NX_DEFAULT in hdf_file.attrs and
-            isinstance(hdf_file.get(entry := hdf_file.attrs[NX_DEFAULT]), h5py.Group)
-    ) else next(path for path in hdf_file if check_nexus_class(hdf_file.get(path), NX_ENTRY))
+    if NX_DEFAULT in hdf_file.attrs and isinstance(hdf_file.get(entry := hdf_file.attrs[NX_DEFAULT]), h5py.Group):
+        return entry
+    logger.warning('File has no default NXEntry, using the first one available')
+    return next(path for path in hdf_file if check_nexus_class(hdf_file.get(path), NX_ENTRY))
 
 
 def default_nxdata(entry_group: h5py.Group) -> str | bytes:
     """Return the default NXdata path within an NXentry group"""
-    nx_data_name = entry_group.attrs[NX_DEFAULT] if NX_DEFAULT in entry_group.attrs else NX_MEASUREMENT
+    if NX_DEFAULT in entry_group.attrs:
+        nx_data_name = entry_group.attrs[NX_DEFAULT]
+    else:
+        logger.warning(f"No Default NXData group found, using {NX_MEASUREMENT}")
+        nx_data_name = NX_MEASUREMENT
     if nx_data_name not in entry_group:
+        logger.warning(f"{nx_data_name} not available, using first NXdata group in Entry")
         nx_data_name = next(name for name in entry_group if check_nexus_class(entry_group.get(name), NX_DATA))
+        logger.info(f"First NXData group in Entry: {nx_data_name}")
     return nx_data_name
 
 
@@ -206,7 +212,7 @@ class NexusMap(HdfMap):
                     self.image_data[detector_name] = data_path
 
         if not self.image_data:
-            logger.warning("!!!Warning: No NXdetector found, image_data not populated!")
+            logger.warning("No NXdetector found, image_data not populated!")
 
     def populate(self, hdf_file: h5py.File, groups=None, default_entry_only=False):
         """
@@ -242,7 +248,7 @@ class NexusMap(HdfMap):
             self._populate(nx_entry, root=hdf_path, groups=groups)  # nx_entry.name can be wrong!
 
         if not self.datasets:
-            logger.warning("!!!Warning: No datasets found!")
+            logger.warning("No datasets found!")
 
         self._scannables_from_scan_fields_or_nxdata(hdf_file)
 

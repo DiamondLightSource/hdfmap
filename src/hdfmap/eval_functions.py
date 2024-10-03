@@ -20,6 +20,8 @@ logger = create_logger(__name__)
 # regex patterns
 special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
 long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
+# fromisoformat requires python 3.11+
+datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
 
 
 def expression_safe_name(string: str, replace: str = '_') -> str:
@@ -56,6 +58,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
     if direct_load:
         return dataset[index]
     if np.issubdtype(dataset, np.number):
+        logger.debug(f"Dataset {repr(dataset)} is numeric, return numpy array")
         return np.squeeze(dataset[index])  # numeric np.ndarray
     try:
         # str integers will be cast as timestamps (years), capture as int
@@ -63,17 +66,21 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
     except ValueError:
         pass
     try:
-        # timestamp -> datetime64 -> datetime
-        timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        # timestamp -> np.datetime64 -> datetime, results in Numpy warnings for timezones, wrong time
+        # timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        timestamp = np.squeeze(datetime_converter(dataset))
+        logger.debug(f"Dataset {repr(dataset)} is timestamp, return array of datetime objects")
         # single datetime obj vs array of datetime obj
         return timestamp[()] if timestamp.ndim == 0 else timestamp
     except ValueError:
         try:
             string_dataset = dataset.asstr()[()]
+            logger.debug(f"Dataset {repr(dataset)} is string")
             if dataset.ndim == 0:
                 return round_string_floats(string_dataset)  # bytes or str -> str
             return string_dataset  # str array
         except ValueError:
+            logger.debug(f"Dataset {repr(dataset)} is an unexpected type")
             return np.squeeze(dataset[index])  # other np.ndarray
 
 
@@ -90,6 +97,7 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
     :return str: string representation of data
     """
     if np.issubdtype(dataset, np.number):
+        logger.debug(f"Dataset {repr(dataset)} is numeric")
         if dataset.size > 1:
             return f"{dataset.dtype} {dataset.shape}"
         value = np.squeeze(dataset[index])  # numeric np.ndarray
@@ -98,16 +106,20 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
         return str(value)
     try:
         # timestamp -> datetime64 -> datetime
-        timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        # timestamp = np.squeeze(dataset[index]).astype(np.datetime64).astype(datetime.datetime)
+        timestamp = np.squeeze(datetime_converter(dataset))
+        logger.debug(f"Dataset {repr(dataset)} is timestamp")
         # single datetime obj vs array of datetime obj
         return f"'{timestamp[()]}'" if timestamp.ndim == 0 else f"['{timestamp[0]}', ...({len(timestamp)})]"
     except ValueError:
         try:
             string_dataset = dataset.asstr()[()]
+            logger.debug(f"Dataset {repr(dataset)} is string")
             if dataset.ndim == 0:
                 return f"'{round_string_floats(string_dataset)}'"  # bytes or str -> str
             return f"['{string_dataset[0]}', ...({len(string_dataset)})]"  # str array
         except ValueError:
+            logger.debug(f"Dataset {repr(dataset)} is an unexpected type")
             return str(np.squeeze(dataset[index]))  # other np.ndarray
 
 
@@ -161,6 +173,7 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     # TODO: add ROI commands e.g. nroi[1,2,3,4] -> default_image([1,2,3,4])
     # TODO: add name@attribute e.g. incident_energy@units -> 'eV'
     # TODO: add name.label e.g. axes.label -> 'eta [Deg]'
+    # TODO: add class_name e.g. NXdetector_data
     namespace = {
         name: dataset2data(hdf_file[hdf_namespace[name]])
         for name in identifiers if name in hdf_namespace and hdf_namespace[name] in hdf_file
@@ -191,6 +204,7 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     identifiers = [name for name in hdf_namespace if name in special_characters.split(expression)]
     # find other non-builtin identifiers
     identifiers += [name for name in find_identifiers(expression) if name not in identifiers]
+    # TODO: add default
     namespace = generate_namespace(hdf_file, hdf_namespace, identifiers)
     logger.info(f"Expression: {expression}\nidentifiers: {identifiers}\n")
     logger.debug(f"namespace: {namespace}\n")
