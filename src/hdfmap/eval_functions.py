@@ -20,6 +20,7 @@ logger = create_logger(__name__)
 # regex patterns
 special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
 long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
+# fromisoformat requires python 3.11+
 datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
 
 
