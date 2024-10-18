@@ -2,6 +2,7 @@
 hdf eval functions
 """
 
+import sys
 import os
 import ast
 import builtins
@@ -16,12 +17,16 @@ from .logging import create_logger
 # parameters
 GLOBALS = {'np': np}
 GLOBALS_NAMELIST = dir(builtins) + list(GLOBALS.keys())
+DEFAULT: typing.Any = np.array('--')  # default return in eval
 logger = create_logger(__name__)
 # regex patterns
 special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
 long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
 # fromisoformat requires python 3.11+
 datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
+
+if sys.version_info < (3, 11, 0):
+    logger.warning("Nexus timestamps are not convertable by datetime.fromisoformat in python version <3.11")
 
 
 def expression_safe_name(string: str, replace: str = '_') -> str:
@@ -31,7 +36,7 @@ def expression_safe_name(string: str, replace: str = '_') -> str:
     :param replace: str replace special characters with this
     :return: string with special characters replaced
     """
-    return special_characters.sub('_', string)
+    return special_characters.sub(replace, string)
 
 
 def round_string_floats(string):
@@ -48,6 +53,14 @@ def round_string_floats(string):
 def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=False) -> datetime.datetime | str | np.ndarray:
     """
     Read the data from a h5py Dataset and convert to either datetime, str or squeezed numpy array
+
+    - numeric size=1 datasets return float
+    - numeric size>1 datasets return numpy array
+    - string/ byte timestamps (size=1) return datetime.datetime object
+    - string/ byte timestamps (size>1) return array of datetime.datetime
+    - all other size=1 datasets return string
+    - all other size>1 datasets return array of string
+
     :param dataset: h5py.Dataset containing data
     :param index: index of array (not used if dataset is string/ bytes type)
     :param direct_load: loads the data directly without conversion if True
@@ -87,10 +100,12 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
 def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
     """
     Read the data from a h5py Dataset and convert to a representative string
-        Strings are given with quotes
-        numbers are shorted by attribute 'decimals'
-        numeric arrays are summarised as "dtype (shape)"
-        string arrays are summarised as "['str0', ...]
+
+     - Strings are given with quotes
+     - long floats are shorted by attribute 'decimals'
+     - numeric arrays are summarised as "dtype (shape)"
+     - string arrays are summarised as "['str0', ...]
+     - trailing floats within strings are shortened
 
     :param dataset: h5py.Dataset containing data
     :param index: index of array (not used if dataset is string/ bytes type)
@@ -153,7 +168,7 @@ def extra_hdf_data(hdf_file: h5py.File) -> dict:
 
 
 def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], identifiers: list[str] | None = None,
-                       default: typing.Any = np.array('--')) -> dict[str, typing.Any]:
+                       default: typing.Any = DEFAULT) -> dict[str, typing.Any]:
     """
     Generate namespace dict - create a dictionary linking the name of a dataset to the dataset value
 
@@ -189,12 +204,14 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     return {**defaults, **extras, **hdf_paths, **namespace}
 
 
-def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]) -> typing.Any:
+def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str],
+             default: typing.Any = DEFAULT) -> typing.Any:
     """
     Evaluate an expression using the namespace of the hdf file
     :param hdf_file: h5py.File object
     :param expression: str expression to be evaluated
     :param hdf_namespace: dict of {'variable name': '/hdf/dataset/path'}
+    :param default: returned if varname not in namespace
     :return: eval(expression)
     """
     if expression in hdf_file:
@@ -204,22 +221,23 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     identifiers = [name for name in hdf_namespace if name in special_characters.split(expression)]
     # find other non-builtin identifiers
     identifiers += [name for name in find_identifiers(expression) if name not in identifiers]
-    # TODO: add default
-    namespace = generate_namespace(hdf_file, hdf_namespace, identifiers)
+    namespace = generate_namespace(hdf_file, hdf_namespace, identifiers, default)
     logger.info(f"Expression: {expression}\nidentifiers: {identifiers}\n")
     logger.debug(f"namespace: {namespace}\n")
     return eval(expression, GLOBALS, namespace)
 
 
-def format_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]) -> str:
+def format_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str],
+               default: typing.Any = DEFAULT) -> str:
     """
     Evaluate a formatted string expression using the namespace of the hdf file
     :param hdf_file: h5py.File object
     :param expression: str expression using {name} format specifiers
     :param hdf_namespace: dict of {'variable name': '/hdf/dataset/path'}
+    :param default: returned if varname not in namespace
     :return: eval_hdf(f"expression")
     """
     expression = 'f"""' + expression + '"""'  # convert to fstr
-    return eval_hdf(hdf_file, expression, hdf_namespace)
+    return eval_hdf(hdf_file, expression, hdf_namespace, default)
 
 

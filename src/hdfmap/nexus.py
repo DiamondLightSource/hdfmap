@@ -14,11 +14,14 @@ NX_LOCALNAME = 'local_name'
 NX_DEFAULT = 'default'
 NX_MEASUREMENT = 'measurement'
 NX_SCANFIELDS = 'scan_fields'
+NX_AUXILIARY = 'auxiliary_signals'
 NX_SIGNAL = 'signal'
 NX_AXES = 'axes'
 NX_DETECTOR = 'NXdetector'
 NX_DETECTOR_DATA = 'data'
 logger = create_logger(__name__)
+
+# TODO: add nexus_scan_number
 
 
 def check_nexus_class(hdf_group: h5py.Group, nxclass: str) -> bool:
@@ -183,6 +186,7 @@ class NexusMap(HdfMap):
 
     def _scannables_from_scan_fields_or_nxdata(self, hdf_file: h5py.File):
         """Generate scannables from scan_field names or default NXdata"""
+
         # find 'scan_fields' to generate scannables list
         if NX_SCANFIELDS in self.arrays:
             scan_fields_path = self.arrays[NX_SCANFIELDS]
@@ -196,6 +200,14 @@ class NexusMap(HdfMap):
             logger.info(f"{nx_entry}, {nx_data}")
             if nx_data:
                 logger.info(f"NX Data: {nx_data.name}")
+                # TODO: Add auxilliary signals
+                # if NX_AUXILIARY in nx_data.attrs:
+                #     signals = list(nx_data.attrs[NX_AUXILIARY])  # bytes - change to str
+                #     if NX_SIGNAL in nx_data.attrs:
+                #         signals.insert(0, nx_data.attrs[NX_SIGNAL])
+                #     self.generate_scannables_from_names(signals)  # may get from outside NXdata (add names to _from_group)
+                # else:
+                #     self.generate_scannables_from_group(nx_data)
                 self.generate_scannables_from_group(nx_data)
 
         if not self.scannables:
@@ -254,3 +266,5 @@ class NexusMap(HdfMap):
 
         # find the NXdetector group and assign the image data
         self._image_data_from_nxdetector()
+
+# TODO: Add get_plot_data -> {'data', 'labels', 'title'}

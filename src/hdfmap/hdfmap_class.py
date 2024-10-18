@@ -10,7 +10,8 @@ import h5py
 
 from . import load_hdf
 from .logging import create_logger
-from .eval_functions import expression_safe_name, extra_hdf_data, eval_hdf, format_hdf, dataset2data, dataset2str
+from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf,
+                             format_hdf, dataset2data, dataset2str, DEFAULT)
 
 
 # parameters
@@ -398,6 +399,7 @@ class HdfMap:
         :param hdf_group: h5py.Group
         :param group_path: str path of group hdf_group if hdf_group.name is incorrect
         """
+        # TODO: add names to params for auxilliary signals
         # watch out - hdf_group.name may not point to a location in the file!
         hdf_path = hdf_group.name if group_path is None else group_path
         # catch empty groups
@@ -741,24 +743,25 @@ class HdfMap:
         scannables['metadata'] = DataHolder(**metadata)
         return DataHolder(**scannables)
 
-    def eval(self, hdf_file: h5py.File, expression: str):
+    def eval(self, hdf_file: h5py.File, expression: str, default=DEFAULT):
         """
         Evaluate an expression using the namespace of the hdf file
         :param hdf_file: h5py.File object
         :param expression: str expression to be evaluated
+        :param default: returned if varname not in namespace
         :return: eval(expression)
         """
-        return eval_hdf(hdf_file, expression, self.combined)
+        return eval_hdf(hdf_file, expression, self.combined, default)
 
-    def format_hdf(self, hdf_file: h5py.File, expression: str) -> str:
+    def format_hdf(self, hdf_file: h5py.File, expression: str, default=DEFAULT) -> str:
         """
         Evaluate a formatted string expression using the namespace of the hdf file
         :param hdf_file: h5py.File object
         :param expression: str expression using {name} format specifiers
+        :param default: returned if varname not in namespace
         :return: eval_hdf(f"expression")
         """
-        # TODO: add default parameter
-        return format_hdf(hdf_file, expression, self.combined)
+        return format_hdf(hdf_file, expression, self.combined, default)
 
     def create_dataset_summary(self, hdf_file: h5py.File) -> str:
         """Create summary of all datasets in file"""
