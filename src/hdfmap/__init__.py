@@ -42,14 +42,14 @@ from .reloader_class import HdfLoader, NexusLoader
 
 
 __all__ = [
-    'load_hdf', 'create_hdf_map', 'create_nexus_map',
+    'load_hdf', 'create_hdf_map', 'create_nexus_map', 'list_files',
     'hdf_tree_string', 'hdf_tree_dict', 'hdf_dataset_list', 'hdf_compare', 'compare_maps',
     'hdf_data', 'hdf_image', 'hdf_eval', 'hdf_format', 'nexus_data_block', 'HdfLoader', 'NexusLoader',
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
 __version__ = "0.5.2"
-__date__ = "2024/10/17"
+__date__ = "2024/11/05"
 
 
 def version_info() -> str:

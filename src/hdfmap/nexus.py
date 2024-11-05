@@ -219,8 +219,11 @@ class NexusMap(HdfMap):
         if NX_DETECTOR in self.classes:
             for group_path in self.classes[NX_DETECTOR]:
                 detector_name = generate_identifier(group_path)
+                # TODO: only finds image data called NXdetector/data but data is allowed other names
                 data_path = build_hdf_path(group_path, NX_DETECTOR_DATA)
+                logger.debug(f"Looking for image_data at: '{data_path}'")
                 if data_path in self.datasets and len(self.datasets[data_path].shape) > 1:
+                    logger.info(f"Adding image_data ['{detector_name}'] = '{data_path}'")
                     self.image_data[detector_name] = data_path
 
         if not self.image_data:

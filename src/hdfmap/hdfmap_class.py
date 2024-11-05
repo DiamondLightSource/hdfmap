@@ -407,7 +407,10 @@ class HdfMap:
             logger.warning(f"HDF Group {hdf_path} has no datasets for scannables")
             self.scannables = {}
         else:
-            first_dataset = hdf_group[next(iter(hdf_group))]
+            first_dataset = hdf_group[
+                next(name for name, item in hdf_group.items() if isinstance(item, h5py.Dataset))
+            ]
+            # first_dataset = hdf_group[next(iter(hdf_group))]
             array_size = first_dataset.size
             self._populate(hdf_group, root=hdf_path, recursive=False)
             self.scannables = {
@@ -540,6 +543,7 @@ class HdfMap:
 
     def get_image_shape(self) -> tuple:
         """Return the scan shape of the detector dataset"""
+        # TODO: change name to get_image_scan_shape, return .shape[:-2]
         path = self.get_image_path()
         if path:
             return self.datasets[path].shape
