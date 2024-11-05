@@ -199,3 +199,37 @@ def nexus_data_block(filenames: str | list[str], hdf_map: HdfMap = None, fixed_o
     if not fixed_output and len(filenames) == 1:
         return out[0]
     return out
+
+
+def compare_maps(map1: HdfMap | NexusMap, map2: HdfMap | NexusMap) -> str:
+    """
+    Compare two HdfMap objects
+    """
+    missing_in_2 = []
+    missing_in_1 = []
+    different = []
+    same = []
+    for name1, path1 in map1.combined.items():
+        if name1 in map2.combined:
+            path2 = map2.combined[name1]
+            if path2 != path1:
+                different.append(f"{name1}: {path1} != {path2}")
+            dataset1 = map1.datasets[path1]
+            dataset2 = map2.datasets[path2]
+            if dataset1.shape != dataset2.shape:
+                different.append(f"{name1}: {dataset1.shape}, {dataset2.shape}")
+            else:
+                same.append(f"{name1}: {dataset1.shape} : {path1}, {path2}")
+        else:
+            missing_in_2.append(f"{name1}: {path1}")
+
+    for name2, path2 in map2.combined.items():
+        if name2 not in map1.combined:
+            missing_in_1.append(f"{name2}: {path2}")
+
+    output = f"Comparing:\n  {map1.filename}, with\n  {map2.filename}\n\n"
+    output += "Different items:\n  " + '\n  '.join(different)
+    output += f"\n\nMissing in {map1.filename}:\n  " + '\n  '.join(missing_in_1)
+    output += f"\n\nMissing in {map2.filename}:\n  " + '\n  '.join(missing_in_2)
+    output += '\n'
+    return output

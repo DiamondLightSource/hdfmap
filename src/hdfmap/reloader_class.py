@@ -7,6 +7,7 @@ import numpy as np
 
 from . import load_hdf, HdfMap, NexusMap
 from .file_functions import create_hdf_map, create_nexus_map
+from .eval_functions import DEFAULT
 
 
 class HdfLoader:
@@ -123,23 +124,25 @@ class HdfLoader:
         with self._load() as hdf:
             return self.map.create_dataset_summary(hdf)
 
-    def eval(self, expression: str):
+    def eval(self, expression: str, default=DEFAULT):
         """
         Evaluate an expression using the namespace of the hdf file
         :param expression: str expression to be evaluated
+        :param default: returned if varname not in namespace
         :return: eval(expression)
         """
         with self._load() as hdf:
-            return self.map.eval(hdf, expression)
+            return self.map.eval(hdf, expression, default)
 
-    def format(self, expression: str):
+    def format(self, expression: str, default=DEFAULT):
         """
         Evaluate a formatted string expression using the namespace of the hdf file
         :param expression: str expression using {name} format specifiers
+        :param default: returned if varname not in namespace
         :return: eval_hdf(f"expression")
         """
         with self._load() as hdf:
-            return self.map.format_hdf(hdf, expression)
+            return self.map.format_hdf(hdf, expression, default)
 
 
 class NexusLoader(HdfLoader):

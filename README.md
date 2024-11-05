@@ -52,8 +52,15 @@ image_stack = hdf_image(filenames, index=31)
 
 ### Installation
 *Requires:* Python >=3.10, Numpy, h5py
+
+#### from PyPI
 ```bash
-python -m pip install --upgrade git+https://github.com/DanPorter/hdfmap.git
+python -m pip install hdfmap
+```
+
+#### from GitHub
+```bash
+python -m pip install --upgrade git+https://github.com/DiamondLightSource/hdfmap.git
 ```
 
 ### Description

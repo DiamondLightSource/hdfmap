@@ -1,5 +1,7 @@
 import pytest
+import sys
 import os
+import datetime
 import hdfmap
 
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
@@ -75,19 +77,31 @@ def test_get_data(hdf_map):
         h = hdf['/entry1/measurement/h'][()]
         cmd = hdf['/entry1/scan_command'].asstr()[()]
         scanno = int(hdf['/entry1/entry_identifier'][()])
-        time = hdf_map.get_data(hdf, 'start_time').strftime('%y/%m/%d %H:%M')
         assert hdf_map.get_data(hdf, 'en') == en, "'en' produces wrong result"
         assert (hdf_map.get_data(hdf, 'h') == h).all(), "'h' produces wrong result"
         assert hdf_map.get_data(hdf, 'scan_command')[:8] == cmd[:8], "'cmd' produces wrong result"
         assert hdf_map.get_data(hdf, 'entry_identifier') == scanno, "'entry_identifier' gives wrong result"
-        assert time == '24/05/17 15:13', "'start_time' gives wrong time"
+
+
+def test_get_date(hdf_map):
+    with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
+        time = hdf_map.get_data(hdf, 'start_time')
+        if sys.version_info >= (3, 11, 0):
+            # datetime.fromisoformat only accepts Nexus timestamps from Python 3.11
+            assert isinstance(time, datetime.datetime)
+            assert time.strftime('%y/%m/%d %H:%M') == '24/05/17 15:13', "'start_time' gives wrong time"
+        else:
+            assert isinstance(time, str), "'start_time' is wrong type"
 
 
 def test_get_string(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
         assert hdf_map.get_string(hdf, 'en') == '3.5800002233729673'
         assert hdf_map.get_string(hdf, 'h') == 'float64 (101,)'
-        assert hdf_map.get_string(hdf, 'start_time') == "'2024-05-17 15:13:27.025000+01:00'"
+        if sys.version_info >= (3, 11, 0):
+            assert hdf_map.get_string(hdf, 'start_time') == "'2024-05-17 15:13:27.025000+01:00'"
+        else:  # without intermediate conversion to datetime
+            assert hdf_map.get_string(hdf, 'start_time') == "'2024-05-17T15:13:27.025+01'"
 
 
 def test_get_image(hdf_map):
@@ -119,7 +133,10 @@ def test_get_metadata(hdf_map):
 def test_create_metadata_list(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
         meta = hdf_map.create_metadata_list(hdf)
-    assert len(meta) == 11361, "Length of metadata list wrong"
+    if sys.version_info >= (3, 11, 0):
+        assert len(meta) == 11361, "Length of metadata list wrong"
+    else:  # length of time strings changes
+        assert len(meta) == 11381, "Length of metadata list wrong"
 
 
 def test_get_scannables(hdf_map):
