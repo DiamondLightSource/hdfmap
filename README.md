@@ -23,7 +23,7 @@ from hdfmap import create_nexus_map, load_hdf
 m = create_nexus_map('file.nxs')
 m['energy']  # >> '/entry/instrument/monochromator/energy'
 m['signal']  # >> '/entry/measurement/sum'
-m['axes']  # >> '/entry/measurement/theta'
+m['axes0']  # >> '/entry/measurement/theta'
 m.get_image_path()  # >> '/entry/instrument/pil3_100k/data'
 
 with load_hdf('file.nxs') as nxs:

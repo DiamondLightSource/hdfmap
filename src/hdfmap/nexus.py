@@ -5,13 +5,17 @@ Nexus Related functions and nexus class
 import h5py
 
 from .logging import create_logger
-from .hdfmap_class import HdfMap, build_hdf_path, generate_identifier, disp_dict
+from .hdfmap_class import HdfMap, disp_dict
+from .eval_functions import generate_identifier, build_hdf_path
 
 NX_CLASS = 'NX_class'
 NX_ENTRY = 'NXentry'
 NX_DATA = 'NXdata'
 NX_LOCALNAME = 'local_name'
 NX_DEFAULT = 'default'
+NX_RUN = 'entry_identifier'
+NX_CMD = 'scan_command'
+NX_TITLE = 'title'
 NX_MEASUREMENT = 'measurement'
 NX_SCANFIELDS = 'scan_fields'
 NX_AUXILIARY = 'auxiliary_signals'
@@ -19,9 +23,8 @@ NX_SIGNAL = 'signal'
 NX_AXES = 'axes'
 NX_DETECTOR = 'NXdetector'
 NX_DETECTOR_DATA = 'data'
+NX_UNITS = 'units'
 logger = create_logger(__name__)
-
-# TODO: add nexus_scan_number
 
 
 def check_nexus_class(hdf_group: h5py.Group, nxclass: str) -> bool:
@@ -184,7 +187,25 @@ class NexusMap(HdfMap):
         signal_path = self.arrays[NX_SIGNAL]
         return axes_paths, signal_path
 
-    def _scannables_from_scan_fields_or_nxdata(self, hdf_file: h5py.File):
+    def generate_scannables_from_nxdata(self, hdf_file: h5py.File, use_auxiliary: bool = True):
+        """Generate scannables from default NXdata, using axuiliary_names if available"""
+        # find the default NXdata group and generate the scannables list
+        nx_entry = hdf_file.get(default_nxentry(hdf_file))
+        nx_data = nx_entry.get(default_nxdata(nx_entry))
+        logger.info(f"{nx_entry}, {nx_data}")
+        if nx_data:
+            logger.info(f"NX Data: {nx_data.name}")
+            if use_auxiliary and NX_AUXILIARY in nx_data.attrs:
+                signals = list(nx_data.attrs[NX_AUXILIARY])
+                if NX_SIGNAL in nx_data.attrs:
+                    signals.insert(0, nx_data.attrs[NX_SIGNAL])
+                signals = [i.decode() if isinstance(i, bytes) else i for i in signals]  # convert bytes to str
+                logger.info(f"NX Data - using auiliary_names: {signals}")
+                self.generate_scannables_from_group(nx_data, dataset_names=signals)
+            else:
+                self.generate_scannables_from_group(nx_data)
+
+    def generate_scannables_from_scan_fields_or_nxdata(self, hdf_file: h5py.File):
         """Generate scannables from scan_field names or default NXdata"""
 
         # find 'scan_fields' to generate scannables list
@@ -194,37 +215,32 @@ class NexusMap(HdfMap):
             logger.info(f"NX ScanFields: {scan_fields_path}: {scan_fields}")
             self.generate_scannables_from_names(scan_fields)
         else:
-            # find the default NXdata group and generate the scannables list
-            nx_entry = hdf_file.get(default_nxentry(hdf_file))
-            nx_data = nx_entry.get(default_nxdata(nx_entry))
-            logger.info(f"{nx_entry}, {nx_data}")
-            if nx_data:
-                logger.info(f"NX Data: {nx_data.name}")
-                # TODO: Add auxilliary signals
-                # if NX_AUXILIARY in nx_data.attrs:
-                #     signals = list(nx_data.attrs[NX_AUXILIARY])  # bytes - change to str
-                #     if NX_SIGNAL in nx_data.attrs:
-                #         signals.insert(0, nx_data.attrs[NX_SIGNAL])
-                #     self.generate_scannables_from_names(signals)  # may get from outside NXdata (add names to _from_group)
-                # else:
-                #     self.generate_scannables_from_group(nx_data)
-                self.generate_scannables_from_group(nx_data)
+            self.generate_scannables_from_nxdata(hdf_file)
 
         if not self.scannables:
             logger.warning("No NXdata found, scannables not populated!")
 
-    def _image_data_from_nxdetector(self):
+    def generate_image_data_from_nxdetector(self):
         """find the NXdetector group and assign the image data"""
         self.image_data = {}
         if NX_DETECTOR in self.classes:
             for group_path in self.classes[NX_DETECTOR]:
                 detector_name = generate_identifier(group_path)
-                # TODO: only finds image data called NXdetector/data but data is allowed other names
+                # detector data is stored in NXdata in dataset 'data'
                 data_path = build_hdf_path(group_path, NX_DETECTOR_DATA)
                 logger.debug(f"Looking for image_data at: '{data_path}'")
                 if data_path in self.datasets and len(self.datasets[data_path].shape) > 1:
                     logger.info(f"Adding image_data ['{detector_name}'] = '{data_path}'")
                     self.image_data[detector_name] = data_path
+                else:
+                    # Use first dataset with > 2 dimensions
+                    image_datasets = [
+                        path for name in self.get_group_datasets(group_path)
+                        if len(self.datasets[path := build_hdf_path(group_path, name)].shape) >= 3
+                    ]
+                    if image_datasets:
+                        logger.info(f"Adding image_data ['{detector_name}'] = '{image_datasets[0]}'")
+                        self.image_data[detector_name] = image_datasets[0]
 
         if not self.image_data:
             logger.warning("No NXdetector found, image_data not populated!")
@@ -265,9 +281,44 @@ class NexusMap(HdfMap):
         if not self.datasets:
             logger.warning("No datasets found!")
 
-        self._scannables_from_scan_fields_or_nxdata(hdf_file)
+        self.generate_scannables_from_scan_fields_or_nxdata(hdf_file)
 
         # find the NXdetector group and assign the image data
-        self._image_data_from_nxdetector()
+        self.generate_image_data_from_nxdetector()
 
-# TODO: Add get_plot_data -> {'data', 'labels', 'title'}
+    def get_plot_data(self, hdf_file: h5py.File):
+        """
+        Return plotting data from scannables
+        :returns: {
+            'xlabel': str label of first axes
+            'ylabel': str label of signal
+            'xdata': flattened array of first axes
+            'ydata': flattend array of signal
+            'axes_names': list of axes names,
+            'signal_name': str signal name,
+            'axes_data': list of ND arrays of data for axes,
+            'signal_data': ND array of signal data,
+            'data': dict of all scannables axes,
+            'axes_labels': list of axes labels as 'name [units]',
+            'title': str title as 'filename\nNXtitle'
+        }
+        """
+        axes, signal = self.nexus_defaults()
+        axes_names = [generate_identifier(path) for path in axes]
+        signal_name = generate_identifier(signal)
+        axes_units = [self.get_attr(path, NX_UNITS, '') for path in axes]
+        axes_labels = [f"{name} [{unit}]" for name, unit in zip(axes_names, axes_units)]
+        title = f"{self.filename}\n{self.get_data(hdf_file, NX_TITLE)}"
+        return {
+            'xlabel': axes_labels[0],
+            'ylabel': signal_name,
+            'xdata': self.get_data(hdf_file, axes[0]).flatten(),
+            'ydata': self.get_data(hdf_file, signal).flatten(),
+            'axes_names': axes_names,
+            'signal_name': signal_name,
+            'axes_data': [self.get_data(hdf_file, ax) for ax in axes],
+            'signal_data': self.get_data(hdf_file, signal),
+            'data': self.get_scannables(hdf_file),
+            'axes_labels': axes_labels,
+            'title': title
+        }
