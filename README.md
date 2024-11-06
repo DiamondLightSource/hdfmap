@@ -5,7 +5,7 @@ Map objects within an HDF file and create a dataset namespace.
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![](https://img.shields.io/github/forks/DiamondLightSource/hdfmap?label=GitHub%20Repo&style=social)](https://github.com/DiamondLightSource/hdfmap)
 
-**Version 0.5**
+**Version 0.6**
 
 | By Dan Porter        | 
 |----------------------|
