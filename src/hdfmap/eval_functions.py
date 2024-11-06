@@ -18,15 +18,54 @@ from .logging import create_logger
 GLOBALS = {'np': np}
 GLOBALS_NAMELIST = dir(builtins) + list(GLOBALS.keys())
 DEFAULT: typing.Any = np.array('--')  # default return in eval
+SEP = '/'  # HDF path separator
+OMIT = '/value'  # omit this name in paths when determining identifier
 logger = create_logger(__name__)
 # regex patterns
-special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
-long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
+re_special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
+re_long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
+re_dataset_attributes = re.compile(r'([a-zA-Z_]\w*)@([a-zA-Z_]\w*)')  # finds 'name@attribute' in expressions
 # fromisoformat requires python 3.11+
 datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
 
 if sys.version_info < (3, 11, 0):
     logger.warning("Nexus timestamps are not convertable by datetime.fromisoformat in python version <3.11")
+
+
+def generate_identifier(hdf_path: str | bytes) -> str:
+    """
+    Generate a valid python identifier from a hdf dataset path or other string
+     - Decodes to ascii
+     - omits '/value'
+     - splits by path separator (/) and takes final element
+     - converts special characters to '_'
+     - removes replication of strings separated by '_'
+    E.G.
+        /entry/group/motor1 >> "motor1"
+        /entry/group/motor/value >> "motor"
+        /entry/group/subgroup.motor >> "subgroup_motor"
+        motor.motor >> "motor"
+    :param hdf_path: str hdf path address
+    :return: str expression safe name
+    """
+    if hasattr(hdf_path, 'decode'):  # Byte string
+        hdf_path = hdf_path.decode('ascii')
+    if hdf_path.endswith(OMIT):
+        hdf_path = hdf_path[:-len(OMIT)]  # omit 'value'
+    substrings = hdf_path.split(SEP)
+    name = expression_safe_name(substrings[-1])
+    # remove replication (handles local_names 'name.name' convention)
+    return '_'.join(dict.fromkeys(name.split('_')))
+
+
+def build_hdf_path(*args: str | bytes) -> str:
+    """
+    Build path from string or bytes arguments
+        '/entry/measurement' = build_hdf_path(b'entry', 'measurement')
+    :param args: str or bytes arguments
+    :return: str hdf path
+    """
+    return SEP + SEP.join((arg.decode() if isinstance(arg, bytes) else arg).strip(SEP) for arg in args)
 
 
 def expression_safe_name(string: str, replace: str = '_') -> str:
@@ -36,7 +75,7 @@ def expression_safe_name(string: str, replace: str = '_') -> str:
     :param replace: str replace special characters with this
     :return: string with special characters replaced
     """
-    return special_characters.sub(replace, string)
+    return re_special_characters.sub(replace, string)
 
 
 def round_string_floats(string):
@@ -47,7 +86,7 @@ def round_string_floats(string):
     """
     def subfun(m):
         return str(round(float(m.group()), 3))
-    return long_floats.sub(subfun, string)
+    return re_long_floats.sub(subfun, string)
 
 
 def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=False) -> datetime.datetime | str | np.ndarray:
@@ -138,6 +177,16 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
             return str(np.squeeze(dataset[index]))  # other np.ndarray
 
 
+def dataset_attribute(dataset: h5py.Dataset, attribute: str) -> str:
+    """
+    Return attribute of dataset
+    """
+    value = dataset.attrs.get(attribute, '')
+    if isinstance(value, bytes):
+        return value.decode()
+    return value
+
+
 def check_unsafe_eval(eval_str: str) -> None:
     """
     Check str for naughty eval arguments such as sys, os or import
@@ -186,9 +235,7 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     if identifiers is None:
         identifiers = list(hdf_namespace.keys())
     # TODO: add ROI commands e.g. nroi[1,2,3,4] -> default_image([1,2,3,4])
-    # TODO: add name@attribute e.g. incident_energy@units -> 'eV'
     # TODO: add name.label e.g. axes.label -> 'eta [Deg]'
-    # TODO: add class_name e.g. NXdetector_data
     namespace = {
         name: dataset2data(hdf_file[hdf_namespace[name]])
         for name in identifiers if name in hdf_namespace and hdf_namespace[name] in hdf_file
@@ -199,9 +246,11 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     }
     hdf_paths = {name: hdf_namespace[name[1:]] for name in identifiers
                  if name.startswith('_') and name[1:] in hdf_namespace}
+    hdf_names = {name: generate_identifier(hdf_namespace[name[2:]]) for name in identifiers
+                 if name.startswith('__') and name[2:] in hdf_namespace}
     # add extra params
     extras = extra_hdf_data(hdf_file)
-    return {**defaults, **extras, **hdf_paths, **namespace}
+    return {**defaults, **extras, **hdf_paths, **hdf_names, **namespace}
 
 
 def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str],
@@ -217,11 +266,20 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     if expression in hdf_file:
         return dataset2data(hdf_file[expression])
     check_unsafe_eval(expression)
+    # find name@attribute in expression
+    attributes = {
+        f"attr__{name}_{attr}": dataset_attribute(hdf_file[path], attr)
+        for name, attr in re_dataset_attributes.findall(expression)
+        if (path := hdf_namespace.get(name, '')) in hdf_file
+    }
+    # replace name@attribute in expression
+    expression = re_dataset_attributes.sub(r'attr__\g<1>_\g<2>', expression)
     # find identifiers matching names in the namespace
-    identifiers = [name for name in hdf_namespace if name in special_characters.split(expression)]
+    identifiers = [name for name in hdf_namespace if name in re_special_characters.split(expression)]
     # find other non-builtin identifiers
     identifiers += [name for name in find_identifiers(expression) if name not in identifiers]
     namespace = generate_namespace(hdf_file, hdf_namespace, identifiers, default)
+    namespace.update(attributes)  # add attributes
     logger.info(f"Expression: {expression}\nidentifiers: {identifiers}\n")
     logger.debug(f"namespace: {namespace}\n")
     return eval(expression, GLOBALS, namespace)

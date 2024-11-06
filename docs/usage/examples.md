@@ -30,6 +30,57 @@ metadata = scan.get_metadata()
 scannables = scan.get_scannables()
 ```
 
+
+### evaluating expressions using hdf data
+String expressions can be evaluated accessing datasets within the file using only their names, 
+without needing to know their full location in the file.
+
+```python
+from hdfmap import NexusLoader
+
+scan = NexusLoader('file.nxs')
+
+value = scan.eval('incident_energy')  # returns value associated with /entry/group/incident_energy
+norm = scan.eval('np.max(max_val) / 100')  # expressions can include operations, includes numpy as np
+data = scan.eval('NXdetector_data[:, 50:60, 60:60]')  # array expressions, group_name and class_name are allowed
+axes, signal = scan('axes, signal') # NeXus default signal and axes are in the namespace, scan() is a shortcut
+```
+
+#### Rules for names in eval/format spec:
+ - 'name' - returns value of dataset '/entry/group/name'
+ - 'group_name' - return value of dataset '/entry/group/name'
+ - 'class_name' - return value of dataset '/entry/group/name' where group has NXclass: class
+ - 'name@attr' - returns attribute 'attr' associated with dataset 'name'
+ - '_name' - retrun hdf path of dataset 'name'
+ - '__name' - return default name of dataset 'name' (used when requesting 'axes' or 'signal'
+ - 'filename', 'filepath' - these are always available
+
+
+
+### formatted strings from metadata
+Format strings can also be parsed to obtain data from the hdf files. 
+names inside {} are names of datasets within the hdf file and will return values associated with this. 
+Otherwise, formatting rules for {} are the same as for standard python f-strings.
+
+```python
+from hdfmap import NexusLoader
+
+scan = NexusLoader('file.nxs')
+
+string = scan.format('axes: {__axes0} = {axes0}')
+```
+
+#### multi-file example
+Generate single line strings from many files very quickly, loading only the datasets required from the file.
+```python
+from hdfmap import hdf_format
+
+list_of_files = [f"file{n}.nxs" for n in range(1000)]
+fmt = "{filename:20}: {incident_energy:6.2f} {incident_energy@units} : {scan_command}"
+
+output_str = hdf_format(list_of_files, fmt)  # the hdfmap is generated for the first file, then the same paths are used
+```
+
 ### automatic default plot axes
 If defined in the nexus file, 'axes' and 'signal' will be populated automatically
 
@@ -119,6 +170,37 @@ signal = scan('signal')
 # Image data from MD scans
 scan_shape = scan.map.get_image_shape()
 index_slice = scan.map.get_image_index(30)  # returns (i,j,k) 
+```
+
+### General plot data
+Shortcuts for producing default plots of data
+```python
+import matplotlib.pyplot as plt
+from hdfmap import NexusLoader
+
+scan = NexusLoader('scan_file.nxs')
+
+data = scan.get_plot_data() 
+data = {
+    'xlabel': '',  # str label of first axes
+    'ylabel': '',  # str label of signal
+    'xdata': [],  # flattened array of first axes
+    'ydata': [],  # flattend array of signal
+    'axes_names': [''],  # list of axes names,
+    'signal_name': '',  # str signal name,
+    'axes_data': [[], ],  # list of ND arrays of data for axes,
+    'signal_data': [],  # ND array of signal data,
+    'data': {'': []},  # dict of all scannables axes,
+    'axes_labels': [''],  # list of axes labels as 'name [units]',
+    'title': '',  # str title as 'filename\nNXtitle'
+}
+
+fig, ax = plt.subplot()
+ax.plot(data['xdata'], data['ydata'], label=data['signal_name'])
+ax.set_xlabel(data['xlabel'])
+ax.set_ylabel(data['ylabel'])
+ax.set_title(data['title'])
+fig.show()
 ```
 
 

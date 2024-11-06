@@ -162,3 +162,8 @@ class NexusLoader(HdfLoader):
         if not hdf_map:
             hdf_map = create_nexus_map(nxs_filename)
         super().__init__(nxs_filename, hdf_map)
+
+    def get_plot_data(self) -> dict:
+        """Return dict of useful plot data"""
+        with self._load() as hdf:
+            return self.map.get_plot_data(hdf)

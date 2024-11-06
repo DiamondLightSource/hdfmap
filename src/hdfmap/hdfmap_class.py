@@ -11,13 +11,11 @@ import h5py
 from . import load_hdf
 from .logging import create_logger
 from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf,
-                             format_hdf, dataset2data, dataset2str, DEFAULT)
+                             format_hdf, dataset2data, dataset2str, DEFAULT, SEP, generate_identifier, build_hdf_path)
 
 
 # parameters
-SEP = '/'  # HDF path separator
 LOCAL_NAME = 'local_name'  # dataset attribute name for alt_name
-OMIT = '/value'  # omit this name in paths when determining identifier
 
 # logger
 logger = create_logger(__name__)
@@ -38,32 +36,6 @@ class Dataset(typing.NamedTuple):
     attrs: dict
 
 
-def generate_identifier(hdf_path: str | bytes) -> str:
-    """
-    Generate a valid python identifier from a hdf dataset path or other string
-     - Decodes to ascii
-     - omits '/value'
-     - splits by path separator (/) and takes final element
-     - converts special characters to '_'
-     - removes replication of strings separated by '_'
-    E.G.
-        /entry/group/motor1 >> "motor1"
-        /entry/group/motor/value >> "motor"
-        /entry/group/subgroup.motor >> "subgroup_motor"
-        motor.motor >> "motor"
-    :param hdf_path: str hdf path address
-    :return: str expression safe name
-    """
-    if hasattr(hdf_path, 'decode'):  # Byte string
-        hdf_path = hdf_path.decode('ascii')
-    if hdf_path.endswith(OMIT):
-        hdf_path = hdf_path[:-len(OMIT)]  # omit 'value'
-    substrings = hdf_path.split(SEP)
-    name = expression_safe_name(substrings[-1])
-    # remove replication (handles local_names 'name.name' convention)
-    return '_'.join(dict.fromkeys(name.split('_')))
-
-
 def generate_alt_name(hdf_dataset: h5py.Dataset) -> str:
     """Generate alt_name of dataset if 'local_name' in attributes"""
     if LOCAL_NAME in hdf_dataset.attrs:
@@ -71,16 +43,6 @@ def generate_alt_name(hdf_dataset: h5py.Dataset) -> str:
         if hasattr(alt_name, 'decode'):
             alt_name = alt_name.decode()
         return expression_safe_name(alt_name.split('.')[-1])
-
-
-def build_hdf_path(*args: str | bytes) -> str:
-    """
-    Build path from string or bytes arguments
-        '/entry/measurement' = build_hdf_path(b'entry', 'measurement')
-    :param args: str or bytes arguments
-    :return: str hdf path
-    """
-    return SEP + SEP.join((arg.decode() if isinstance(arg, bytes) else arg).strip(SEP) for arg in args)
 
 
 def disp_dict(mydict: dict, indent: int = 10) -> str:
@@ -296,10 +258,13 @@ class HdfMap:
     def _store_dataset(self, hdf_dataset: h5py.Dataset, hdf_path: str, name: str):
         # New: add group_name to namespace as standard, helps with names like s5/x + s4/x
         # this significantly increases the number of names in namespaces
-        group_name = generate_identifier(f"{hdf_path.split(SEP)[-2]}_{name}")
+        group = self.groups[SEP.join(hdf_path.split(SEP)[:-1])]  # group is already stored
+        group_name = f"{group.name}_{name}"
+        class_name = f"{group.nx_class}_{name}"
+        # group_name = generate_identifier(f"{hdf_path.split(SEP)[-2]}_{name}")
         # alt_name = generate_identifier(hdf_dataset.attrs[LOCAL_NAME]) if LOCAL_NAME in hdf_dataset.attrs else None
         alt_name = generate_alt_name(hdf_dataset)
-        names = {n: hdf_path for n in {name, group_name, alt_name} if n}
+        names = {n: hdf_path for n in {name, group_name, class_name, alt_name} if n}
         self.datasets[hdf_path] = Dataset(
             name=name,
             names=list(names),
@@ -387,35 +352,49 @@ class HdfMap:
         path = next(iter(self.scannables.values()))
         return self.datasets[path].size
 
+    def scannables_shape(self) -> tuple:
+        """Return the shape of the first axis of scannables array"""
+        if not self.scannables:
+            return (0, )
+        path = next(iter(self.scannables.values()))
+        return self.datasets[path].shape
+
     def generate_scannables(self, array_size):
         """Populate self.scannables field with datasets size that match array_size"""
-        self.scannables = {k: v for k, v in self.arrays.items() if self.datasets[v].size == array_size}
+        # self.scannables = {k: v for k, v in self.arrays.items() if self.datasets[v].size == array_size}
+        self.scannables = {ds.name: path for path, ds in self.datasets.items() if ds.size == array_size}
         # create combined dict, scannables and arrays overwrite values with same name
         self.generate_combined()
 
-    def generate_scannables_from_group(self, hdf_group: h5py.Group, group_path: str = None):
+    def generate_scannables_from_group(self, hdf_group: h5py.Group, group_path: str = None,
+                                       dataset_names: list[str] = None):
         """
         Generate scannables list from a specific group, using the first item to define array size
         :param hdf_group: h5py.Group
         :param group_path: str path of group hdf_group if hdf_group.name is incorrect
+        :param dataset_names: list of names of group sub-entries to use (use all if None)
         """
-        # TODO: add names to params for auxilliary signals
         # watch out - hdf_group.name may not point to a location in the file!
         hdf_path = hdf_group.name if group_path is None else group_path
+        # list of datasets within group
+        if dataset_names:
+            dataset_names = [
+                name for name in dataset_names if isinstance(hdf_group.get(name), h5py.Dataset)
+            ]
+        else:
+            dataset_names = [name for name, item in hdf_group.items() if isinstance(item, h5py.Dataset)]
+
         # catch empty groups
-        if len(hdf_group) == 0:
+        if len(dataset_names) == 0:
             logger.warning(f"HDF Group {hdf_path} has no datasets for scannables")
             self.scannables = {}
         else:
-            first_dataset = hdf_group[
-                next(name for name, item in hdf_group.items() if isinstance(item, h5py.Dataset))
-            ]
-            # first_dataset = hdf_group[next(iter(hdf_group))]
+            first_dataset = hdf_group[dataset_names[0]]
             array_size = first_dataset.size
             self._populate(hdf_group, root=hdf_path, recursive=False)
             self.scannables = {
-                k: build_hdf_path(hdf_path, k)
-                for k in hdf_group if isinstance(hdf_group[k], h5py.Dataset) and hdf_group[k].size == array_size
+                name: build_hdf_path(hdf_path, name)
+                for name in dataset_names if hdf_group[name].size == array_size
             }
         logger.debug(f"Scannables from group: {list(self.scannables.keys())}")
         self.generate_combined()
@@ -543,15 +522,16 @@ class HdfMap:
 
     def get_image_shape(self) -> tuple:
         """Return the scan shape of the detector dataset"""
-        # TODO: change name to get_image_scan_shape, return .shape[:-2]
         path = self.get_image_path()
         if path:
-            return self.datasets[path].shape
+            return self.datasets[path].shape[-2:]
         return 0, 0
 
     def get_image_index(self, index: int) -> tuple:
         """Return image slice index for index along total scan size"""
-        return np.unravel_index(index, self.get_image_shape()[:-2])
+        path = self.get_image_path()
+        shape = self.datasets[path].shape
+        return np.unravel_index(index, shape[:-2])
 
     def get_group_datasets(self, name_or_path: str) -> list[str] | None:
         """Find the path associate with the given name and return all datasets in that group"""
@@ -626,7 +606,8 @@ class HdfMap:
             metadata_paths = self.metadata
         else:
             logger.warning("'local_names' metadata is not available, using all size=1 datasets.")
-            metadata_paths = self.values
+            # metadata_paths = self.values
+            metadata_paths = {ds.name: path for path, ds in self.datasets.items() if ds.size <= 1}
         if string_output:
             extra = {key: f"'{val}'" for key, val in extra.items()}
             metadata = {
