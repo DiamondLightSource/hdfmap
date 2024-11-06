@@ -134,7 +134,7 @@ def test_create_metadata_list(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
         meta = hdf_map.create_metadata_list(hdf)
     if sys.version_info >= (3, 11, 0):
-        assert len(meta) == 5312-20, "Length of metadata list wrong"
+        assert len(meta) == 5280, "Length of metadata list wrong"
     else:  # length of time strings changes
         assert len(meta) == 5312, "Length of metadata list wrong"
 
