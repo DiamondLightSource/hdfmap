@@ -40,15 +40,23 @@ def check_nexus_class(hdf_group: h5py.Group, nxclass: str) -> bool:
 
 
 def default_nxentry(hdf_file: h5py.File) -> str | bytes:
-    """Return the default NXentry path, or the first NXentry if there is no default, errors if no NXentry"""
+    """
+    Return the default NXentry path, or the first NXentry if there is no default, errors if no NXentry
+
+    See: https://manual.nexusformat.org/datarules.html#version-3
+    """
     if NX_DEFAULT in hdf_file.attrs and isinstance(hdf_file.get(entry := hdf_file.attrs[NX_DEFAULT]), h5py.Group):
         return entry
-    logger.warning('File has no default NXEntry, using the first one available')
+    logger.info('File has no default NXEntry, using the first one available')
     return next(path for path in hdf_file if check_nexus_class(hdf_file.get(path), NX_ENTRY))
 
 
 def default_nxdata(entry_group: h5py.Group) -> str | bytes:
-    """Return the default NXdata path within an NXentry group"""
+    """
+    Return the default NXdata path within an NXentry group
+
+    See: https://manual.nexusformat.org/datarules.html#version-3
+    """
     if NX_DEFAULT in entry_group.attrs:
         nx_data_name = entry_group.attrs[NX_DEFAULT]
     else:
@@ -71,10 +79,14 @@ def find_nexus_data(hdf_file: h5py.File) -> tuple[list[str], str]:
      - generate paths of signal and axes
      if not nexus compliant, raises KeyError
     This method is very fast but only works on nexus compliant files
+
+    See: https://manual.nexusformat.org/datarules.html#version-3
+
     :param hdf_file: open HDF file object, i.e. h5py.File(...)
     :return axes_paths: list of str hdf paths for axes datasets
     :return signal_path: str hdf path for signal dataset
     """
+    # TODO: add option for multi-dimensional signal (see datarules)
     # From: https://manual.nexusformat.org/examples/python/plotting/index.html
     # find the default NXentry group
     nx_entry_name = default_nxentry(hdf_file)

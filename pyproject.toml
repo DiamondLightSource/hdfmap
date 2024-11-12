@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools >= 61.0", "wheel", "pytest", "numpy", "h5py", "hdf5plugin"]
+requires = ["setuptools >= 61.0", "wheel", "pytest", "numpy>=1.19.3", "h5py>=3.11.0", "hdf5plugin"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "hdfmap"
-version = "0.6.0"
+dynamic = ['version']
 dependencies = [
   "numpy",
   "h5py",
@@ -38,3 +38,5 @@ Repository = "https://github.com/DiamondLightSource/hdfmap"
 "Bug Tracker" = "https://github.com/DiamondLightSource/hdfmap"
 Changelog = "https://github.com/DiamondLightSource/hdfmap/blob/master/README.md"
 
+[tool.setuptools.dynamic]
+version = {attr = "hdfmap.__version__"}

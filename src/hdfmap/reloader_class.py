@@ -86,17 +86,18 @@ class HdfLoader:
             return out[0]
         return out
 
-    def get_string(self, *name_or_path, index: slice = (), default=''):
+    def get_string(self, *name_or_path, index: slice = (), default='', units=False):
         """
         Return data from dataset in file, converted into summary string
         See hdfmap.eval_functions.dataset2data for more information.
         :param name_or_path: str name or path pointing to dataset in hdf file
         :param index: index or slice of data in hdf file
         :param default: value to return if name not found in hdf file
+        :param units: if True and attribute 'units' available, append this to the result
         :return: dataset2str(dataset) -> str
         """
         with self._load() as hdf:
-            out = [self.map.get_string(hdf, name, index, default) for name in name_or_path]
+            out = [self.map.get_string(hdf, name, index, default, units) for name in name_or_path]
         if len(name_or_path) == 1:
             return out[0]
         return out

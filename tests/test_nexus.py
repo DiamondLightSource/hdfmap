@@ -31,6 +31,11 @@ def test_dataset_names(hdf_map):
     assert hdf_map['x_gap'] == '/entry/instrument/s7/x_gap', "Name: 'x_gap' points to wrong path"
 
 
+def test_find_datasets(hdf_map):
+    assert len(hdf_map.find_datasets('NXslit', 'x_gap')) == 7
+    assert len(hdf_map.find_datasets('NXdetector', 'data')) == 1
+
+
 def test_nexus_eval(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_NEW_NEXUS) as hdf:
         out = hdf_map.eval(hdf, 'int(np.max(total / Transmission / count_time))')

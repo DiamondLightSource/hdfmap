@@ -50,8 +50,8 @@ def test_get_group_path(hdf_map):
 
 
 def test_find(hdf_map):
-    assert len(hdf_map.find_paths('eta')) == 28, "Can't find eta in names"
-    assert len(hdf_map.find_paths('eta', False)) == 28, "Can't find eta anywhere"
+    assert len(hdf_map.find_paths('eta')) == 11, "Can't find eta in names"
+    assert len(hdf_map.find_paths('eta', False)) == 11, "Can't find eta anywhere"
 
 
 def test_find_attr(hdf_map):
@@ -64,6 +64,14 @@ def test_get_image_path(hdf_map):
 
 def test_get_group_datasets(hdf_map):
     assert len(hdf_map.get_group_datasets('NXdata')) == 29
+
+
+def test_find_groups(hdf_map):
+    assert len(hdf_map.find_groups('NXentry', 'measurement')) == 1
+
+
+def test_find_datasets(hdf_map):
+    assert len(hdf_map.find_datasets('measurement', 'sum')) == 1
 
 
 "--------------------------------------------------------"

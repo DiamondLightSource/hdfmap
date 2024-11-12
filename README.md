@@ -12,20 +12,23 @@ Map objects within an HDF file and create a dataset namespace.
 | Diamond Light Source |
 | 2024                 |
 
+### Documentation
 [![Docs](https://img.shields.io/badge/Material_for_MkDocs-526CFE?style=for-the-badge&logo=MaterialForMkDocs&logoColor=white)](https://diamondlightsource.github.io/hdfmap/)
+[diamondlightsource.github.io/hdfmap](https://diamondlightsource.github.io/hdfmap/)
 
 ### TL;DR - Usage
 
 ```python
 from hdfmap import create_nexus_map, load_hdf
 
-# HdfMap from NeXus file:
+# HdfMap from NeXus file - get dataset paths:
 m = create_nexus_map('file.nxs')
 m['energy']  # >> '/entry/instrument/monochromator/energy'
 m['signal']  # >> '/entry/measurement/sum'
 m['axes0']  # >> '/entry/measurement/theta'
 m.get_image_path()  # >> '/entry/instrument/pil3_100k/data'
 
+# load dataset data
 with load_hdf('file.nxs') as nxs:
     path = m.get_path('scan_command')
     cmd = nxs[path][()]  # returns bytes data direct from file
@@ -110,18 +113,21 @@ map.image_data = {'name': '/hdf/group/dataset'}
 
 
 ### HdfMap Methods
-|                                                   |                                                                |
-|---------------------------------------------------|----------------------------------------------------------------|
-| `map.populate(h5py.File)`                         | populates the dictionaries using the  given file               |
-| `map.generate_scannables(array_size)`             | populates scannables namespace with arrays of same size        |
-| `map.most_common_size()`                          | returns the most common dataset size > 1                       |
-| `map.get_size('name_or_path')`                    | return dataset size                                            |
-| `map.get_shape('name_or_path')`                   | return dataset size                                            |
-| `map.get_attr('name_or_path', 'attr')`            | return value of dataset attribute                              |
-| `map.get_path('name_or_group_or_class')`          | returns path of object with name                               |
-| `map.get_image_path()`                            | returns default path of detector dataset (or largest dataset)  |
-| `map.get_group_path('name_or_path_or_class')`     | return path of group with class                                |
-| `map.get_group_datasets('name_or_path_or_class')` | return list of dataset paths in class                          |
+|                                                   |                                                                             |
+|---------------------------------------------------|-----------------------------------------------------------------------------|
+| `map.populate(h5py.File)`                         | populates the dictionaries using the  given file                            |
+| `map.generate_scannables(array_size)`             | populates scannables namespace with arrays of same size                     |
+| `map.most_common_size()`                          | returns the most common dataset size > 1                                    |
+| `map.get_attr('name_or_path', 'attr')`            | return value of dataset attribute                                           |
+| `map.get_path('name_or_group_or_class')`          | returns path of object with name                                            |
+| `map.get_image_path()`                            | returns default path of detector dataset (or largest dataset)               |
+| `map.get_group_path('name_or_path_or_class')`     | return path of group with class                                             |
+| `map.get_group_datasets('name_or_path_or_class')` | return list of dataset paths in class                                       |
+| `map.find_groups(*names_or_classes)`              | return list of group paths matching given group names or classes            |
+| `map.find_datasets(*names_or_classes)`            | return list of dataset paths matching given names, classes or attributes    |
+| `map.find_paths('string')`                        | return list of dataset paths containing string                              |
+| `map.find_names('string')`                        | return list of dataset names containing string                              |
+| `map.find_attr('attr_name')`                      | return list of paths of groups or datasets containing attribute 'attr_name' |
 
 
 ### HdfMap File Methods

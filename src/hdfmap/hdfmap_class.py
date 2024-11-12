@@ -125,13 +125,15 @@ class HdfMap:
     - map.populate(h5py.File) -> populates the dictionaries using the  given file
     - map.generate_scannables(array_size) -> populates scannables namespace with arrays of same size
     - map.most_common_size -> returns the most common dataset size > 1
-    - map.get_size('name_or_path') -> return dataset size
-    - map.get_shape('name_or_path') -> return dataset size
     - map.get_attr('name_or_path', 'attr') -> return value of dataset attribute
     - map.get_path('name_or_group_or_class') -> returns path of object with name
     - map.get_image_path() -> returns default path of detector dataset (or largest dataset)
     - map.get_group_path('name_or_path_or_class') -> return path of group with class
-    - map.get_group_datasets('name_or_path_or_class') -> return list of dataset pathes in class
+    - map.get_group_datasets('name_or_path_or_class') -> return list of dataset paths in class
+    - map.find_groups(*names_or_classes) -> return list of group paths matching given group names or classes
+    - map.find_paths('string') -> return list of dataset paths containing string
+    - map.find_names('string') -> return list of dataset names containing string
+    - map.find_attr('attr_name') -> return list of paths of groups or datasets containing attribute 'attr_name'
     ### File Methods
     - map.get_metadata(h5py.File) -> returns dict of value datasets
     - map.get_scannables(h5py.File) -> returns dict of scannable datasets
@@ -327,6 +329,7 @@ class HdfMap:
         self.generate_scannables(size)
 
     def generate_combined(self):
+        """Finalise the mapped namespace by combining dataset names"""
         self.combined = {**self.values, **self.arrays, **self.scannables}
 
     def all_attrs(self) -> dict:
@@ -430,6 +433,14 @@ class HdfMap:
             return SEP
         return hdf_path
 
+    def get_group_classes(self, name_or_path) -> list[str]:
+        """Return list of class names associated with a group or parent group of dataset"""
+        group_path = self.get_group_path(name_or_path)
+        sub_groups = group_path.split(SEP)
+        sub_group_paths = [SEP.join(sub_groups[:n]) for n in range(1, len(sub_groups)+1)]
+        sub_group_classes = [self.groups[g].nx_class for g in sub_group_paths if g in self.groups]
+        return sub_group_classes
+
     def get_group_dataset_path(self, group_name, dataset_name) -> str | None:
         """Return path of dataset defined by group and dataset name/attribute"""
         if group_name in self.groups:
@@ -444,9 +455,53 @@ class HdfMap:
                 if dataset_name in dataset.names:
                     return dataset_path
 
+    def find_groups(self, *names_or_classes: str) -> list[str]:
+        """
+        Find groups that are associated with several names or class names
+
+            [paths, ] = m.find_groups('NXslit', 'NXtransformations', 's1')
+
+        Intended for use finding groups with a certain hierarchy
+        :params names_or_classes:  group names or group class names
+        :returns: list of hdf group paths, where all groups are associated with all given names or classes.
+        """
+        # generate a list of all names and class names associated with each group
+        # TODO: add all_names to self.generate_combined
+        all_names = {p: self.get_group_classes(p) + p.split('/') for p in self.groups}
+        return [path for path, names in all_names.items() if all(arg in names for arg in names_or_classes)]
+
+    def find_datasets(self, *names_or_classes: str) -> list[str]:
+        """
+        Find datasets that are associated with several names or class names
+
+            [paths, ] = m.find_datasets('NXslit', 'x_gap')
+
+        Intended for use finding datasets assosiated with groups with a certain hierarchy
+        :params names_or_classes:  dataset names, group names or group class names
+        :returns: list of hdf dataset paths
+        """
+        args = list(names_or_classes)
+        # split args by dataset names
+        dataset_names = [args.pop(n) for n, a in enumerate(args) if a in self.combined]
+        # find groups from remaining arguments
+        group_paths = self.find_groups(*args)
+        if not dataset_names:
+            # if no datasets are given, return all dataset in group
+            return [build_hdf_path(path, name) for path in group_paths for name in self.groups[path].datasets]
+        # find all dataset paths associated with name
+        dataset_paths = {
+            path for name in dataset_names for path in [
+                p for p, ds in self.datasets.items() if name in ds.names
+            ] + [self.combined[name]] if self.get_group_path(path) in group_paths
+        }
+        return list(dataset_paths)
+
     def find_paths(self, string: str, name_only=True, whole_word=False) -> list[str]:
         """
         Find any dataset paths that contain the given string argument
+
+            [paths, ] = m.find_paths('en')  # finds all datasets with name including 'en'
+
         :param string: str to find in list of datasets
         :param name_only: if True, search only the name of the dataset, not the full path
         :param whole_word: if True, search only for whole-word names (case in-sensitive)
@@ -455,23 +510,29 @@ class HdfMap:
         if whole_word:
             return [path for name, path in self.combined.items() if string.lower() == name.lower()]
         # find string in combined
-        combined_paths = [path for name, path in self.combined.items() if string in name]
+        combined_paths = {path for name, path in self.combined.items() if string in name}
         if name_only:
             return [
                 path for path, dataset in self.datasets.items()
                 if string in dataset.name and path not in combined_paths
-            ] + combined_paths
+            ] + list(combined_paths)
         return [
             path for path in self.datasets if string in path and path not in combined_paths
-        ] + combined_paths
+        ] + list(combined_paths)
 
-    def find_names(self, string: str) -> list[str]:
+    def find_names(self, string: str, match_case=False) -> list[str]:
         """
         Find any dataset names that contain the given string argument, searching names in self.combined
+
+            ['m1x', 'm1y', ...] = m.find_names('m1')
+
         :param string: str to find in list of datasets
+        :param match_case: if True, match must be case-sensitive
         :return: list of names
         """
-        return [name for name in self.combined if string in name]
+        if match_case:
+            return [name for name in self.combined if string in name]
+        return [name for name in self.combined if string.lower() in name.lower()]
 
     def find_attr(self, attr_name: str) -> list[str]:
         """
@@ -572,7 +633,7 @@ class HdfMap:
             return dataset2data(hdf_file[path], index, direct_load)
         return default
 
-    def get_string(self, hdf_file: h5py.File, name_or_path: str, index=(), default='') -> str:
+    def get_string(self, hdf_file: h5py.File, name_or_path: str, index=(), default='', units=False) -> str:
         """
         Return data from dataset in file, converted into string summary of data
         See hdfmap.eval_functions.dataset2str for more information.
@@ -580,11 +641,12 @@ class HdfMap:
         :param name_or_path: str name or path pointing to dataset in hdf file
         :param index: index or slice of data in hdf file
         :param default: value to return if name not found in hdf file
+        :param units: if True and attribute 'units' available, append this to the result
         :return: dataset2str(dataset) -> str
         """
         path = self.get_path(name_or_path)
         if path and path in hdf_file:
-            return dataset2str(hdf_file[path], index)
+            return dataset2str(hdf_file[path], index, units=units)
         return default
 
     def get_metadata(self, hdf_file: h5py.File, default=None, direct_load=False,

@@ -136,7 +136,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
             return np.squeeze(dataset[index])  # other np.ndarray
 
 
-def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
+def dataset2str(dataset: h5py.Dataset, index: int | slice = (), units: bool = False) -> str:
     """
     Read the data from a h5py Dataset and convert to a representative string
 
@@ -145,9 +145,11 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
      - numeric arrays are summarised as "dtype (shape)"
      - string arrays are summarised as "['str0', ...]
      - trailing floats within strings are shortened
+     - if units=True and units available as attribute, the unit will be appended
 
     :param dataset: h5py.Dataset containing data
     :param index: index of array (not used if dataset is string/ bytes type)
+    :param units: if True and attribute 'units' available, append this to the result
     :return str: string representation of data
     """
     if np.issubdtype(dataset, np.number):
@@ -157,6 +159,8 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = ()) -> str:
         value = np.squeeze(dataset[index])  # numeric np.ndarray
         if 'decimals' in dataset.attrs:
             value = value.round(dataset.attrs['decimals'])
+        if units and 'units' in dataset.attrs:
+            value = f"{value} {arg.decode() if isinstance((arg := dataset.attrs['units']), bytes) else arg}"
         return str(value)
     try:
         # timestamp -> datetime64 -> datetime
@@ -225,6 +229,9 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
         filename: str, name of hdf_file
         filepath: str, full path of hdf_file
         _*name*: str hdf path of *name*
+        __*name*: str internal name of *name* (e.g. for 'axes')
+        s_*name*: string representation of dataset
+        *name*@attr: returns attribute of dataset *name*
 
     :param hdf_file: h5py.File object
     :param hdf_namespace: locations of data in hdf file, dict[identifier]='/hdf/dataset/path'
@@ -240,6 +247,11 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
         name: dataset2data(hdf_file[hdf_namespace[name]])
         for name in identifiers if name in hdf_namespace and hdf_namespace[name] in hdf_file
     }
+    strings = {
+        name: dataset2str(hdf_file[hdf_namespace[name[2:]]], units=True)
+        for name in identifiers
+        if name.startswith('s_') and hdf_namespace.get(name[2:]) and hdf_namespace[name[2:]] in hdf_file
+    }
     defaults = {
         name: default
         for name in identifiers if (name not in hdf_namespace) or (hdf_namespace[name] not in hdf_file)
@@ -250,7 +262,7 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
                  if name.startswith('__') and name[2:] in hdf_namespace}
     # add extra params
     extras = extra_hdf_data(hdf_file)
-    return {**defaults, **extras, **hdf_paths, **hdf_names, **namespace}
+    return {**defaults, **extras, **hdf_paths, **hdf_names, **strings, **namespace}
 
 
 def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str],

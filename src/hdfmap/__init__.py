@@ -27,13 +27,28 @@ Map objects within an HDF file and create a dataset namespace.
     image = hdf_image(filenames, index=31)
 
 
+Copyright 2024 Daniel G. Porter
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+
 By Dr Dan Porter
 Diamond Light Source Ltd
 2024
 """
 
 from .logging import set_all_logging_level
-from .hdf_loader import load_hdf, hdf_tree_string, hdf_tree_dict, hdf_dataset_list, hdf_compare
+from .hdf_loader import load_hdf, hdf_tree_string, hdf_tree_dict, hdf_dataset_list, hdf_compare, hdf_find
 from .hdfmap_class import HdfMap
 from .nexus import NexusMap
 from .file_functions import list_files, create_hdf_map, create_nexus_map
@@ -43,13 +58,13 @@ from .reloader_class import HdfLoader, NexusLoader
 
 __all__ = [
     'load_hdf', 'create_hdf_map', 'create_nexus_map', 'list_files',
-    'hdf_tree_string', 'hdf_tree_dict', 'hdf_dataset_list', 'hdf_compare', 'compare_maps',
+    'hdf_tree_string', 'hdf_tree_dict', 'hdf_dataset_list', 'hdf_compare', 'compare_maps', 'hdf_find',
     'hdf_data', 'hdf_image', 'hdf_eval', 'hdf_format', 'nexus_data_block', 'HdfLoader', 'NexusLoader',
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
-__version__ = "0.6.0"
-__date__ = "2024/11/06"
+__version__ = "0.6.1"
+__date__ = "2024/11/12"
 
 
 def version_info() -> str:
