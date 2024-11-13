@@ -20,7 +20,10 @@ FILES = [
     (DIR + 'i06/i06-1-302762.nxs', 'i06 scan'),
     (DIR + 'i21/i21-157111.nxs', 'i21 xcam single point scan'),
     (DIR + 'i21/i21-157116.nxs', 'i21 xcam multi point scan'),
-    (DIR + 'i13/i13-1-368910.nxs', 'i13 Excalibur axis scan')
+    (DIR + 'i13/i13-1-368910.nxs', 'i13 Excalibur axis scan'),
+    (DIR + 'i18/i18-218770.nxs', 'i18 example'),
+    (DIR + 'i07/i07-537190.nxs', 'i07 example'),
+    (DIR + 'i09/i09-279773.nxs', 'i09 example'),
 ]
 
 

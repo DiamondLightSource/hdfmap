@@ -48,7 +48,8 @@ Diamond Light Source Ltd
 """
 
 from .logging import set_all_logging_level
-from .hdf_loader import load_hdf, hdf_tree_string, hdf_tree_dict, hdf_dataset_list, hdf_compare, hdf_find
+from .hdf_loader import (load_hdf, hdf_tree_string, hdf_tree_dict, hdf_dataset_list, hdf_compare, hdf_find,
+                         hdf_find_first, hdf_linked_files)
 from .hdfmap_class import HdfMap
 from .nexus import NexusMap
 from .file_functions import list_files, create_hdf_map, create_nexus_map
@@ -59,12 +60,13 @@ from .reloader_class import HdfLoader, NexusLoader
 __all__ = [
     'load_hdf', 'create_hdf_map', 'create_nexus_map', 'list_files',
     'hdf_tree_string', 'hdf_tree_dict', 'hdf_dataset_list', 'hdf_compare', 'compare_maps', 'hdf_find',
+    'hdf_find_first', 'hdf_linked_files',
     'hdf_data', 'hdf_image', 'hdf_eval', 'hdf_format', 'nexus_data_block', 'HdfLoader', 'NexusLoader',
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
 __version__ = "0.6.1"
-__date__ = "2024/11/12"
+__date__ = "2024/11/13"
 
 
 def version_info() -> str:

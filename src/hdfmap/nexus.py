@@ -179,15 +179,15 @@ class NexusMap(HdfMap):
         """Load Nexus default axes and signal"""
         try:
             axes_paths, signal_path = find_nexus_data(hdf_file)
-            if axes_paths and axes_paths[0] in hdf_file:
+            if axes_paths and isinstance(hdf_file.get(axes_paths[0]), h5py.Dataset):
                 self.arrays[NX_AXES] = axes_paths[0]
                 n = 0
                 for axes_path in axes_paths:
-                    if axes_path in hdf_file and isinstance(hdf_file[axes_path], h5py.Dataset):
+                    if isinstance(hdf_file.get(axes_path), h5py.Dataset):
                         self.arrays[f"{NX_AXES}{n}"] = axes_path
                         n += 1
                 logger.info(f"DEFAULT axes: {axes_paths}")
-            if signal_path in hdf_file:
+            if isinstance(hdf_file.get(signal_path), h5py.Dataset):
                 self.arrays[NX_SIGNAL] = signal_path
                 logger.info(f"DEFAULT signal: {signal_path}")
         except KeyError:

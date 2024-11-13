@@ -26,6 +26,8 @@ def hdf_tree_string(hdf_filename: str, all_links: bool = True, group: str = '/')
 
     with load_hdf(hdf_filename) as hdf_file:
         hdf_group = hdf_file.get(group)
+        attrs = '\n'.join([f"    @{attr}: {item}" for attr, item in hdf_group.attrs.items()])
+        output.append(f"\n{hdf_group.name}\n" + attrs)
 
         def visit_paths(name, obj: h5py.Group | h5py.Dataset):
             if isinstance(obj, h5py.Dataset):
@@ -165,8 +167,6 @@ def hdf_find(hdf_filename: str, *names_or_classes: str) -> tuple[list[str], list
         attributes = ['NX_class', 'local_name']  # attributes to check against names
 
         def visit_links(name):
-            h5py_obj = hdf_file.get(name)
-
             # For each path in the file, create tree of parent-groups
             sub_groups = name.split('/')
             sub_group_paths = ['/'.join(sub_groups[:n]) for n in range(1, len(sub_groups) + 1)]
@@ -175,9 +175,54 @@ def hdf_find(hdf_filename: str, *names_or_classes: str) -> tuple[list[str], list
                 if (grp := hdf_file.get(path))
             ] + sub_groups
             if all(arg in sub_group_names for arg in names_or_classes):
+                h5py_obj = hdf_file.get(name)
                 if isinstance(h5py_obj, h5py.Group):
                     group_paths.append(name)
                 elif isinstance(h5py_obj, h5py.Dataset):
                     dataset_paths.append(name)
         hdf_file.visit_links(visit_links)
     return group_paths, dataset_paths
+
+
+def hdf_find_first(hdf_filename: str, *names_or_classes: str) -> str | None:
+    """
+    return the first path of object matching a set of names or class names
+    :param hdf_filename: filename of hdf file
+    :params names_or_classes: object names or NXclass names to search for
+    :return: hdf_path or None if no match
+    """
+
+    with load_hdf(hdf_filename) as hdf_file:
+        attributes = ['NX_class', 'local_name']  # attributes to check against names
+
+        def visit_links(name):
+            # For each path in the file, create tree of parent-groups
+            sub_groups = name.split('/')
+            sub_group_paths = ['/'.join(sub_groups[:n]) for n in range(1, len(sub_groups) + 1)]
+            sub_group_names = [
+                grp.attrs.get(attr, b'').decode() for attr in attributes for path in sub_group_paths
+                if (grp := hdf_file.get(path))
+            ] + sub_groups
+            if all(arg in sub_group_names for arg in names_or_classes):
+                return name
+        return hdf_file.visit_links(visit_links)
+
+
+def hdf_linked_files(hdf_filename: str, group: str = '/') -> list[str]:
+    """
+    Return a list of files linked to the current file, looking for all external links.
+
+    :param hdf_filename: filename of hdf file
+    :param group: only look at links within this group (default root)
+    :return: list of str filenames (usually relative file paths)
+    """
+
+    with load_hdf(hdf_filename) as hdf_file:
+        hdf_group = hdf_file.get(group)
+        external_files = []
+
+        def visit_links(_name, obj: h5py.HardLink | h5py.SoftLink | h5py.ExternalLink):
+            if isinstance(obj, h5py.ExternalLink) and obj.filename not in external_files:
+                external_files.append(obj.filename)
+        hdf_group.visititems_links(visit_links)
+    return external_files
