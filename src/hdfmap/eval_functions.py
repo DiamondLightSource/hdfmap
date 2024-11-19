@@ -124,7 +124,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
         logger.debug(f"Dataset {repr(dataset)} is timestamp, return array of datetime objects")
         # single datetime obj vs array of datetime obj
         return timestamp[()] if timestamp.ndim == 0 else timestamp
-    except ValueError:
+    except (ValueError, OSError):  # OSError arises sometimes for reasons I don't understand (e.g. old I06-1 data)
         try:
             string_dataset = dataset.asstr()[()]
             logger.debug(f"Dataset {repr(dataset)} is string")
@@ -169,7 +169,7 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = (), units: bool = Fa
         logger.debug(f"Dataset {repr(dataset)} is timestamp")
         # single datetime obj vs array of datetime obj
         return f"'{timestamp[()]}'" if timestamp.ndim == 0 else f"['{timestamp[0]}', ...({len(timestamp)})]"
-    except ValueError:
+    except (ValueError, OSError): # OSError arises sometimes for reasons I don't understand (e.g. old I06-1 data)
         try:
             string_dataset = dataset.asstr()[()]
             logger.debug(f"Dataset {repr(dataset)} is string")
@@ -275,6 +275,8 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     :param default: returned if varname not in namespace
     :return: eval(expression)
     """
+    if not expression.strip():
+        return expression
     if expression in hdf_file:
         return dataset2data(hdf_file[expression])
     check_unsafe_eval(expression)
