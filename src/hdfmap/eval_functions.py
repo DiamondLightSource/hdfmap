@@ -25,6 +25,8 @@ logger = create_logger(__name__)
 re_special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
 re_long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
 re_dataset_attributes = re.compile(r'([a-zA-Z_]\w*)@([a-zA-Z_]\w*)')  # finds 'name@attribute' in expressions
+re_dataset_default = re.compile(r'(\S+)\?\((.+?)\)')  # finds 'name?('noname'), return (name, 'noname')
+re_dataset_alternate = re.compile(r'\((\S+\|\S+)\)')  # finds '(name1|name2|name3)', return 'name1|name2|name3'
 # fromisoformat requires python 3.11+
 datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
 
@@ -275,9 +277,9 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     :param default: returned if varname not in namespace
     :return: eval(expression)
     """
-    if not expression.strip():
+    if not expression.strip():  # don't evaluate empty strings
         return expression
-    if expression in hdf_file:
+    if expression in hdf_file:  # if expression is a hdf path, just return the data
         return dataset2data(hdf_file[expression])
     check_unsafe_eval(expression)
     # find name@attribute in expression
@@ -288,6 +290,13 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     }
     # replace name@attribute in expression
     expression = re_dataset_attributes.sub(r'attr__\g<1>_\g<2>', expression)
+    # find values with defaults '..?(..)'
+    defaults = {
+         name: eval(val) for name, val in re_dataset_default.findall(expression)
+        if name not in hdf_namespace and check_unsafe_eval(val)
+    }
+
+    # find alternate names
     # find identifiers matching names in the namespace
     identifiers = [name for name in hdf_namespace if name in re_special_characters.split(expression)]
     # find other non-builtin identifiers

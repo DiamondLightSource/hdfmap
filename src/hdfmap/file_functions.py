@@ -96,12 +96,13 @@ def hdf_data(filenames: str | list[str], name_or_path: str | list[str], hdf_map:
     return out
 
 
-def hdf_eval(filenames: str | list[str], expression: str, hdf_map: HdfMap = None, fixed_output=False):
+def hdf_eval(filenames: str | list[str], expression: str, hdf_map: HdfMap = None, default=None, fixed_output=False):
     """
     Evaluate expression using dataset names
     :param filenames: str or list of str - file paths
     :param expression: str expression to evaluate in each file, e.g. "roi2_sum / Transmission"
     :param hdf_map: HdfMap object, or None to generate from first file
+    :param default: value to give if dataset doesn't exist in file
     :param fixed_output: if True, always returns list len(filenames)
     :return if single file: single output
     :return if multi file: list, len(filenames)
@@ -115,18 +116,19 @@ def hdf_eval(filenames: str | list[str], expression: str, hdf_map: HdfMap = None
     for filename in filenames:
         logger.info(f"\nHDF file: {filename}")
         with load_hdf(filename) as hdf:
-            out.append(hdf_map.eval(hdf, expression))
+            out.append(hdf_map.eval(hdf, expression, default=default))
     if not fixed_output and len(filenames) == 1:
         return out[0]
     return out
 
 
-def hdf_format(filenames: str | list[str], expression: str, hdf_map: HdfMap = None, fixed_output=False):
+def hdf_format(filenames: str | list[str], expression: str, hdf_map: HdfMap = None, default=None, fixed_output=False):
     """
     Evaluate string format expression using dataset names
     :param filenames: str or list of str - file paths
     :param expression: str expression to evaluate in each file, e.g. "the energy is {en:.2f} keV"
     :param hdf_map: HdfMap object, or None to generate from first file
+    :param default: value to give if dataset doesn't exist in file
     :param fixed_output: if True, always returns list len(filenames)
     :return if single file: single output
     :return if multi file: list, len(filenames)
@@ -140,7 +142,7 @@ def hdf_format(filenames: str | list[str], expression: str, hdf_map: HdfMap = No
     for filename in filenames:
         logger.info(f"\nHDF file: {filename}")
         with load_hdf(filename) as hdf:
-            out.append(hdf_map.format_hdf(hdf, expression))
+            out.append(hdf_map.format_hdf(hdf, expression, default=default))
     if not fixed_output and len(filenames) == 1:
         return out[0]
     return out
