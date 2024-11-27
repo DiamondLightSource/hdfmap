@@ -203,4 +203,78 @@ ax.set_title(data['title'])
 fig.show()
 ```
 
+### Metadata Evaluation 
+Functionality for namespace evaluation of the hdf file allows for a number of rules allowing easy extraction
+of formatted metadata. The Evaluation functions are:
 
+ - `HdfMap.eval(hdfobj, 'name')` -> value
+ - `HdfMap.format_hdf(hdfobj, '{name}')` -> string
+ - `HdfLoader('eval')` -> value
+ - `HdfLoader.eval('eval')` -> value
+ - `HdfLoader.format('{name}')` -> string
+ - `hdf_eval([files], 'name')` -> list[values]
+ - `hdf_format([files], '{name}')` -> list[string]
+
+#### eval vs format
+Evaluation functions evaluate the expression as given, replacing names in the hdfmap namespace with their associated
+values, or using the rules below. The format functions allow the input of python 
+[f-strings](https://docs.python.org/3/tutorial/inputoutput.html#fancier-output-formatting),
+allowing precise formatting to be applied and returning a string.
+
+#### Rules
+The following patterns are allowed in any expression:
+ - 'filename': str, name of hdf_file
+ - 'filepath': str, full path of hdf_file
+ - '_*name*': str hdf path of *name*
+ - '__*name*': str internal name of *name* (e.g. for 'axes')
+ - 's_*name*': string representation of dataset (includes units if available)
+ - '*name*@attr': returns attribute of dataset *name*
+ - '*name*?(default)': returns default if *name* doesn't exist
+ - '(name1|name2|name3)': returns the first available of the names
+ - '(name1|name2@(default))': returns the first available name or default
+
+#### Examples
+```python
+from hdfmap import create_nexus_map, load_hdf
+
+# HdfMap from NeXus file:
+hmap = create_nexus_map('file.nxs')
+with load_hdf('file.nxs') as nxs:
+    # mathematical array expressions (using np as Numpy)
+    data = hmap.eval(nxs, 'int(np.max(total / Transmission / count_time))')
+    # return the path of a name
+    path = hmap.eval(nxs, '_axes')  # -> '/entry/measurement/h'
+    # return the real name of a variable
+    name = hmap.eval(nxs, '__axes')  # -> 'h'
+    # return label, using dataset attributes
+    label = hmap.eval(nxs, 's_ppy')  # example uses @decimals and @units
+    # return dataset attributes
+    attr = hmap.eval(nxs, 'idgap@units')  # -> 'mm'
+    # return first available dataset
+    cmd = hmap.eval(nxs, '(cmd|title|scan_command)')  # -> 'scan hkl ...'
+    # return first available or default value
+    atten = hmap.eval(nxs, '(gains_atten|atten?(0))')  # -> 0
+    # python expression using multiple parameters
+    pol = hmap.eval(nxs, '"pol in" if abs(delta_offset) < 0.1 and abs(thp) > 20 else "pol out"')
+    # formatted strings
+    title = hmap.format_hdf(nxs, '{filename}: {scan_command}')
+    hkl = hmap.format_hdf(nxs, '({np.mean(h):.3g},{np.mean(k):.3g},{np.mean(l):.3g})')
+
+# Or, using NexusLoader:
+from hdfmap import NexusLoader
+
+scan = NexusLoader('file.nxs')
+# normalised default-signal
+print(scan('signal / count_time / Transmission / (rc / 300.)'))
+# axes label
+print(scan.format('{__axes} [{axes@units}]'))
+
+# Or, for multiple-files:
+from hdfmap import hdf_eval, hdf_format, list_files
+
+files = [f"file{n}.nxs" for n in range(10)]
+
+energy_values = hdf_eval(files, '(en|energy@(8))')
+list_scans = hdf_format(files, '{filename}: ({np.mean(h):.3g},{np.mean(k):.3g},{np.mean(l):.3g}) : {scan_command})')
+print('\n'.join(list_scans))
+```

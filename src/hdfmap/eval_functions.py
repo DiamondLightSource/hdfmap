@@ -25,7 +25,7 @@ logger = create_logger(__name__)
 re_special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
 re_long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
 re_dataset_attributes = re.compile(r'([a-zA-Z_]\w*)@([a-zA-Z_]\w*)')  # finds 'name@attribute' in expressions
-re_dataset_default = re.compile(r'(\S+)\?\((.+?)\)')  # finds 'name?('noname'), return (name, 'noname')
+re_dataset_default = re.compile(r'(\w+)\?\((.+?)\)')  # finds 'name?('noname'), return (name, 'noname')
 re_dataset_alternate = re.compile(r'\((\S+\|\S+)\)')  # finds '(name1|name2|name3)', return 'name1|name2|name3'
 # fromisoformat requires python 3.11+
 datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
@@ -244,7 +244,6 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     if identifiers is None:
         identifiers = list(hdf_namespace.keys())
     # TODO: add ROI commands e.g. nroi[1,2,3,4] -> default_image([1,2,3,4])
-    # TODO: add name.label e.g. axes.label -> 'eta [Deg]'
     namespace = {
         name: dataset2data(hdf_file[hdf_namespace[name]])
         for name in identifiers if name in hdf_namespace and hdf_namespace[name] in hdf_file
@@ -271,6 +270,18 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
              default: typing.Any = DEFAULT) -> typing.Any:
     """
     Evaluate an expression using the namespace of the hdf file
+
+    The following patterns are allowed:
+     - 'filename': str, name of hdf_file
+     - 'filepath': str, full path of hdf_file
+     - '_*name*': str hdf path of *name*
+     - '__*name*': str internal name of *name* (e.g. for 'axes')
+     - 's_*name*': string representation of dataset (includes units if available)
+     - '*name*@attr': returns attribute of dataset *name*
+     - '*name*?(default)': returns default if *name* doesn't exist
+     - '(name1|name2|name3)': returns the first available of the names
+     - '(name1|name2@(default))': returns the first available name or default
+
     :param hdf_file: h5py.File object
     :param expression: str expression to be evaluated
     :param hdf_namespace: dict of {'variable name': '/hdf/dataset/path'}
@@ -291,18 +302,23 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     # replace name@attribute in expression
     expression = re_dataset_attributes.sub(r'attr__\g<1>_\g<2>', expression)
     # find values with defaults '..?(..)'
-    defaults = {
-         name: eval(val) for name, val in re_dataset_default.findall(expression)
-        if name not in hdf_namespace and check_unsafe_eval(val)
-    }
-
-    # find alternate names
+    for match in re_dataset_default.finditer(expression):
+        name, default = match.groups()
+        if name not in hdf_namespace:
+            expression = expression.replace(match.group(), default)
+        else:
+            expression = expression.replace(match.group(), name)
+    # find alternate names '(opt1|opt2|opt3)'
+    for alt_names in re_dataset_alternate.findall(expression):
+        names = alt_names.split('|')
+        name = next((n for n in names if n in hdf_namespace), names[-1])  # first available name or last name
+        expression = expression.replace(alt_names, name)
     # find identifiers matching names in the namespace
     identifiers = [name for name in hdf_namespace if name in re_special_characters.split(expression)]
     # find other non-builtin identifiers
     identifiers += [name for name in find_identifiers(expression) if name not in identifiers]
     namespace = generate_namespace(hdf_file, hdf_namespace, identifiers, default)
-    namespace.update(attributes)  # add attributes
+    namespace.update(attributes)  # replace attributes
     logger.info(f"Expression: {expression}\nidentifiers: {identifiers}\n")
     logger.debug(f"namespace: {namespace}\n")
     return eval(expression, GLOBALS, namespace)
