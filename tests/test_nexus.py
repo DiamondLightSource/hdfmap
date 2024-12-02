@@ -42,9 +42,23 @@ def test_nexus_eval(hdf_map):
         assert out == 70, "Expression output gives wrong result"
         path = hdf_map.eval(hdf, '_axes')
         assert path == '/entry/measurement/h', "Wrong axes path"
+        out = hdf_map.eval(hdf, '__axes')
+        assert out == 'h', "Wrong axes name"
+        out = hdf_map.eval(hdf, 's_ppy')  # example uses decimals and units
+        assert out == '-7.4871 mm', "Incorrect label"
+        out = hdf_map.eval(hdf, 'idgap@units')
+        assert out == 'mm', "Incorrect attribute"
+        out = hdf_map.eval(hdf, '(cmd|nout|scan_command)')
+        assert out == 'scan hkl [0.97, 0.022, 0.112] [0.97, 0.022, 0.132] [0, 0, 0.001] MapperProc pil3_100k 1'
+        out = hdf_map.eval(hdf, '(gains_atten|atten?(0))')
+        assert out == 0, "default expression failed"
+        out = hdf_map.eval(hdf, '"pol in" if abs(delta_offset) < 0.1 and abs(thp) > 20 else "pol out"')
+        assert out == 'pol out', "expression failed"
         title = hdf_map.format_hdf(hdf, '{filename}: {scan_command}')
         correct = '1040323.nxs: scan hkl [0.97, 0.022, 0.112] [0.97, 0.022, 0.132] [0, 0, 0.001] MapperProc pil3_100k 1'
         assert title == correct, "Expression output gives wrong result"
+        out = hdf_map.format_hdf(hdf, '({np.mean(h):.3g},{np.mean(k):.3g},{np.mean(l):.3g})')
+        assert out == '(0.97,0.0221,0.122)', "Expression output gives wrong result"
 
 
 def test_3d_scan(hdf_map):
