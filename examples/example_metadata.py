@@ -23,18 +23,20 @@ VALUES = {
     'field': 'field_x?(0), field_y?(0), field_z?(0)',
     'energy': '(fastEnergy|pgm_energy|energy)',
     'monitor': '(C2|ca62sr)',
-    'tey': '(C1|ca61sr)', # / (C2|ca62sr)',
-    'tfy': '(C3|ca63sr)', # / (C2|ca62sr)',
+    'tey': '(C1|ca61sr)',
+    'tfy': '(C3|ca63sr)',
 }
 
 LABELS = {
     'name': '{filename}: {scan_command}',
-    'temp': 'T = {(T_sample|lakeshore336_sample@(300)):.2f}',
-    'energy': 'E = {np.mean((fastEnergy|pgm_energy|energy@(0))):.2f} eV',
+    'temp': 'T = {(T_sample|lakeshore336_sample?(300)):.2f} K',
+    'field': 'B = {np.sqrt(np.sum(np.square([field_x?(0), field_y?(0), field_z?(0)]))):.2f} T',
+    'energy': 'E = {np.mean((fastEnergy|pgm_energy|energy?(0))):.2f} eV',
 }
 
 if __name__ == '__main__':
     filename = '../tests/data/i06-353130.nxs'
+    # filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i06/i06-1-302762.nxs'
 
     m = hdfmap.create_nexus_map(filename)
     with m.load_hdf() as nxs:
