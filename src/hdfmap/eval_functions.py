@@ -171,7 +171,7 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = (), units: bool = Fa
         logger.debug(f"Dataset {repr(dataset)} is timestamp")
         # single datetime obj vs array of datetime obj
         return f"'{timestamp[()]}'" if timestamp.ndim == 0 else f"['{timestamp[0]}', ...({len(timestamp)})]"
-    except (ValueError, OSError): # OSError arises sometimes for reasons I don't understand (e.g. old I06-1 data)
+    except (ValueError, OSError):  # OSError arises sometimes for reasons I don't understand (e.g. old I06-1 data)
         try:
             string_dataset = dataset.asstr()[()]
             logger.debug(f"Dataset {repr(dataset)} is string")
@@ -303,9 +303,9 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     expression = re_dataset_attributes.sub(r'attr__\g<1>_\g<2>', expression)
     # find values with defaults '..?(..)'
     for match in re_dataset_default.finditer(expression):
-        name, default = match.groups()
+        name, name_default = match.groups()
         if name not in hdf_namespace:
-            expression = expression.replace(match.group(), default)
+            expression = expression.replace(match.group(), name_default)
         else:
             expression = expression.replace(match.group(), name)
     # find alternate names '(opt1|opt2|opt3)'

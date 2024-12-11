@@ -136,6 +136,22 @@ def find_nexus_data_strict(hdf_file: h5py.File) -> tuple[list[h5py.Dataset], h5p
     return axes_datasets, signal_dataset
 
 
+def names_from_scan_fields(hdf_file: h5py.File, scan_fields_path: str) -> list[str]:
+    """
+    Extract a list of dataset names from the diamond_scan/scan_fields dataset
+
+    scan_fields stores scannables as class_name.dataset_name, return only the dataset_name
+
+    :param hdf_file:
+    :param scan_fields_path:
+    :returns: ['names',]
+    """
+    scan_fields_dataset = hdf_file.get(scan_fields_path)
+    if scan_fields_dataset:
+        return [name.decode().split('.')[-1] for name in scan_fields_dataset[()]]
+    return []
+
+
 class NexusMap(HdfMap):
     """
     HdfMap for Nexus (.nxs) files
@@ -206,7 +222,7 @@ class NexusMap(HdfMap):
         nx_data = nx_entry.get(default_nxdata(nx_entry))
         logger.info(f"{nx_entry}, {nx_data}")
         if nx_data:
-            logger.info(f"NX Data: {nx_data.name}")
+            logger.info(f"Generating Scannables from NXData: {nx_data.name}")
             if use_auxiliary and NX_AUXILIARY in nx_data.attrs:
                 signals = list(nx_data.attrs[NX_AUXILIARY])
                 if NX_SIGNAL in nx_data.attrs:
@@ -223,8 +239,9 @@ class NexusMap(HdfMap):
         # find 'scan_fields' to generate scannables list
         if NX_SCANFIELDS in self.arrays:
             scan_fields_path = self.arrays[NX_SCANFIELDS]
-            scan_fields = hdf_file[scan_fields_path][()]
-            logger.info(f"NX ScanFields: {scan_fields_path}: {scan_fields}")
+            # scan_fields = hdf_file[scan_fields_path][()]
+            scan_fields = names_from_scan_fields(hdf_file, scan_fields_path)
+            logger.info(f"Generating Scannables from NX ScanFields: {scan_fields_path}: {scan_fields}")
             self.generate_scannables_from_names(scan_fields)
         else:
             self.generate_scannables_from_nxdata(hdf_file)
