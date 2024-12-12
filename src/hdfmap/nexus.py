@@ -86,7 +86,10 @@ def find_nexus_data(hdf_file: h5py.File) -> tuple[list[str], str]:
     :return axes_paths: list of str hdf paths for axes datasets
     :return signal_path: str hdf path for signal dataset
     """
+    # TODO: change name to find_nexus_defaults
     # TODO: add option for multi-dimensional signal (see datarules)
+    # TODO: add auxillary signals as additional signal dimensions as well
+    # TODO: reformat to use nx_data as input, reducing need to search for it twice
     # From: https://manual.nexusformat.org/examples/python/plotting/index.html
     # find the default NXentry group
     nx_entry_name = default_nxentry(hdf_file)
