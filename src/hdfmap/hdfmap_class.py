@@ -298,7 +298,7 @@ class HdfMap:
         :param groups: if not None, will only search subgroups named in list, e.g. ['entry','NX_DATA']
         :return: None
         """
-        logger.info(f"{repr(self)}._populate root='{root}'")
+        logger.debug(f"{repr(self)}._populate root='{root}'")
         for key in hdf_group:
             obj = hdf_group.get(key)
             link = hdf_group.get(key, getlink=True)
@@ -309,7 +309,7 @@ class HdfMap:
             # New: store all paths in file, useful for checking if anything was missed, but might be slow
             self.all_paths.append(hdf_path)
             name = generate_identifier(hdf_path)
-            logger.info(f"{hdf_path}:  {name}, link={repr(link)}")
+            logger.debug(f"{hdf_path}:  {name}, link={repr(link)}")
 
             # Group
             if isinstance(obj, h5py.Group):
@@ -604,18 +604,19 @@ class HdfMap:
     "---------------------- FILE READERS --------------------"
     "--------------------------------------------------------"
 
-    def load_hdf(self, filename: str | None = None, name_or_path: str = None) -> h5py.File | h5py.Dataset:
+    def load_hdf(self, filename: str | None = None, name_or_path: str = None, **kwargs) -> h5py.File | h5py.Dataset:
         """
         Load hdf file or hdf dataset in open state
         :param filename: str filename of hdf file, or None to use self.filename
         :param name_or_path: if given, returns the dataset
+        :param kwargs: additional key-word arguments to pass to h5py.File(...)
         :return: h5py.File object or h5py.dataset object if dataset name given
         """
         if filename is None:
             filename = self.filename
         if name_or_path is None:
-            return load_hdf(filename)
-        return load_hdf(filename).get(self.get_path(name_or_path))
+            return load_hdf(filename, **kwargs)
+        return load_hdf(filename, **kwargs).get(self.get_path(name_or_path))
 
     def get_data(self, hdf_file: h5py.File, name_or_path: str, index=(), default=None, direct_load=False):
         """

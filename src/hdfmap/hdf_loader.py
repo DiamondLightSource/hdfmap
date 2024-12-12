@@ -8,9 +8,9 @@ except ImportError:
     print('Warning: hdf5plugin not available.')
 
 
-def load_hdf(hdf_filename: str) -> h5py.File:
+def load_hdf(hdf_filename: str, **kwargs) -> h5py.File:
     """Load hdf file, return h5py.File object"""
-    return h5py.File(hdf_filename, 'r')
+    return h5py.File(hdf_filename, 'r', **kwargs)
 
 
 def hdf_tree_string(hdf_filename: str, all_links: bool = True, group: str = '/') -> str:
