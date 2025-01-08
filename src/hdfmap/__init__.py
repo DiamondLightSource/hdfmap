@@ -27,7 +27,7 @@ Map objects within an HDF file and create a dataset namespace.
     image = hdf_image(filenames, index=31)
 
 
-Copyright 2024 Daniel G. Porter
+Copyright 2024-2025 Daniel G. Porter
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -65,8 +65,8 @@ __all__ = [
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
-__version__ = "0.6.3"
-__date__ = "2024/12/11"
+__version__ = "0.7.0"
+__date__ = "2024/01/08"
 
 
 def version_info() -> str:

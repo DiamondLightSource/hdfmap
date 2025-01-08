@@ -732,13 +732,22 @@ class HdfMap:
             if (dataset := hdf_file.get(path)) and np.issubdtype(dataset.dtype, np.number)
         ]
 
-    def get_scannables_array(self, hdf_file: h5py.File) -> np.ndarray:
-        """Return 2D array of all numeric scannables in file"""
+    def get_scannables_array(self, hdf_file: h5py.File, return_structured_array=False) -> np.ndarray:
+        """
+        Return 2D array of all numeric scannables in file
+
+        :param hdf_file: h5py.File object
+        :param return_structured_array: bool, if True, return a Numpy structured array with column headers
+        :returns: numpy array with a row for each scannable, shape: (no_scannables, flattened_length)
+        """
         _scannables = self._get_numeric_scannables(hdf_file)
-        dtypes = np.dtype([
-            (name, hdf_file[path].dtype) for name, path, array in _scannables
-        ])
-        return np.array([array for name, path, array in _scannables], dtype=dtypes)
+        array = np.array([array for name, path, array in _scannables])
+        if return_structured_array:
+            dtypes = np.dtype([
+                (name, hdf_file[path].dtype) for name, path, array in _scannables
+            ])
+            return np.array([tuple(row) for row in np.transpose(array)], dtype=dtypes)
+        return array
 
     def create_scannables_table(self, hdf_file: h5py.File, delimiter=', ',
                                 string_spec='', format_spec='f', default_decimals=8) -> str:

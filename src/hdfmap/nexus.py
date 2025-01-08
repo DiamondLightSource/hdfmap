@@ -69,7 +69,7 @@ def default_nxdata(entry_group: h5py.Group) -> str | bytes:
     return nx_data_name
 
 
-def find_nexus_data(hdf_file: h5py.File) -> tuple[list[str], str]:
+def find_nexus_defaults(hdf_file: h5py.File, nx_data_path: str | None = None) -> tuple[list[str], list[str]]:
     """
     Nexus compliant method of finding default plotting axes in hdf files
      - find "default" entry group in top File group
@@ -83,31 +83,40 @@ def find_nexus_data(hdf_file: h5py.File) -> tuple[list[str], str]:
     See: https://manual.nexusformat.org/datarules.html#version-3
 
     :param hdf_file: open HDF file object, i.e. h5py.File(...)
+    :param nx_data_path: hdf path of NXdata group, or None to find the default
     :return axes_paths: list of str hdf paths for axes datasets
-    :return signal_path: str hdf path for signal dataset
+    :return signal_paths: list of str hdf paths for signal dataset
     """
-    # TODO: change name to find_nexus_defaults
-    # TODO: add option for multi-dimensional signal (see datarules)
-    # TODO: add auxillary signals as additional signal dimensions as well
-    # TODO: reformat to use nx_data as input, reducing need to search for it twice
     # From: https://manual.nexusformat.org/examples/python/plotting/index.html
-    # find the default NXentry group
-    nx_entry_name = default_nxentry(hdf_file)
-    nx_entry = hdf_file[nx_entry_name]
-    # find the default NXdata group
-    nx_data_name = default_nxdata(nx_entry)
-    nx_data = nx_entry[nx_data_name]
+
+    if nx_data_path is None:
+        # find the default NXentry group
+        nx_entry_name = default_nxentry(hdf_file)
+        nx_entry = hdf_file[nx_entry_name]
+        # find the default NXdata group
+        nx_data_name = default_nxdata(nx_entry)
+        nx_data_path = build_hdf_path(nx_entry_name, nx_data_name)
+    nx_data = hdf_file[nx_data_path]
+
     # find the axes field(s)
     if isinstance(axes := nx_data.attrs[NX_AXES], (str, bytes)):
-        axes_paths = [build_hdf_path(nx_entry_name, nx_data_name, axes)]
+        axes_paths = [build_hdf_path(nx_data_path, axes)]
     else:
-        axes_paths = [build_hdf_path(nx_entry_name, nx_data_name, _axes) for _axes in axes]
+        axes_paths = [build_hdf_path(nx_data_path, _axes) for _axes in axes]
     # get the signal field
     if NX_SIGNAL in nx_data.attrs:
-        signal_path = build_hdf_path(nx_entry_name, nx_data_name, nx_data.attrs[NX_SIGNAL])
+        if isinstance(signal := nx_data.attrs[NX_SIGNAL], (str, bytes)):
+            signal_paths = [build_hdf_path(nx_data_path, signal)]
+        else:
+            signal_paths = [build_hdf_path(nx_data_path, _signal) for _signal in signal]
     else:
-        signal_path = build_hdf_path(nx_entry_name, nx_data_name, NX_DETECTOR_DATA)
-    return axes_paths, signal_path
+        signal_paths = [build_hdf_path(nx_data_path, NX_DETECTOR_DATA)]
+    # Auxiliary signals
+    if NX_AUXILIARY in nx_data.attrs:
+        signal_paths.extend([
+            build_hdf_path(nx_data_path, signal) for signal in nx_data.attrs[NX_AUXILIARY]
+        ])
+    return axes_paths, signal_paths
 
 
 def find_nexus_data_strict(hdf_file: h5py.File) -> tuple[list[h5py.Dataset], h5py.Dataset]:
@@ -197,7 +206,18 @@ class NexusMap(HdfMap):
     def _default_nexus_paths(self, hdf_file):
         """Load Nexus default axes and signal"""
         try:
-            axes_paths, signal_path = find_nexus_data(hdf_file)
+            # find the default NXentry group
+            nx_entry_name = default_nxentry(hdf_file)
+            nx_entry = hdf_file[nx_entry_name]
+            nx_entry_path = build_hdf_path(nx_entry_name)
+            self._store_group(nx_entry, nx_entry_path, NX_ENTRY)
+            # find the default NXdata group
+            nx_data_name = default_nxdata(nx_entry)
+            nx_data = nx_entry[nx_data_name]
+            nx_data_path = build_hdf_path(nx_entry_name, nx_data_name)
+            self._store_group(nx_data, nx_data_path, NX_DATA)
+
+            axes_paths, signal_paths = find_nexus_defaults(hdf_file, nx_data_path)
             if axes_paths and isinstance(hdf_file.get(axes_paths[0]), h5py.Dataset):
                 self.arrays[NX_AXES] = axes_paths[0]
                 n = 0
@@ -206,23 +226,30 @@ class NexusMap(HdfMap):
                         self.arrays[f"{NX_AXES}{n}"] = axes_path
                         n += 1
                 logger.info(f"DEFAULT axes: {axes_paths}")
-            if isinstance(hdf_file.get(signal_path), h5py.Dataset):
-                self.arrays[NX_SIGNAL] = signal_path
-                logger.info(f"DEFAULT signal: {signal_path}")
+            if signal_paths and isinstance(hdf_file.get(signal_paths[0]), h5py.Dataset):
+                self.arrays[NX_SIGNAL] = signal_paths[0]
+                n = 0
+                for signal_path in signal_paths:
+                    if isinstance(hdf_file.get(signal_path), h5py.Dataset):
+                        self.arrays[f"{NX_SIGNAL}{n}"] = signal_path
+                        n += 1
+                logger.info(f"DEFAULT signals: {signal_paths}")
         except KeyError:
             pass
 
-    def nexus_defaults(self):
+    def nexus_defaults(self) -> tuple[list[str], list[str]]:
         """Return default axes and signal paths"""
         axes_paths = [self.arrays[axes] for n in range(10) if (axes := f"{NX_AXES}{n}") in self.arrays]
-        signal_path = self.arrays[NX_SIGNAL]
-        return axes_paths, signal_path
+        signal_paths = [self.arrays[signal] for n in range(10) if (signal := f"{NX_SIGNAL}{n}") in self.arrays]
+        return axes_paths, signal_paths
 
     def generate_scannables_from_nxdata(self, hdf_file: h5py.File, use_auxiliary: bool = True):
         """Generate scannables from default NXdata, using axuiliary_names if available"""
         # find the default NXdata group and generate the scannables list
-        nx_entry = hdf_file.get(default_nxentry(hdf_file))
-        nx_data = nx_entry.get(default_nxdata(nx_entry))
+        # nx_entry = hdf_file.get(default_nxentry(hdf_file))
+        # nx_data = nx_entry.get(default_nxdata(nx_entry))
+        nx_entry = hdf_file.get(self.classes[NX_ENTRY][0])  # classes[NX_ENTRY] pre-populated by _default_nexus_paths
+        nx_data = hdf_file.get(self.classes[NX_DATA][0])  # classes[NX_DATA] pre-populated by _default_nexus_paths
         logger.info(f"{nx_entry}, {nx_data}")
         if nx_data:
             logger.info(f"Generating Scannables from NXData: {nx_data.name}")
@@ -291,7 +318,7 @@ class NexusMap(HdfMap):
         self._default_nexus_paths(hdf_file)
 
         if default_entry_only:
-            entries = [default_nxentry(hdf_file)]
+            entries = self.classes[NX_ENTRY]  # classes[NX_ENTRY] pre-populated by _default_nexus_paths
         else:
             entries = [entry for entry in hdf_file if check_nexus_class(hdf_file.get(entry), NX_ENTRY)]
 
@@ -323,34 +350,52 @@ class NexusMap(HdfMap):
         Return plotting data from scannables
         :returns: {
             'xlabel': str label of first axes
-            'ylabel': str label of signal
+            'ylabel': str label of first signal
             'xdata': flattened array of first axes
-            'ydata': flattend array of signal
+            'ydata': flattend array of first signal
             'axes_names': list of axes names,
-            'signal_name': str signal name,
+            'signal_names': list of signal + auxilliary signal names,
             'axes_data': list of ND arrays of data for axes,
-            'signal_data': ND array of signal data,
-            'data': dict of all scannables axes,
+            'signal_data': list of ND array of data for signal + auxilliary signals,
             'axes_labels': list of axes labels as 'name [units]',
+            'signal_labels': list of signal labels,
+            'data': dict of all scannables axes,
             'title': str title as 'filename\nNXtitle'
+        if dataset is a 2D grid scan, additional rows:
+            'grid_xlabel': str label of grid x-axis
+            'grid_ylabel': str label of grid y-axis
+            'grid_label': str label of height or colour
+            'grid_xdata': 2D array of x-coordinates
+            'grid_ydata': 2D array of y-coordinates
+            'grid_data': 2D array of height or colour
         }
         """
-        axes, signal = self.nexus_defaults()
+        axes, signals = self.nexus_defaults()
         axes_names = [generate_identifier(path) for path in axes]
-        signal_name = generate_identifier(signal)
+        signal_names = [generate_identifier(path) for path in signals]
         axes_units = [self.get_attr(path, NX_UNITS, '') for path in axes]
         axes_labels = [f"{name} [{unit}]" for name, unit in zip(axes_names, axes_units)]
         title = f"{self.filename}\n{self.get_data(hdf_file, NX_TITLE)}"
-        return {
+        data = {
             'xlabel': axes_labels[0],
-            'ylabel': signal_name,
+            'ylabel': signal_names[0],
             'xdata': self.get_data(hdf_file, axes[0]).flatten(),
-            'ydata': self.get_data(hdf_file, signal).flatten(),
+            'ydata': self.get_data(hdf_file, signals[0]).flatten(),
             'axes_names': axes_names,
-            'signal_name': signal_name,
+            'signal_names': signal_names,
             'axes_data': [self.get_data(hdf_file, ax) for ax in axes],
-            'signal_data': self.get_data(hdf_file, signal),
-            'data': self.get_scannables(hdf_file),
+            'signal_data': [self.get_data(hdf_file, sig) for sig in signals],
             'axes_labels': axes_labels,
+            'signal_labels': signal_names,
+            'data': self.get_scannables(hdf_file),
             'title': title
         }
+        if len(axes) == 2 and len(self.scannables_shape()) == 2:
+            # 2D grid scan
+            data['grid_xlabel'] = axes_labels[0]
+            data['grid_ylabel'] = axes_labels[1]
+            data['grid_label'] = signal_names[0]
+            data['grid_xdata'] = self.get_data(hdf_file, axes[0])
+            data['grid_ydata'] = self.get_data(hdf_file, axes[1])
+            data['grid_data'] = self.get_data(hdf_file, signals[0])
+        return data

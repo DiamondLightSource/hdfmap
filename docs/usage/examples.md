@@ -161,7 +161,7 @@ where # is the axis number.
 from hdfmap import NexusLoader
 
 scan = NexusLoader('scan_file.nxs')
-axes_paths, signal_path = scan.map.nexus_defaults()
+axes_paths, signal_paths = scan.map.nexus_defaults()
 
 axes_x = scan('axes0')
 axes_y = scan('axes1')

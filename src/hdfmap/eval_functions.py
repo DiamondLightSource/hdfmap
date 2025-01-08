@@ -280,7 +280,7 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
      - '*name*@attr': returns attribute of dataset *name*
      - '*name*?(default)': returns default if *name* doesn't exist
      - '(name1|name2|name3)': returns the first available of the names
-     - '(name1|name2@(default))': returns the first available name or default
+     - '(name1|name2?(default))': returns the first available name or default
 
     :param hdf_file: h5py.File object
     :param expression: str expression to be evaluated

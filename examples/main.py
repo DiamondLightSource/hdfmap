@@ -3,7 +3,6 @@ hdfmap Example
 """
 
 import hdfmap
-import hdfmap.hdf_loader
 
 nxs_file = 'tests/data/1049598.nxs'
 new_file = 'tests/data/1040323.nxs'
