@@ -19,7 +19,7 @@ def hdf_map():
 
 def test_populate(hdf_map):
     assert len(hdf_map.datasets) == 431, "Wrong number of datasets"
-    assert len(hdf_map.combined) == 970, "Wrong number of names in map.combined"
+    assert len(hdf_map.combined) == 971, "Wrong number of names in map.combined"
     assert hdf_map.scannables_length() == 21, "Wrong length for scannables"
     assert hdf_map['axes'] == '/entry/measurement/h', "Wrong path for default axes"
     assert hdf_map.get_image_path() == '/entry/instrument/pil3_100k/data', "Wrong image path"
@@ -61,16 +61,30 @@ def test_nexus_eval(hdf_map):
         assert out == '(0.97,0.0221,0.122)', "Expression output gives wrong result"
 
 
-def test_3d_scan(hdf_map):
+def test_plot_data(hdf_map):
+    with hdfmap.hdf_loader.load_hdf(FILE_NEW_NEXUS) as hdf:
+        data = hdf_map.get_plot_data(hdf)
+        assert 'title' in data, 'plot_data missing attributes'
+        assert data['ydata'].shape == (21, ), "plot_data['ydata'] is the wrong shape"
+
+
+def test_3d_scan():
     hdf_map = hdfmap.create_nexus_map(FILE_3D_NEXUS)
     assert hdf_map.scannables_length() == 80, "Scannables have the wrong length"
-    axes, signal = hdf_map.nexus_defaults()
+    axes, signals = hdf_map.nexus_defaults()
     assert len(axes) == 3, "Number of default axes is wrong"
-    assert signal == '/entry/medipix/data', "Incorrect default signal"
+    assert signals[0] == '/entry/medipix/data', "Incorrect default signal"
     with hdf_map.load_hdf() as hdf:
         table = hdf_map.create_scannables_table(hdf)
         assert table.count('\n') == 80, "table has the wrong length"
         assert len(table) == 4085, "wrong number of characters in table"
+
+        array = hdf_map.get_scannables_array(hdf)
+        assert array.shape == (4, 80)
+        assert array[0].shape == (80, )
+
+        structured_array = hdf_map.get_scannables_array(hdf, return_structured_array=True)
+        assert structured_array['energy'].shape == (80, )
 
         image = hdf_map.get_image(hdf, index=None)
         assert image.shape == (512, 512), "image shape is wrong"
