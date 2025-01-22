@@ -592,6 +592,9 @@ class HdfMap:
         """Return image slice index for index along total scan size"""
         path = self.get_image_path()
         shape = self.datasets[path].shape
+        if len(shape) == 1:  # path to list of filenames
+            # an incorrect result will be returned for a 3D grid scan using filenames (unlikely)
+            return (index, )
         return np.unravel_index(index, shape[:-2])
 
     def get_group_datasets(self, name_or_path: str) -> list[str] | None:
@@ -723,7 +726,8 @@ class HdfMap:
         image_path = self.get_image_path()
         logger.info(f"image path: {image_path}")
         if image_path and image_path in hdf_file:
-            return hdf_file[image_path][index].squeeze()  # remove trailing dimensions
+            # return hdf_file[image_path][index].squeeze()  # remove trailing dimensions
+            return self.get_data(hdf_file, image_path, index)  # return array or image paths
 
     def _get_numeric_scannables(self, hdf_file: h5py.File) -> list[tuple[str, str, np.ndarray]]:
         """Return numeric scannables available in file"""

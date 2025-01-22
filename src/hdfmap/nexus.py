@@ -23,6 +23,7 @@ NX_SIGNAL = 'signal'
 NX_AXES = 'axes'
 NX_DETECTOR = 'NXdetector'
 NX_DETECTOR_DATA = 'data'
+NX_IMAGE_DATA = 'image_data'
 NX_UNITS = 'units'
 logger = create_logger(__name__)
 
@@ -281,16 +282,21 @@ class NexusMap(HdfMap):
 
     def generate_image_data_from_nxdetector(self):
         """find the NXdetector group and assign the image data"""
+        #TODO: add image_data to detector path if data not found
         self.image_data = {}
         if NX_DETECTOR in self.classes:
             for group_path in self.classes[NX_DETECTOR]:
                 detector_name = generate_identifier(group_path)
                 # detector data is stored in NXdata in dataset 'data'
                 data_path = build_hdf_path(group_path, NX_DETECTOR_DATA)
-                logger.debug(f"Looking for image_data at: '{data_path}'")
+                image_data_path = build_hdf_path(group_path, NX_IMAGE_DATA)
+                logger.debug(f"Looking for image_data at: '{data_path}' or '{image_data_path}'")
                 if data_path in self.datasets and len(self.datasets[data_path].shape) > 1:
                     logger.info(f"Adding image_data ['{detector_name}'] = '{data_path}'")
                     self.image_data[detector_name] = data_path
+                # elif image_data_path in self.datasets:
+                #     logger.info(f"Adding image_data ['{detector_name}'] = '{image_data_path}'")
+                #     self.image_data[detector_name] = image_data_path
                 else:
                     # Use first dataset with > 2 dimensions
                     image_datasets = [
