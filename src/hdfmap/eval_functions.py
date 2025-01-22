@@ -26,7 +26,7 @@ re_special_characters = re.compile(r'\W')  # finds all special non-alphanumberic
 re_long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
 re_dataset_attributes = re.compile(r'([a-zA-Z_]\w*)@([a-zA-Z_]\w*)')  # finds 'name@attribute' in expressions
 re_dataset_default = re.compile(r'(\w+)\?\((.+?)\)')  # finds 'name?('noname'), return (name, 'noname')
-re_dataset_alternate = re.compile(r'\((\S+\|\S+)\)')  # finds '(name1|name2|name3)', return 'name1|name2|name3'
+re_dataset_alternate = re.compile(r'\((\w\S*\|\w\S*?)\)')  # finds '(name1|name2|name3)', return 'name1|name2|name3'
 # fromisoformat requires python 3.11+
 datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
 
@@ -132,7 +132,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
             logger.debug(f"Dataset {repr(dataset)} is string")
             if dataset.ndim == 0:
                 return round_string_floats(string_dataset)  # bytes or str -> str
-            return string_dataset  # str array
+            return string_dataset[index]  # str array
         except ValueError:
             logger.debug(f"Dataset {repr(dataset)} is an unexpected type")
             return np.squeeze(dataset[index])  # other np.ndarray
@@ -309,10 +309,10 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
         else:
             expression = expression.replace(match.group(), name)
     # find alternate names '(opt1|opt2|opt3)'
-    for alt_names in re_dataset_alternate.findall(expression):
+    for alt_names in re_dataset_alternate.findall(expression):  # alt_names = 'opt1|opt2|opt3
         names = alt_names.split('|')
         name = next((n for n in names if n in hdf_namespace), names[-1])  # first available name or last name
-        expression = expression.replace(alt_names, name)
+        expression = expression.replace(f"({alt_names})", name)  # replace parentheses
     # find identifiers matching names in the namespace
     identifiers = [name for name in hdf_namespace if name in re_special_characters.split(expression)]
     # find other non-builtin identifiers
