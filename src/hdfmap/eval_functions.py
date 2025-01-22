@@ -132,7 +132,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
             logger.debug(f"Dataset {repr(dataset)} is string")
             if dataset.ndim == 0:
                 return round_string_floats(string_dataset)  # bytes or str -> str
-            return string_dataset  # str array
+            return string_dataset[index]  # str array
         except ValueError:
             logger.debug(f"Dataset {repr(dataset)} is an unexpected type")
             return np.squeeze(dataset[index])  # other np.ndarray
@@ -310,6 +310,7 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
             expression = expression.replace(match.group(), name)
     # find alternate names '(opt1|opt2|opt3)'
     for alt_names in re_dataset_alternate.findall(expression):
+        alt_names = alt_names[1:-1]  # remove brackets
         names = alt_names.split('|')
         name = next((n for n in names if n in hdf_namespace), names[-1])  # first available name or last name
         expression = expression.replace(alt_names, name)
