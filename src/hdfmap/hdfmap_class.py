@@ -574,25 +574,25 @@ class HdfMap:
                 self._default_image_path = path
         logger.info(f"Default image path: {self._default_image_path}")
 
-    def get_image_path(self) -> str | None:
+    def get_image_path(self) -> str:
         """Return HDF path of first dataset in self.image_data"""
         if self._default_image_path:
             return self._default_image_path
-        if self.image_data:
-            return next(iter(self.image_data.values()))
+        return next(iter(self.image_data.values()), '')
 
     def get_image_shape(self) -> tuple:
         """Return the scan shape of the detector dataset"""
         path = self.get_image_path()
-        if path:
+        if path in self.datasets:
             return self.datasets[path].shape[-2:]
         return 0, 0
 
     def get_image_index(self, index: int) -> tuple:
         """Return image slice index for index along total scan size"""
-        path = self.get_image_path()
-        shape = self.datasets[path].shape
-        return np.unravel_index(index, shape[:-2])
+        # path = self.get_image_path()
+        # shape = self.datasets[path].shape
+        # return np.unravel_index(index, shape[:-2])
+        return np.unravel_index(index, self.scannables_shape())
 
     def get_group_datasets(self, name_or_path: str) -> list[str] | None:
         """Find the path associate with the given name and return all datasets in that group"""

@@ -16,6 +16,7 @@ FILES = [
     (DIR + 'i16/982681.nxs', 'i16 pil2m single point scan'),
     (DIR + 'i16/928878.nxs', 'i16 merlin 2d delta gam calibration'),
     (DIR + 'i10/i10-608314.nxs', 'i10 pimte scan'),
+    (DIR + 'i10/i10-854741.nxs', 'i10 pimte scan, single point with TIFF'),
     (DIR + 'i10/i10-618365.nxs', 'i10 scan'),
     (DIR + 'i06/i06-1-302762.nxs', 'i06 scan'),
     (DIR + 'i21/i21-157111.nxs', 'i21 xcam single point scan'),
