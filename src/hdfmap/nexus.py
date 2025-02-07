@@ -23,6 +23,7 @@ NX_SIGNAL = 'signal'
 NX_AXES = 'axes'
 NX_DETECTOR = 'NXdetector'
 NX_DETECTOR_DATA = 'data'
+NX_IMAGE_DATA = 'image_data'
 NX_UNITS = 'units'
 logger = create_logger(__name__)
 
@@ -179,6 +180,8 @@ class NexusMap(HdfMap):
     # Special behaviour
     nxmap['axes'] -> return path of default axes dataset
     nxmap['signal'] -> return path of default signal dataset
+    [axes_paths], [signal_paths] = nxmap.nexus_default_paths()
+    [axes_names], [signal_names] = nxmap.nexus_default_names()  # returns default names in nxmap.scannables
     """
 
     def __repr__(self):
@@ -191,7 +194,7 @@ class NexusMap(HdfMap):
             for path, grp in self.groups.items() if (nxclass := grp.attrs.get(NX_CLASS))
         })
 
-    def info_nexus(self) -> str:
+    def info_nexus(self, scannables=True, image_data=True, metadata=False) -> str:
         """Return str info on nexus format"""
         out = f"{repr(self)}\n"
         out += f"{NX_CLASS}:\n"
@@ -201,6 +204,8 @@ class NexusMap(HdfMap):
         out += f"  @{NX_DEFAULT}: {self.find_attr(NX_DEFAULT)}\n"
         out += f"  @{NX_AXES}: {self.get_path(NX_AXES)}\n"
         out += f"  @{NX_SIGNAL}: {self.get_path(NX_SIGNAL)}\n"
+        out += f"{self.info_names(scannables=scannables, image_data=image_data, metadata=metadata)}"
+        out += f""
         return out
 
     def _default_nexus_paths(self, hdf_file):
@@ -237,11 +242,18 @@ class NexusMap(HdfMap):
         except KeyError:
             pass
 
-    def nexus_defaults(self) -> tuple[list[str], list[str]]:
+    def nexus_default_paths(self) -> tuple[list[str], list[str]]:
         """Return default axes and signal paths"""
         axes_paths = [self.arrays[axes] for n in range(10) if (axes := f"{NX_AXES}{n}") in self.arrays]
         signal_paths = [self.arrays[signal] for n in range(10) if (signal := f"{NX_SIGNAL}{n}") in self.arrays]
         return axes_paths, signal_paths
+
+    def nexus_default_names(self) -> tuple[dict[str, str], dict[str, str]]:
+        """Return name of default axes and signal paths, as defined in scannables"""
+        axes_paths, signal_paths = self.nexus_default_paths()
+        axes_names = [self.datasets[path].name for path in axes_paths ]
+        signal_names = [self.datasets[path].name for path in signal_paths]
+        return self.first_last_scannables(axes_names, signal_names)
 
     def generate_scannables_from_nxdata(self, hdf_file: h5py.File, use_auxiliary: bool = True):
         """Generate scannables from default NXdata, using axuiliary_names if available"""
@@ -281,16 +293,22 @@ class NexusMap(HdfMap):
 
     def generate_image_data_from_nxdetector(self):
         """find the NXdetector group and assign the image data"""
+        #TODO: add image_data to detector path if data not found
         self.image_data = {}
+        scan_dim = len(self.scannables_shape())
         if NX_DETECTOR in self.classes:
             for group_path in self.classes[NX_DETECTOR]:
                 detector_name = generate_identifier(group_path)
                 # detector data is stored in NXdata in dataset 'data'
                 data_path = build_hdf_path(group_path, NX_DETECTOR_DATA)
-                logger.debug(f"Looking for image_data at: '{data_path}'")
-                if data_path in self.datasets and len(self.datasets[data_path].shape) > 1:
+                image_data_path = build_hdf_path(group_path, NX_IMAGE_DATA)
+                logger.debug(f"Looking for image_data at: '{data_path}' or '{image_data_path}'")
+                if data_path in self.datasets and len(self.datasets[data_path].shape) > scan_dim:
                     logger.info(f"Adding image_data ['{detector_name}'] = '{data_path}'")
                     self.image_data[detector_name] = data_path
+                elif image_data_path in self.datasets:
+                    logger.info(f"Adding image_data ['{detector_name}'] = '{image_data_path}'")
+                    self.image_data[detector_name] = image_data_path
                 else:
                     # Use first dataset with > 2 dimensions
                     image_datasets = [
@@ -370,32 +388,44 @@ class NexusMap(HdfMap):
             'grid_data': 2D array of height or colour
         }
         """
-        axes, signals = self.nexus_defaults()
-        axes_names = [generate_identifier(path) for path in axes]
-        signal_names = [generate_identifier(path) for path in signals]
-        axes_units = [self.get_attr(path, NX_UNITS, '') for path in axes]
-        axes_labels = [f"{name} [{unit}]" for name, unit in zip(axes_names, axes_units)]
+        axes, signals = self.nexus_default_names()
+        axes_units = [self.get_attr(path, NX_UNITS, '') for name, path in axes.items()]
+        signal_units = [self.get_attr(path, NX_UNITS, '') for name, path in signals.items()]
+        axes_labels = [name + (f" [{unit}]" if unit else '') for name, unit in zip(axes, axes_units)]
+        signal_labels = [name + (f" [{unit}]" if unit else '') for name, unit in zip(signals, signal_units)]
         title = f"{self.filename}\n{self.get_data(hdf_file, NX_TITLE)}"
+
+        xdata = (
+            self.get_data(hdf_file, next(iter(axes.values()))).flatten()
+            if axes else range(self.scannables_length())
+        )
+        ydata = (
+            self.get_data(hdf_file, next(iter(signals.values()))).flatten()
+            if signals else [1.0] * self.scannables_length()
+        )
+
         data = {
-            'xlabel': axes_labels[0],
-            'ylabel': signal_names[0],
-            'xdata': self.get_data(hdf_file, axes[0]).flatten(),
-            'ydata': self.get_data(hdf_file, signals[0]).flatten(),
-            'axes_names': axes_names,
-            'signal_names': signal_names,
-            'axes_data': [self.get_data(hdf_file, ax) for ax in axes],
-            'signal_data': [self.get_data(hdf_file, sig) for sig in signals],
+            'xlabel': next(iter(axes_labels), 'x'),
+            'ylabel': next(iter(signal_labels), 'y'),
+            'xdata': xdata,
+            'ydata': ydata,
+            'axes_names': list(axes.keys()),
+            'signal_names': list(signals.keys()),
+            'axes_data': [self.get_data(hdf_file, ax) for ax in axes.values()],
+            'signal_data': [self.get_data(hdf_file, sig) for sig in signals.values()],
             'axes_labels': axes_labels,
-            'signal_labels': signal_names,
-            'data': self.get_scannables(hdf_file),
+            'signal_labels': signal_labels,
+            'data': self.get_scannables(hdf_file, numeric_only=True),
             'title': title
         }
         if len(axes) == 2 and len(self.scannables_shape()) == 2:
             # 2D grid scan
+            xpath, ypath = axes.values()
+            data_path = next(iter(signals.values()))
             data['grid_xlabel'] = axes_labels[0]
             data['grid_ylabel'] = axes_labels[1]
-            data['grid_label'] = signal_names[0]
-            data['grid_xdata'] = self.get_data(hdf_file, axes[0])
-            data['grid_ydata'] = self.get_data(hdf_file, axes[1])
-            data['grid_data'] = self.get_data(hdf_file, signals[0])
+            data['grid_label'] = signal_labels[0]
+            data['grid_xdata'] = self.get_data(hdf_file, xpath)
+            data['grid_ydata'] = self.get_data(hdf_file, ypath)
+            data['grid_data'] = self.get_data(hdf_file, data_path)
         return data

@@ -20,10 +20,10 @@ Another generic hdf reader but the idea here is to build up a namespace dict of 
 for every dataset, then group them in hopefully a useful way. 
 
 Objects within the HDF file are separated into Groups and Datasets. Each object has a
-defined 'path' and 'name' paramater, as well as other attributes
+defined 'path' and 'name' parameter, as well as other attributes
 
  - path -> '/entry/measurement/data' -> the location of an object within the file
- - name -> 'data' -> an path expressed as a simple variable name
+ - name -> 'data' -> a path expressed as a simple expression-safe variable name
 
 Paths are unique locations within the file but can be used to identify similar objects in other files
 Names may not be unique within a file and are generated from the path.

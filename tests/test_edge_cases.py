@@ -25,6 +25,7 @@ def test_edge_cases():
         assert mymap.get_path('axes') == chk['axes'], f"{chk['filename']} has wrong axes"
         assert mymap.get_path('signal') == chk['signal'], f"{chk['filename']} has wrong signal"
         assert mymap.get_image_path() == chk['image'], f"{chk['filename']} has wrong image path"
+        assert mymap.info_nexus(scannables=True, image_data=True, metadata=True) == chk['string']
         n += 1
     print(f"Completed {n} edge case files")
 

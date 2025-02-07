@@ -71,7 +71,7 @@ def test_plot_data(hdf_map):
 def test_3d_scan():
     hdf_map = hdfmap.create_nexus_map(FILE_3D_NEXUS)
     assert hdf_map.scannables_length() == 80, "Scannables have the wrong length"
-    axes, signals = hdf_map.nexus_defaults()
+    axes, signals = hdf_map.nexus_default_paths()
     assert len(axes) == 3, "Number of default axes is wrong"
     assert signals[0] == '/entry/medipix/data', "Incorrect default signal"
     with hdf_map.load_hdf() as hdf:
