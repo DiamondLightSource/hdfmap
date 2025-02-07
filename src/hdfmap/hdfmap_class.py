@@ -597,18 +597,13 @@ class HdfMap:
     def get_image_shape(self) -> tuple:
         """Return the scan shape of the detector dataset"""
         path = self.get_image_path()
-        if path:
+        if path in self.datasets:
             return self.datasets[path].shape[-2:]
         return 0, 0
 
     def get_image_index(self, index: int) -> tuple:
         """Return image slice index for index along total scan size"""
-        path = self.get_image_path()
-        shape = self.datasets[path].shape
-        if len(shape) == 1:  # path to list of filenames
-            # an incorrect result will be returned for a 3D grid scan using filenames (unlikely)
-            return (index, )
-        return np.unravel_index(index, shape[:-2])
+        return np.unravel_index(index, self.scannables_shape())
 
     def get_group_datasets(self, name_or_path: str) -> list[str] | None:
         """Find the path associate with the given name and return all datasets in that group"""
