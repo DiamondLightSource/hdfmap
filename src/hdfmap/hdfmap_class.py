@@ -109,9 +109,9 @@ class HdfMap:
     - map.arrays      stores array dataset paths by name
     - map.values      stores value dataset paths by name
     - map.metadata   stores value dataset path by altname only
-    - map.scannables  stores array dataset paths with given size, by name
+    - map.scannables  stores array dataset paths with given size, by name, all arrays have the same shape
     - map.combined    stores array and value paths (arrays overwrite values)
-    - map.image_data  stores dataset paths of image data
+    - map.image_data  stores dataset paths of image data (arrays with 2+ dimensions or arrays of image files)
     #### E.G.
     - map.groups = {'/hdf/group': ('class', 'name', {attrs}, [datasets])}
     - map.classes = {'class_name': ['/hdf/group1', '/hdf/group2']}
@@ -139,7 +139,7 @@ class HdfMap:
     - map.get_scannables(h5py.File) -> returns dict of scannable datasets
     - map.get_scannables_array(h5py.File) -> returns numpy array of scannable datasets
     - map.get_dataholder(h5py.File) -> returns dict like object with metadata and scannables
-    - map.get_image(h5py.File, index) -> returns image data
+    - map.get_image(h5py.File, index) -> returns image data (2D float array or str image filename)
     - map.get_data(h5py.File, 'name') -> returns data from dataset
     - map.get_string(h5py.File, 'name') -> returns string summary of dataset
     - map.eval(h5py.File, 'expression') -> returns output of expression
@@ -176,7 +176,7 @@ class HdfMap:
         return f"HdfMap based on '{self.filename}'"
 
     def __str__(self):
-        return f"{repr(self)}\n{self.info_names()}\n{self.info_scannables()}"
+        return f"{repr(self)}\n{self.info_names(combined=True, scannables=True, image_data=True)}"
 
     def info_groups(self) -> str:
         """Return str info on groups"""
@@ -207,38 +207,28 @@ class HdfMap:
         out += disp_dict(self.datasets, 20)
         return out
 
-    def info_dataset_types(self) -> str:
-        """Return str info on dataset types"""
-        out = "Values:\n"
-        out += disp_dict(self.values, 20)
-        out += "Arrays:\n"
-        out += '\n'.join([
-            f"{name:>30}: {str(self.datasets[path].shape):10} : {path:60}"
-            for name, path in self.arrays.items()
-        ])
-        out += "Images:\n"
-        out += '\n'.join([
-            f"{name:>30}: {str(self.datasets[path].shape):10} : {path:60}"
-            for name, path in self.image_data.items()
-        ])
-        return out
-
-    def info_names(self) -> str:
-        """Return str info on combined namespace"""
-        out = "Combined Namespace:\n"
-        out += '\n'.join([
-            f"{name:>30}: {str(self.datasets[path].shape):10} : {path:60}"
-            for name, path in self.combined.items()
-        ])
-        return out
-
-    def info_scannables(self) -> str:
-        """Return str info on scannables namespace"""
-        out = "Scannables Namespace:\n"
-        out += '\n'.join([
-            f"{name:>30}: {str(self.datasets[path].shape):10} : {path:60}"
-            for name, path in self.scannables.items()
-        ])
+    def info_names(self, arrays=False, values=False, combined=False,
+                   metadata=False, scannables=False, image_data=False) -> str:
+        """Return str info for different namespaces"""
+        if not (arrays or values or combined or metadata or scannables or image_data):
+            combined = True
+        options = [
+            ('Arrays', arrays, self.arrays),
+            ('Values', values, self.values),
+            ('Combined', combined, self.combined),
+            ('Metadata', metadata, self.metadata),
+            ('Scannables', scannables, self.scannables),
+            ('Image Data', image_data, self.image_data),
+        ]
+        out = ''
+        for name, show, namespace in options:
+            if show:
+                out += f"\n{name} Namespace:\n"
+                out += '\n'.join([
+                    f"{name:>30}: {str(self.datasets[path].shape):10} : {path:60}"
+                    for name, path in namespace.items()
+                ])
+                out += '\n'
         return out
 
     def _store_group(self, hdf_group: h5py.Group, path: str, name: str):
@@ -413,6 +403,30 @@ class HdfMap:
         }
         self.generate_combined()
 
+    def first_last_scannables(self, first_names: list[str] = (),
+                              last_names: list[str] = ()) -> tuple[dict[str, str], dict[str, str]]:
+        """
+        Returns default names from scannables
+            output first_names returns dict of N names, where N is the number of dimensions in scannable shape
+                if fewer axes_names are provided than required, use the first items of scannables instead
+            output signal_names returns the last dict item in the list of scannables + signal_names
+
+        :param first_names: list of names of plottable axes in scannables
+        :param last_names: list of names of plottable values in scannables
+        :return {first_names: path}, {last_names: path}
+        """
+        all_names = list(first_names) + list(self.scannables.keys()) + list(last_names)
+        # check names are in scannables
+        for name in all_names:
+            if name not in self.scannables:
+                all_names.remove(name)
+                logger.warning(f"name: '{name}' not in scannables")
+        # return correct number of values from start and end
+        ndims = len(self.scannables_shape())
+        first = {name: self.scannables[name] for name in all_names[:ndims]}
+        last = {name: self.scannables[name] for name in all_names[-(len(last_names) or 1):]}
+        return first, last
+
     def get_path(self, name_or_path):
         """Return hdf path of object in HdfMap"""
         if name_or_path in self.datasets or name_or_path in self.groups:
@@ -574,12 +588,11 @@ class HdfMap:
                 self._default_image_path = path
         logger.info(f"Default image path: {self._default_image_path}")
 
-    def get_image_path(self) -> str | None:
+    def get_image_path(self) -> str:
         """Return HDF path of first dataset in self.image_data"""
         if self._default_image_path:
             return self._default_image_path
-        if self.image_data:
-            return next(iter(self.image_data.values()))
+        return next(iter(self.image_data.values()), '')
 
     def get_image_shape(self) -> tuple:
         """Return the scan shape of the detector dataset"""
@@ -704,20 +717,26 @@ class HdfMap:
                                                  name_list=name_list, string_output=True).items()
         )
 
-    def get_scannables(self, hdf_file: h5py.File, flatten: bool = False) -> dict:
+    def get_scannables(self, hdf_file: h5py.File, flatten: bool = False, numeric_only: bool = False) -> dict:
         """Return scannables from file (values associated with hdfmap.scannables)"""
         return {
-            name: hdf_file[path][()].flatten() if flatten else hdf_file[path][()]
+            name: dataset[()].flatten() if flatten else hdf_file[path][()]
             for name, path in self.scannables.items()
-            if path in hdf_file
+            if (dataset := hdf_file.get(path)) and
+               (np.issubdtype(dataset.dtype, np.number) if numeric_only else True)
         }
 
-    def get_image(self, hdf_file: h5py.File, index: int | tuple | slice = None) -> np.ndarray | None:
+    def get_image(self, hdf_file: h5py.File, index: int | tuple | slice | None = None) -> np.ndarray | None:
         """
         Get image data from file, using default image path
+            - If the image path points to a numeric 2+D dataset, returns dataset[index, :, :] -> ndarray
+            - If the image path points to a string dataset, returns dataset[index] -> '/path/to/image.tiff'
+
+        Image filenames may be relative to the location of the current file (this is not checked)
+
         :param hdf_file: hdf file object
         :param index: (slice,) or None to take the middle image
-        :return: numpy array of image
+        :return: 2D numpy array of image, or string file path of image
         """
         if index is None:
             index = self.get_image_index(self.scannables_length() // 2)
@@ -838,5 +857,5 @@ class HdfMap:
             f": {path:60}"
             for name, path in self.combined.items()
         ])
-        out += f"\n{self.info_scannables()}"
+        out += f"\n{self.info_names(scannables=True)}"
         return out

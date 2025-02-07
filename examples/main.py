@@ -10,7 +10,7 @@ new_file = 'tests/data/1040323.nxs'
 new_map = hdfmap.create_nexus_map(new_file)
 nxs_map = hdfmap.create_nexus_map(nxs_file)
 print(nxs_map)
-print(nxs_map.info_scannables())
+print(nxs_map.info_names(scannables=True))
 
 rdr = hdfmap.NexusLoader(nxs_file, nxs_map)
 [data1, data2] = rdr.get_data(*['scan_command', 'start_time'])

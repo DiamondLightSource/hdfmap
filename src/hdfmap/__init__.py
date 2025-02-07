@@ -44,7 +44,7 @@ Copyright 2024-2025 Daniel G. Porter
 
 By Dr Dan Porter
 Diamond Light Source Ltd
-2024
+2024-2025
 """
 
 from .logging import set_all_logging_level
@@ -65,8 +65,8 @@ __all__ = [
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
-__version__ = "0.7.0"
-__date__ = "2024/01/08"
+__version__ = "0.8.0"
+__date__ = "2025/02/07"
 
 
 def version_info() -> str:

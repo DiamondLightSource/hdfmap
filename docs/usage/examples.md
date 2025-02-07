@@ -157,11 +157,12 @@ data_list = hdf_eval(files, 'signal / Transmission')
 Where files have multiple axes (e.g. a scan of x and y), the NeXus file will have a list of default @axes arguments.
 The reserved name 'axes' only gives the first axis, but additional axes paths are stored as names 'axes#'
 where # is the axis number.
+
 ```python
 from hdfmap import NexusLoader
 
 scan = NexusLoader('scan_file.nxs')
-axes_paths, signal_paths = scan.map.nexus_defaults()
+axes_paths, signal_paths = scan.map.nexus_default_paths()
 
 axes_x = scan('axes0')
 axes_y = scan('axes1')

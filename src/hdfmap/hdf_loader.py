@@ -8,9 +8,21 @@ except ImportError:
     print('Warning: hdf5plugin not available.')
 
 
+HDF_FILE_OPTIONS = {
+    'swmr': True,
+    'libver': "latest"
+}
+
+def set_hdf_file_options(**kwargs):
+    """Set the default keyword arguments for h5py.File reading"""
+    HDF_FILE_OPTIONS.update(kwargs)
+
+
 def load_hdf(hdf_filename: str, **kwargs) -> h5py.File:
     """Load hdf file, return h5py.File object"""
-    return h5py.File(hdf_filename, 'r', **kwargs)
+    options = HDF_FILE_OPTIONS  #.copy()
+    options.update(kwargs)
+    return h5py.File(hdf_filename, 'r', **options)
 
 
 def hdf_tree_string(hdf_filename: str, all_links: bool = True, group: str = '/') -> str:
