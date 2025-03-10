@@ -47,14 +47,43 @@ axes, signal = scan('axes, signal') # NeXus default signal and axes are in the n
 ```
 
 #### Rules for names in eval/format spec:
+ - 'filename', 'filepath' - these are always available
  - 'name' - returns value of dataset '/entry/group/name'
  - 'group_name' - return value of dataset '/entry/group/name'
  - 'class_name' - return value of dataset '/entry/group/name' where group has NXclass: class
  - 'name@attr' - returns attribute 'attr' associated with dataset 'name'
- - '_name' - retrun hdf path of dataset 'name'
- - '__name' - return default name of dataset 'name' (used when requesting 'axes' or 'signal'
- - 'filename', 'filepath' - these are always available
+ - '_name' - return hdf path of dataset 'name'
+ - '__name' - return default name of dataset 'name' (used when requesting 'axes' or 'signal')
+ - 's_*name*': string representation of dataset (includes units if available)
+ - '*name*@*attr*': returns attribute of dataset *name*
+ - '*name*?(*default*)': returns default if *name* doesn't exist
+ - '(name1|name2|name3)': returns the first available of the names
+ - '(name1|name2?(default))': returns the first available name or default
 
+
+#### New in V0.8.1: local variables in eval/format
+Additional variables can be assigned to the local namespace accessed during eval or format, either directly accessing
+data, or as shorthand for a path or expression.
+
+```python
+from hdfmap import NexusLoader
+
+scan = NexusLoader('file.nxs')
+
+# add local data
+scan.map.add_local(my_parameter=800.)
+monitor = scan.eval('ic1monitor / my_parameter')
+# add replacement path
+scan.map.add_named_expression(cmd='/entry1/scan_command')
+cmd = scan.eval('cmd')
+# add short-hand expressions
+expr = {
+    'cmd': 'scan_command',
+    'normby': 'Transmission/count_time/(ic1monitor/800.)',
+}
+scan.map.add_named_expression(**expr)
+ydata = scan.eval('signal/normby')
+```
 
 
 ### formatted strings from metadata

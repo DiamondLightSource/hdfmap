@@ -11,7 +11,8 @@ import h5py
 from . import load_hdf
 from .logging import create_logger
 from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf,
-                             format_hdf, dataset2data, dataset2str, DEFAULT, SEP, generate_identifier, build_hdf_path)
+                             format_hdf, dataset2data, dataset2str,
+                             DEFAULT, SEP, generate_identifier, build_hdf_path)
 
 
 # parameters
@@ -134,6 +135,8 @@ class HdfMap:
     - map.find_paths('string') -> return list of dataset paths containing string
     - map.find_names('string') -> return list of dataset names containing string
     - map.find_attr('attr_name') -> return list of paths of groups or datasets containing attribute 'attr_name'
+    - map.add_local(local_variable=value) -> add to the local namespace accessed by eval
+    - map.add_named_expression(alternate_name='expression') -> add local variables for expressions replaced during eval
     ### File Methods
     - map.get_metadata(h5py.File) -> returns dict of value datasets
     - map.get_scannables(h5py.File) -> returns dict of scannable datasets
@@ -158,6 +161,8 @@ class HdfMap:
         self.scannables = {}  # stores array dataset paths with given size, by name
         self.combined = {}  # stores array and value paths (arrays overwrite values)
         self.image_data = {}  # stores dataset paths of image data
+        self._local_data = {}  # stores variables and data to be used in eval
+        self._alternate_names = {}  # stores variable names for expressions to be evaluated
         self._default_image_path = None
 
         if isinstance(file, h5py.File):
@@ -311,9 +316,18 @@ class HdfMap:
             elif isinstance(obj, h5py.Dataset) and not isinstance(link, h5py.SoftLink):
                 self._store_dataset(obj, hdf_path, name)
 
+    def add_local(self, **kwargs):
+        """Add value to the local namespace, used in eval"""
+        self._local_data.update(kwargs)
+
+    def add_named_expression(self, **kwargs):
+        """Add named expression to the local namespace, used in eval"""
+        self._alternate_names.update(kwargs)
+
     def populate(self, hdf_file: h5py.File):
         """Populate all datasets from file"""
         self.filename = hdf_file.filename
+        self._local_data.update(extra_hdf_data(hdf_file))
         self._populate(hdf_file)
         size = self.most_common_size()
         self.generate_scannables(size)
@@ -826,7 +840,7 @@ class HdfMap:
         :param default: returned if varname not in namespace
         :return: eval(expression)
         """
-        return eval_hdf(hdf_file, expression, self.combined, default)
+        return eval_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default)
 
     def format_hdf(self, hdf_file: h5py.File, expression: str, default=DEFAULT) -> str:
         """
@@ -836,7 +850,7 @@ class HdfMap:
         :param default: returned if varname not in namespace
         :return: eval_hdf(f"expression")
         """
-        return format_hdf(hdf_file, expression, self.combined, default)
+        return format_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default)
 
     def create_dataset_summary(self, hdf_file: h5py.File) -> str:
         """Create summary of all datasets in file"""
