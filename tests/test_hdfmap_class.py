@@ -175,3 +175,25 @@ def test_format_hdf(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
         out = hdf_map.format_hdf(hdf, 'The energy is {en:.3} keV')
         assert out == 'The energy is 3.58 keV', "Expression output gives wrong result"
+
+
+def test_eval_local_data(hdf_map):
+    hdf_map.add_local(new_var='testing-testing', Transmission=10.)
+    with hdfmap.load_hdf(FILE_HKL) as hdf:
+        out = hdf_map.eval(hdf, 'new_var')
+        assert out == 'testing-testing', "Expression output gives wrong result"
+        out = hdf_map.eval(hdf, 'int(np.max(sum / Transmission / count_time))')
+        assert out == 653318, "Expression output gives wrong result"
+
+
+def test_eval_named_expression(hdf_map):
+    hdf_map.add_named_expression(
+        norm_data='int(np.max(sum / Transmission / count_time))',
+        my_path=hdf_map['incident_energy']
+    )
+    with hdfmap.load_hdf(FILE_HKL) as hdf:
+        out = hdf_map.eval(hdf, 'norm_data')
+        assert out == 6533183, "Expression output gives wrong result"
+        out = hdf_map.eval(hdf, 'my_path')
+        assert abs(out - 3.58) < 0.001, "Expression output gives wrong result"
+
