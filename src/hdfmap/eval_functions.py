@@ -91,6 +91,11 @@ def round_string_floats(string):
     return re_long_floats.sub(subfun, string)
 
 
+def is_image(shape: tuple[int]):
+    """Return True/False if dataset shape is suitable for image data"""
+    return len(shape) >= 3 and (shape[-2] - 1) * (shape[-1] - 1) > 1
+
+
 def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=False) -> datetime.datetime | str | np.ndarray:
     """
     Read the data from a h5py Dataset and convert to either datetime, str or squeezed numpy array
@@ -261,8 +266,6 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
                  if name.startswith('_') and name[1:] in hdf_namespace}
     hdf_names = {name: generate_identifier(hdf_namespace[name[2:]]) for name in identifiers
                  if name.startswith('__') and name[2:] in hdf_namespace}
-    # add extra params
-    # extras = extra_hdf_data(hdf_file)
     return {**defaults, **hdf_paths, **hdf_names, **strings, **namespace}
 
 

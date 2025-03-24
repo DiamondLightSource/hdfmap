@@ -9,6 +9,7 @@ scan = NexusLoader('file.hdf')
 scan('energy')  # --> returns data from '/entry/instrument/monochromator/energy'
 scan('signal')  # --> returns data from default signal, e.g. '/entry/measurement/sum'
 scan('axes')  # --> returns data from default axes, e.g. '/entry/measurement/theta'
+scan('image_data') # --> returns data from default >3D dataset containing image data
 scan.map.get_path('energy')  # -> returns '/entry/instrument/monochromator/energy'
 [data1, data2] = scan.get_data(['dataset_name_1', 'dataset_name_2'])
 data = scan.eval('dataset_name_1 * 100 + 2')

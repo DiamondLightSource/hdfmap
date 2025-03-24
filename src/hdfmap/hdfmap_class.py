@@ -11,12 +11,13 @@ import h5py
 from . import load_hdf
 from .logging import create_logger
 from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf,
-                             format_hdf, dataset2data, dataset2str,
+                             format_hdf, dataset2data, dataset2str, is_image,
                              DEFAULT, SEP, generate_identifier, build_hdf_path)
 
 
 # parameters
 LOCAL_NAME = 'local_name'  # dataset attribute name for alt_name
+IMAGE_DATA = 'image_data'  # namespace name for default image data
 
 # logger
 logger = create_logger(__name__)
@@ -269,7 +270,7 @@ class HdfMap:
             shape=hdf_dataset.shape,
             attrs=dict(hdf_dataset.attrs),
         )
-        if hdf_dataset.ndim >= 3:
+        if is_image(hdf_dataset.shape):
             self.image_data[name] = hdf_path
             self.image_data[group_name] = hdf_path
             self.arrays.update(names)
@@ -334,7 +335,10 @@ class HdfMap:
 
     def generate_combined(self):
         """Finalise the mapped namespace by combining dataset names"""
-        self.combined = {**self.values, **self.arrays, **self.scannables}
+        if self.image_data:
+            # add default 'image_data'
+            self.image_data[IMAGE_DATA] = next(iter(self.image_data.values()))
+        self.combined = {**self.values, **self.arrays, **self.image_data, **self.scannables}
 
     def all_attrs(self) -> dict:
         """Return dict of all attributes in self.datasets and self.groups"""
@@ -504,7 +508,11 @@ class HdfMap:
 
             [paths, ] = m.find_datasets('NXslit', 'x_gap')
 
-        Intended for use finding datasets assosiated with groups with a certain hierarchy
+        Intended for use finding datasets associated with groups with a certain hierarchy
+
+        Note that arguments are checked against the dataset namespace first, so if the argument appears
+        in both lists, it will be assumed to be a dataset.
+
         :params names_or_classes:  dataset names, group names or group class names
         :returns: list of hdf dataset paths
         """
