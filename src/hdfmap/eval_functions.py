@@ -91,9 +91,9 @@ def round_string_floats(string):
     return re_long_floats.sub(subfun, string)
 
 
-def is_image(shape: tuple[int]):
+def is_image(shape: tuple[int], min_dim=3):
     """Return True/False if dataset shape is suitable for image data"""
-    return len(shape) >= 3 and (shape[-2] - 1) * (shape[-1] - 1) > 1
+    return len(shape) >= min_dim and (shape[-2] - 1) * (shape[-1] - 1) > 1
 
 
 def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=False) -> datetime.datetime | str | np.ndarray:

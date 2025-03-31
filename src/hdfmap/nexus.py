@@ -301,8 +301,12 @@ class NexusMap(HdfMap):
             logger.warning("No NXdata found, scannables not populated!")
 
     def generate_image_data_from_nxdetector(self):
-        """find the NXdetector group and assign the image data"""
+        """
+        find the NXdetector group and assign the image data
+        Must be called after the scannables have been defined as the scan shape is required
+        """
         self.image_data = {}
+        image_ndim = len(self.scannables_shape()) + 2 if self.scannables else 3
         if NX_DETECTOR in self.classes:
             for group_path in self.classes[NX_DETECTOR]:
                 detector_name = generate_identifier(group_path)
@@ -310,7 +314,7 @@ class NexusMap(HdfMap):
                 data_path = build_hdf_path(group_path, NX_DETECTOR_DATA)
                 image_data_path = build_hdf_path(group_path, NX_IMAGE_DATA)
                 logger.debug(f"Looking for image_data at: '{data_path}' or '{image_data_path}'")
-                if data_path in self.datasets and is_image(self.datasets[data_path].shape):
+                if data_path in self.datasets and is_image(self.datasets[data_path].shape, image_ndim):
                     logger.info(f"Adding image_data ['{detector_name}'] = '{data_path}'")
                     self.image_data[detector_name] = data_path
                     self.arrays[detector_name] = data_path
@@ -328,7 +332,7 @@ class NexusMap(HdfMap):
                     # Use first dataset with > 2 dimensions
                     image_dataset = next((
                         path for name in self.get_group_datasets(group_path)
-                        if is_image(self.datasets[path := build_hdf_path(group_path, name)].shape)
+                        if is_image(self.datasets[path := build_hdf_path(group_path, name)].shape, image_ndim)
                     ), False)
                     if image_dataset:
                         logger.info(f"Adding image_data ['{detector_name}'] = '{image_dataset}'")
@@ -336,7 +340,7 @@ class NexusMap(HdfMap):
                         self.arrays[detector_name] = image_dataset
 
         if not self.image_data:
-            logger.warning("No NXdetector found, image_data not populated!")
+            logger.info("No NXdetector image found, image_data not populated.")
 
     def populate(self, hdf_file: h5py.File, groups=None, default_entry_only=False):
         """
@@ -374,10 +378,16 @@ class NexusMap(HdfMap):
         if not self.datasets:
             logger.warning("No datasets found!")
 
-        # find the NXdetector group and assign the image data
-        self.generate_image_data_from_nxdetector()
         # find the scannable arrays and generate self.combined
         self.generate_scannables_from_scan_fields_or_nxdata(hdf_file)
+        if not self.scannables:
+            logger.warning('NXdata not found, getting scannables from most common array size')
+            size = self.most_common_size()
+            self.generate_scannables(size)
+        # find the NXdetector group and assign the image data
+        self.generate_image_data_from_nxdetector()
+        # finalise map with combined namespace
+        self.generate_combined()
 
     def get_plot_data(self, hdf_file: h5py.File):
         """

@@ -332,9 +332,17 @@ class HdfMap:
         self._populate(hdf_file)
         size = self.most_common_size()
         self.generate_scannables(size)
+        self.generate_combined()
 
     def generate_combined(self):
         """Finalise the mapped namespace by combining dataset names"""
+        # if self.scannables:
+        #     # check image datasets are larger than scannables_shape
+        #     ndim = len(self.scannables_shape())
+        #     self.image_data = {
+        #         name: path for name, path in self.image_data.items()
+        #         if is_image(self.datasets[path].shape, ndim + 1)
+        #     }
         if self.image_data:
             # add default 'image_data'
             self.image_data[IMAGE_DATA] = next(iter(self.image_data.values()))
@@ -375,7 +383,7 @@ class HdfMap:
         # self.scannables = {k: v for k, v in self.arrays.items() if self.datasets[v].size == array_size}
         self.scannables = {ds.name: path for path, ds in self.datasets.items() if ds.size == array_size}
         # create combined dict, scannables and arrays overwrite values with same name
-        self.generate_combined()
+        # self.generate_combined()
 
     def generate_scannables_from_group(self, hdf_group: h5py.Group, group_path: str = None,
                                        dataset_names: list[str] = None):
@@ -400,15 +408,18 @@ class HdfMap:
             logger.warning(f"HDF Group {hdf_path} has no datasets for scannables")
             self.scannables = {}
         else:
-            first_dataset = hdf_group[dataset_names[0]]
-            array_size = first_dataset.size
+            # use shape of first dataset in list to determine the scannable_shape
+            # first_dataset = hdf_group[dataset_names[0]]
+            # array_size = first_dataset.size
+            # use min size dataset as scannable_shape (avoiding image datasets)
+            array_size = min(hdf_group[name].size for name in dataset_names)
             self._populate(hdf_group, root=hdf_path, recursive=False)
             self.scannables = {
                 name: build_hdf_path(hdf_path, name)
                 for name in dataset_names if hdf_group[name].size == array_size
             }
         logger.debug(f"Scannables from group: {list(self.scannables.keys())}")
-        self.generate_combined()
+        # self.generate_combined()
 
     def generate_scannables_from_names(self, names: list[str]):
         """Generate scannables list from a set of dataset names, using the first item to define array size"""
@@ -419,7 +430,7 @@ class HdfMap:
         self.scannables = {
             name: self.arrays[name] for name in array_names if self.datasets[self.arrays[name]].size == array_size
         }
-        self.generate_combined()
+        # self.generate_combined()
 
     def first_last_scannables(self, first_names: list[str] = (),
                               last_names: list[str] = ()) -> tuple[dict[str, str], dict[str, str]]:
