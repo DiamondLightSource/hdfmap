@@ -17,7 +17,7 @@ from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf,
 
 # parameters
 LOCAL_NAME = 'local_name'  # dataset attribute name for alt_name
-IMAGE_DATA = 'image_data'  # namespace name for default image data
+IMAGE_DATA = 'IMAGE'  # namespace name for default image data
 
 # logger
 logger = create_logger(__name__)
