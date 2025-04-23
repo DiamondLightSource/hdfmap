@@ -65,8 +65,8 @@ __all__ = [
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
-__version__ = "0.8.1"
-__date__ = "2025/03/10"
+__version__ = "0.9.1"
+__date__ = "2025/04/23"
 
 
 def version_info() -> str:

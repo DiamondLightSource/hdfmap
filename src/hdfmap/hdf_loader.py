@@ -25,49 +25,64 @@ def load_hdf(hdf_filename: str, **kwargs) -> h5py.File:
     return h5py.File(hdf_filename, 'r', **options)
 
 
-def hdf_tree_string(hdf_filename: str, all_links: bool = True, group: str = '/') -> str:
+def hdf_tree_string(hdf_filename: str, all_links: bool = True, group: str = '/', attributes: bool = True) -> str:
     """
     Generate string of the hdf file structure, similar to h5ls. Uses h5py.visititems
     :param hdf_filename: filename of hdf file
     :param all_links: bool, if True, also show links
     :param group: only display tree structure of this group (default root)
+    :param attributes: if True, display the attributes of groups and datasets
     :return: str
     """
+    output = [f"########## {hdf_filename} ##########"]
 
-    output = [f" --- {hdf_filename} --- "]
+    def grp(path):
+        return f"-------------- {path} " + "-" * (63 - (17 + len(path)))
+
+    def ds(path, detail):
+        return f"{path:60}  :  {detail}"
+
+    def attr(path, name, value):
+        return f"{' ' * len(path) + '@' + name} = {value}"
 
     with load_hdf(hdf_filename) as hdf_file:
         hdf_group = hdf_file.get(group)
-        attrs = '\n'.join([f"    @{attr}: {item}" for attr, item in hdf_group.attrs.items()])
-        output.append(f"\n{hdf_group.name}\n" + attrs)
+        output.append(grp(hdf_group.name))
+        if attributes:
+            output.extend([attr(hdf_group.name, name, value) for name, value in hdf_group.attrs.items()])
 
         def visit_paths(name, obj: h5py.Group | h5py.Dataset):
             if isinstance(obj, h5py.Dataset):
-                attrs = ', '.join([f"@{attr}={item}" for attr, item in obj.attrs.items()])
                 if obj.size <= 1:
                     detail = f"{obj[()]}"
                 else:
                     detail = f"{obj.dtype}, {obj.shape}"
-                output.append(f"{name:60}  :  {detail:20}   :  {attrs}")
+                output.append(ds(name, detail))
+                if attributes:
+                    output.extend([attr(name, _attr, value) for _attr, value in obj.attrs.items()])
             elif isinstance(obj, h5py.Group):
-                attrs = '\n'.join([f"    @{attr}: {item}" for attr, item in obj.attrs.items()])
-                output.append(f"\n{name}\n" + attrs)
+                output.append(grp(name))
+                if attributes:
+                    output.extend([attr(name, _attr, value) for _attr, value in obj.attrs.items()])
 
         def visit_links(name, obj: h5py.HardLink | h5py.SoftLink | h5py.ExternalLink):
             h5py_obj = hdf_group.get(name)
 
             if isinstance(h5py_obj, h5py.Dataset):
-                attrs = ', '.join([f"@{attr}={item}" for attr, item in h5py_obj.attrs.items()])
                 if isinstance(obj, h5py.ExternalLink):
                     detail = f"LINK: {h5py_obj.dtype}, {h5py_obj.shape}"
                 elif h5py_obj.size <= 1:
                     detail = f"{h5py_obj[()]}"
                 else:
                     detail = f"{h5py_obj.dtype}, {h5py_obj.shape}"
-                output.append(f"{name:60}  :  {detail:20}   :  {attrs}")
+                output.append(ds(name, detail))
+                if attributes:
+                    output.extend([attr(name, _attr, value) for _attr, value in h5py_obj.attrs.items()])
             elif isinstance(h5py_obj, h5py.Group):
-                attrs = '\n'.join([f"    @{attr}: {item}" for attr, item in h5py_obj.attrs.items()])
-                output.append(f"\n{name}\n" + attrs)
+                output.append(grp(name))
+                if attributes:
+                    output.append(f"{name}")
+                    output.extend([attr(name, _attr, value) for _attr, value in h5py_obj.attrs.items()])
 
         if all_links:
             hdf_group.visititems_links(visit_links)
