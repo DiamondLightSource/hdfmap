@@ -17,7 +17,7 @@ def hdf_map():
 
 def test_populate(hdf_map):
     assert len(hdf_map.datasets) == 360, "Wrong number of datasets loaded"
-    assert len(hdf_map.combined) == 894, "Wrong number of names in map.combined"
+    assert len(hdf_map.combined) == 895, "Wrong number of names in map.combined"
 
 
 def test_most_common_size(hdf_map):
@@ -36,7 +36,7 @@ def test_generate_scannables(hdf_map):
 def test_get_item(hdf_map):
     assert hdf_map['sum'] == '/entry1/pil3_100k/sum', '__get_item__ failed'
     assert 'sum' in hdf_map, '__contains__ failed'
-    assert len([path for path in hdf_map]) == 894, '__iter__ failed'
+    assert len([path for path in hdf_map]) == 895, '__iter__ failed'
 
 
 def test_get_path(hdf_map):
