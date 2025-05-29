@@ -18,6 +18,7 @@ nav:
   - Usage:
     - usage/index.md
     - usage/examples.md
+    - usage/utilities.md
   - Code Description:
     - description/index.md
     - description/how-it-works.md
