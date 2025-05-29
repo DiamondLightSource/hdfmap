@@ -9,12 +9,27 @@ FILE_NEW_NEXUS = DATA_FOLDER + '/1040323.nxs'  # new nexus format
 FILE_3D_NEXUS = DATA_FOLDER + '/i06-353130.nxs'  # new nexus format
 
 
+@pytest.fixture
+def files():
+    files = hdfmap.file_functions.list_files(DATA_FOLDER, extension='.nxs')
+    yield files
+
+    
 def test_hdf_tree_string():
     default_string = hdfmap.hdf_tree_string(FILE_HKL)
     nolinks_string = hdfmap.hdf_tree_string(FILE_HKL, all_links=False)
     assert len(nolinks_string) < len(default_string), "tree string with no links should be shorter"
     assert len(default_string) == 50693, "Default tree string wrong length"
     assert len(nolinks_string) == 37559, "tree string without links is wrong length"
+
+
+def test_hdf_tree_strings(files):
+    for file in files:
+        assert len(hdfmap.hdf_tree_string(file)) > 0, f"{file} has no tree"
+        assert len(hdfmap.hdf_tree_string(file, all_links=False)) > 1000, f"{file} has no tree without links"
+        assert len(hdfmap.hdf_tree_string(file, attributes=False)) > 1000, f"{file} has no tree without attributes"
+        assert len(hdfmap.hdf_tree_string(file, all_links=False, attributes=False)) > 1000, f"{file} has no tree"
+        assert len(hdfmap.hdf_tree_string(file, group='/')) > 1000, f"{file} has no entry"
 
 
 def test_hdf_dataset_list():
@@ -68,3 +83,4 @@ def test_hdf_linked_files():
     for file in linked_files:
         file_path = os.path.join(os.path.dirname(FILE_3D_NEXUS), file)
         assert os.path.isfile(file_path), f"'{file}' does not exist"
+
