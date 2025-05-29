@@ -5,6 +5,7 @@ import hdfmap
 
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
 FILE_HKL = DATA_FOLDER + "/1049598.nxs"  # hkl scan, pilatus
+FILE_TREE = DATA_FOLDER + '/1049598.tree'  # hdf_tree_string of file
 FILE_NEW_NEXUS = DATA_FOLDER + '/1040323.nxs'  # new nexus format
 FILE_3D_NEXUS = DATA_FOLDER + '/i06-353130.nxs'  # new nexus format
 
@@ -19,8 +20,9 @@ def test_hdf_tree_string():
     default_string = hdfmap.hdf_tree_string(FILE_HKL)
     nolinks_string = hdfmap.hdf_tree_string(FILE_HKL, all_links=False)
     assert len(nolinks_string) < len(default_string), "tree string with no links should be shorter"
-    assert len(default_string) == 50693, "Default tree string wrong length"
-    assert len(nolinks_string) == 37559, "tree string without links is wrong length"
+    tree_string = open(FILE_TREE).read()
+    # ignore the first line as it includes absolute file path
+    assert default_string.splitlines()[1:] == tree_string.splitlines()[1:], "tree string is different"
 
 
 def test_hdf_tree_strings(files):
