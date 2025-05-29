@@ -30,6 +30,7 @@ FILES = [
     (DIR + 'i18/i18-218770.nxs', 'i18 example'),
     (DIR + 'i07/i07-537190.nxs', 'i07 example'),
     (DIR + 'i09/i09-279773.nxs', 'i09 example'),
+    (DIR + 'nxxas/KEK_PFdata.h5', 'NXxas example from KEK'),
 ]
 
 

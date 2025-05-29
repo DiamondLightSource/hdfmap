@@ -180,18 +180,19 @@ def hdf_compare(hdf_filename1: str, hdf_filename2: str, all_links=False) -> str:
     return output
 
 
-def hdf_find(hdf_filename: str, *names_or_classes: str) -> tuple[list[str], list[str]]:
+def hdf_find(hdf_filename: str, *names_or_classes: str,
+             attributes: tuple[str] = ('NX_class', 'local_name')) -> tuple[list[str], list[str]]:
     """
     find groups and datasets within hdf file matching a set of names or class names
     :param hdf_filename: filename of hdf file
     :params names_or_classes: object names or NXclass names to search for
+    :params attributes: list of attr fields to check against names
     :return: groups[], datasets[]
     """
 
     with load_hdf(hdf_filename) as hdf_file:
         group_paths = []
         dataset_paths = []
-        attributes = ['NX_class', 'local_name']  # attributes to check against names
 
         def visit_links(name):
             # For each path in the file, create tree of parent-groups
@@ -211,16 +212,17 @@ def hdf_find(hdf_filename: str, *names_or_classes: str) -> tuple[list[str], list
     return group_paths, dataset_paths
 
 
-def hdf_find_first(hdf_filename: str, *names_or_classes: str) -> str | None:
+def hdf_find_first(hdf_filename: str, *names_or_classes: str,
+                   attributes: tuple[str] = ('NX_class', 'local_name')) -> str | None:
     """
     return the first path of object matching a set of names or class names
     :param hdf_filename: filename of hdf file
     :params names_or_classes: object names or NXclass names to search for
+    :params attributes: list of attr fields to check against names
     :return: hdf_path or None if no match
     """
 
     with load_hdf(hdf_filename) as hdf_file:
-        attributes = ['NX_class', 'local_name']  # attributes to check against names
 
         def visit_links(name):
             # For each path in the file, create tree of parent-groups
@@ -232,6 +234,8 @@ def hdf_find_first(hdf_filename: str, *names_or_classes: str) -> str | None:
             ] + sub_groups
             if all(arg in sub_group_names for arg in names_or_classes):
                 return name
+            return None
+
         return hdf_file.visit_links(visit_links)
 
 
