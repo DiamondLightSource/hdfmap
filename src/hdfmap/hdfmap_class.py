@@ -314,7 +314,7 @@ class HdfMap:
                     self._populate(obj, hdf_path, recursive)
 
             # Dataset
-            elif isinstance(obj, h5py.Dataset) and not isinstance(link, h5py.SoftLink):
+            elif isinstance(obj, h5py.Dataset): # and not isinstance(link, h5py.SoftLink):  # remove link or scannables not populated correctly
                 self._store_dataset(obj, hdf_path, name)
 
     def add_local(self, **kwargs):
@@ -416,7 +416,7 @@ class HdfMap:
             self._populate(hdf_group, root=hdf_path, recursive=False)
             self.scannables = {
                 name: build_hdf_path(hdf_path, name)
-                for name in dataset_names if hdf_group[name].size == array_size
+                for name in dataset_names if hdf_group[name].size == array_size  # doesn't check if link or not
             }
         logger.debug(f"Scannables from group: {list(self.scannables.keys())}")
         # self.generate_combined()
