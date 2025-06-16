@@ -37,8 +37,15 @@ def test_find_datasets(hdf_map):
     assert len(hdf_map.find_datasets('NXdetector', 'data')) == 1
 
 
+def test_nexus_decimals(hdf_map):
+    with hdfmap.load_hdf(FILE_NEW_NEXUS) as hdf:
+        out = hdf_map.get_string(hdf, 'ppth2')
+        assert out == '-0.00047'
+        out = hdf_map.get_string(hdf, 'pppiezo2')
+        assert out == '12345.01236'
+
 def test_nexus_eval(hdf_map):
-    with hdfmap.hdf_loader.load_hdf(FILE_NEW_NEXUS) as hdf:
+    with hdfmap.load_hdf(FILE_NEW_NEXUS) as hdf:
         out = hdf_map.eval(hdf, 'int(np.max(total / Transmission / count_time))')
         assert out == 70, "Expression output gives wrong result"
         path = hdf_map.eval(hdf, '_axes')
@@ -63,7 +70,7 @@ def test_nexus_eval(hdf_map):
 
 
 def test_plot_data(hdf_map):
-    with hdfmap.hdf_loader.load_hdf(FILE_NEW_NEXUS) as hdf:
+    with hdfmap.load_hdf(FILE_NEW_NEXUS) as hdf:
         data = hdf_map.get_plot_data(hdf)
         assert 'title' in data, 'plot_data missing attributes'
         assert data['ydata'].shape == (21, ), "plot_data['ydata'] is the wrong shape"

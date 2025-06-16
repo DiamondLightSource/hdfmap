@@ -163,9 +163,12 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice = (), units: bool = Fa
         logger.debug(f"Dataset {repr(dataset)} is numeric")
         if dataset.size > 1:
             return f"{dataset.dtype} {dataset.shape}"
-        value = np.squeeze(dataset[index])  # numeric np.ndarray
+        value = np.squeeze(dataset[index])  # size 1 numeric np.ndarray
         if 'decimals' in dataset.attrs:
-            value = value.round(dataset.attrs['decimals'])
+            decimals = int(dataset.attrs['decimals'])
+            if abs(value) > 1:
+                value = value.round(decimals)
+            value = np.array2string(value, precision=decimals, separator=', ', floatmode='maxprec')
         if units and 'units' in dataset.attrs:
             value = f"{value} {arg.decode() if isinstance((arg := dataset.attrs['units']), bytes) else arg}"
         return str(value)
