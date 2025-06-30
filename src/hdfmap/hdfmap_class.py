@@ -408,9 +408,6 @@ class HdfMap:
             logger.warning(f"HDF Group {hdf_path} has no datasets for scannables")
             self.scannables = {}
         else:
-            # use shape of first dataset in list to determine the scannable_shape
-            # first_dataset = hdf_group[dataset_names[0]]
-            # array_size = first_dataset.size
             # use min size dataset as scannable_shape (avoiding image datasets)
             array_size = min(hdf_group[name].size for name in dataset_names)
             self._populate(hdf_group, root=hdf_path, recursive=False)
@@ -418,6 +415,9 @@ class HdfMap:
                 name: build_hdf_path(hdf_path, name)
                 for name in dataset_names if hdf_group[name].size == array_size  # doesn't check if link
             }
+            if len(self.scannables) < 2:
+                logger.warning(f"HDF Group {hdf_path} has no consistent datasets for scannables")
+                self.scannables = {}
         logger.debug(f"Scannables from group: {list(self.scannables.keys())}")
         # self.generate_combined()
 
@@ -446,10 +446,10 @@ class HdfMap:
         """
         all_names = list(first_names) + list(self.scannables.keys()) + list(last_names)
         # check names are in scannables
-        for name in all_names:
-            if name not in self.scannables:
-                all_names.remove(name)
-                logger.warning(f"name: '{name}' not in scannables")
+        warnings = [name for name in all_names if name not in self.scannables]
+        all_names = [name for name in all_names if name in self.scannables]
+        for name in warnings:
+            logger.warning(f"name: '{name}' not in scannables")
         # return correct number of values from start and end
         ndims = len(self.scannables_shape())
         first = {name: self.scannables[name] for name in all_names[:ndims]}
