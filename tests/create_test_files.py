@@ -16,6 +16,7 @@ FILES = [
     (DIR + 'i16/1040323.nxs', 'i16 pilatus hkl scan, new nexus format'),
     (DIR + 'i16/982681.nxs', 'i16 pil2m single point scan'),
     (DIR + 'i16/928878.nxs', 'i16 merlin 2d delta gam calibration'),
+    (DIR + 'i16/processed/1090391_msmapper.nxs', 'msmapper volume'),
     (DIR + 'i10/i10-608314.nxs', 'i10 pimte scan'),
     (DIR + 'i10/i10-618365.nxs', 'i10 scan'),
     (DIR + 'i10/i10-854741.nxs', 'i10 pimte scan, single point with TIFF'),

@@ -278,8 +278,10 @@ class NexusMap(HdfMap):
                 signals = list(nx_data.attrs[NX_AUXILIARY])
                 if NX_SIGNAL in nx_data.attrs:
                     signals.insert(0, nx_data.attrs[NX_SIGNAL])
+                if NX_AXES in nx_data.attrs:
+                    signals.extend(list(nx_data.attrs[NX_AXES]))
                 signals = [i.decode() if isinstance(i, bytes) else i for i in signals]  # convert bytes to str
-                logger.info(f"NX Data - using auiliary_names: {signals}")
+                logger.info(f"NX Data - using auxiliary_names: {signals}")
                 self.generate_scannables_from_group(nx_data, dataset_names=signals)
             else:
                 self.generate_scannables_from_group(nx_data)
@@ -308,36 +310,43 @@ class NexusMap(HdfMap):
         self.image_data = {}
         image_ndim = len(self.scannables_shape()) + 2 if self.scannables else 3
         if NX_DETECTOR in self.classes:
-            for group_path in self.classes[NX_DETECTOR]:
-                detector_name = generate_identifier(group_path)
-                # detector data is stored in NXdata in dataset 'data'
-                data_path = build_hdf_path(group_path, NX_DETECTOR_DATA)
-                image_data_path = build_hdf_path(group_path, NX_IMAGE_DATA)
-                logger.debug(f"Looking for image_data at: '{data_path}' or '{image_data_path}'")
-                if data_path in self.datasets and is_image(self.datasets[data_path].shape, image_ndim):
-                    logger.info(f"Adding image_data ['{detector_name}'] = '{data_path}'")
-                    self.image_data[detector_name] = data_path
-                    self.arrays[detector_name] = data_path
-                    # also save image_data if available
-                    if image_data_path in self.datasets:
-                        detector_name = f"{detector_name}_image_list"
-                        logger.info(f"Adding image_data ['{detector_name}'] = '{image_data_path}'")
-                        self.image_data[detector_name] = image_data_path
-                        self.arrays[detector_name] = image_data_path
-                elif image_data_path in self.datasets:
+            group_paths = set(self.classes[NX_DETECTOR])
+        elif NX_DATA in self.classes:
+            # if no detectors, check for NXdata->dataset with > 2 dimensions
+            group_paths = set(self.classes[NX_DATA])
+        else:
+            group_paths = []
+
+        for group_path in group_paths:
+            detector_name = generate_identifier(group_path)
+            # detector data is stored in NXdata in dataset 'data'
+            data_path = build_hdf_path(group_path, NX_DETECTOR_DATA)
+            image_data_path = build_hdf_path(group_path, NX_IMAGE_DATA)
+            logger.debug(f"Looking for image_data at: '{data_path}' or '{image_data_path}'")
+            if data_path in self.datasets and is_image(self.datasets[data_path].shape, image_ndim):
+                logger.info(f"Adding image_data ['{detector_name}'] = '{data_path}'")
+                self.image_data[detector_name] = data_path
+                self.arrays[detector_name] = data_path
+                # also save image_data if available
+                if image_data_path in self.datasets:
+                    detector_name = f"{detector_name}_image_list"
                     logger.info(f"Adding image_data ['{detector_name}'] = '{image_data_path}'")
                     self.image_data[detector_name] = image_data_path
                     self.arrays[detector_name] = image_data_path
-                else:
-                    # Use first dataset with > 2 dimensions
-                    image_dataset = next((
-                        path for name in self.get_group_datasets(group_path)
-                        if is_image(self.datasets[path := build_hdf_path(group_path, name)].shape, image_ndim)
-                    ), False)
-                    if image_dataset:
-                        logger.info(f"Adding image_data ['{detector_name}'] = '{image_dataset}'")
-                        self.image_data[detector_name] = image_dataset
-                        self.arrays[detector_name] = image_dataset
+            elif image_data_path in self.datasets:
+                logger.info(f"Adding image_data ['{detector_name}'] = '{image_data_path}'")
+                self.image_data[detector_name] = image_data_path
+                self.arrays[detector_name] = image_data_path
+            else:
+                # Use first dataset with > 2 dimensions
+                image_dataset = next((
+                    path for name in self.get_group_datasets(group_path)
+                    if is_image(self.datasets[path := build_hdf_path(group_path, name)].shape, image_ndim)
+                ), False)
+                if image_dataset:
+                    logger.info(f"Adding image_data ['{detector_name}'] = '{image_dataset}'")
+                    self.image_data[detector_name] = image_dataset
+                    self.arrays[detector_name] = image_dataset
 
         if not self.image_data:
             logger.info("No NXdetector image found, image_data not populated.")
@@ -384,6 +393,9 @@ class NexusMap(HdfMap):
             logger.warning('NXdata not found, getting scannables from most common array size')
             size = self.most_common_size()
             self.generate_scannables(size)
+            if len(self.scannables) < len(self.scannables_shape()):
+                logger.warning('Less scannables than most common shape dimensions, removing scannables')
+                self.scannables = {}
         # find the NXdetector group and assign the image data
         self.generate_image_data_from_nxdetector()
         # finalise map with combined namespace
