@@ -13,6 +13,12 @@ HDF_FILE_OPTIONS = {
     'libver': "latest"
 }
 
+
+def bytes2str(value: str | bytes) -> str:
+    """Convert bytes or string to string"""
+    return value.decode('utf-8', errors='ignore') if hasattr(value, 'decode') else value
+
+
 def set_hdf_file_options(**kwargs):
     """Set the default keyword arguments for h5py.File reading"""
     HDF_FILE_OPTIONS.update(kwargs)
@@ -199,7 +205,7 @@ def hdf_find(hdf_filename: str, *names_or_classes: str,
             sub_groups = name.split('/')
             sub_group_paths = ['/'.join(sub_groups[:n]) for n in range(1, len(sub_groups) + 1)]
             sub_group_names = [
-                grp.attrs.get(attr, b'').decode() for attr in attributes for path in sub_group_paths
+                bytes2str(grp.attrs.get(attr, '')) for attr in attributes for path in sub_group_paths
                 if (grp := hdf_file.get(path))
             ] + sub_groups
             if all(arg in sub_group_names for arg in names_or_classes):
@@ -226,13 +232,13 @@ def hdf_find_first(hdf_filename: str, *names_or_classes: str,
 
         def visit_links(name):
             # For each path in the file, create tree of parent-groups
-            sub_groups = name.split('/')
-            sub_group_paths = ['/'.join(sub_groups[:n]) for n in range(1, len(sub_groups) + 1)]
-            sub_group_names = [
-                grp.attrs.get(attr, b'').decode() for attr in attributes for path in sub_group_paths
+            parent_groups = name.split('/')
+            parent_group_paths = ['/'.join(parent_groups[:n]) for n in range(1, len(parent_groups) + 1)]
+            parent_group_names = [
+                bytes2str(grp.attrs.get(attr, '')) for attr in attributes for path in parent_group_paths
                 if (grp := hdf_file.get(path))
-            ] + sub_groups
-            if all(arg in sub_group_names for arg in names_or_classes):
+            ] + parent_groups
+            if all(arg in parent_group_names for arg in names_or_classes):
                 return name
             return None
 
