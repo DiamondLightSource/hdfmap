@@ -24,6 +24,7 @@ FILES = [
     (DIR + 'i10/i10-1-10.nxs', 'i10-1 XASscan example'),
     (DIR + 'i10/i10-1-26851.nxs', 'i10-1 XASscan example'),
     (DIR + 'i10/i10-1-28428.nxs', 'i10-1 3D hysteresis example'),
+    (DIR + 'i10/i10-1-37436_xas_notebook.nxs', 'i10-1 XASproc example'),
     (DIR + 'i06/i06-1-302762.nxs', 'i06 scan'),
     (DIR + 'i21/i21-157111.nxs', 'i21 xcam single point scan'),
     (DIR + 'i21/i21-157116.nxs', 'i21 xcam multi point scan'),

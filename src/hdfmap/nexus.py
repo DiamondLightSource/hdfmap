@@ -294,8 +294,11 @@ class NexusMap(HdfMap):
             scan_fields_path = self.arrays[NX_SCANFIELDS]
             # scan_fields = hdf_file[scan_fields_path][()]
             scan_fields = names_from_scan_fields(hdf_file, scan_fields_path)
-            logger.info(f"Generating Scannables from NX ScanFields: {scan_fields_path}: {scan_fields}")
-            self.generate_scannables_from_names(scan_fields)
+            if scan_fields:
+                logger.info(f"Generating Scannables from NX ScanFields: {scan_fields_path}: {scan_fields}")
+                self.generate_scannables_from_names(scan_fields)
+            else:
+                self.generate_scannables_from_nxdata(hdf_file)
         else:
             self.generate_scannables_from_nxdata(hdf_file)
 
@@ -364,20 +367,21 @@ class NexusMap(HdfMap):
         # Add defaults to arrays
         self._default_nexus_paths(hdf_file)
 
-        if default_entry_only:
-            entries = self.classes[NX_ENTRY]  # classes[NX_ENTRY] pre-populated by _default_nexus_paths
-        else:
-            entries = [entry for entry in hdf_file if check_nexus_class(hdf_file.get(entry), NX_ENTRY)]
+        entry_objects = [
+            hdf_file.get(name) for name in
+            self.classes[NX_ENTRY] +  # classes[NX_ENTRY] pre-populated by _default_nexus_paths
+            [entry for entry in hdf_file if check_nexus_class(hdf_file.get(entry), NX_ENTRY)]  # all NXentry
+        ]
+        # remove duplicates, sort of default is first
+        entry_objects = sorted(set(entry_objects), key=entry_objects.index)
 
-        for entry in entries:
-            # find default or first entry
-            nx_entry = hdf_file.get(entry)
+        if default_entry_only:
+            entry_objects = entry_objects[:1]
+
+        for nx_entry in entry_objects:
             if nx_entry is None:
-                logger.warning(
-                    f"NX Entry {entry} doesn't exist - may be a missing link.\n" +
-                    f"Missing link: {hdf_file.get(entry, getlink=True)}"
-                )
                 continue  # group may be missing due to a broken link
+            entry = nx_entry.name
             hdf_path = build_hdf_path(entry)
             logger.debug(f"NX Entry: {hdf_path}")
             self.all_paths.append(hdf_path)
