@@ -66,7 +66,7 @@ __all__ = [
 ]
 
 __version__ = "0.9.4"
-__date__ = "2025/06/30"
+__date__ = "2025/07/04"
 
 
 def version_info() -> str:

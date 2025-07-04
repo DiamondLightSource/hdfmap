@@ -3,6 +3,8 @@ Nexus Related functions and nexus class
 """
 
 import os
+from signal import signal
+
 import h5py
 
 from .logging import create_logger
@@ -80,8 +82,6 @@ def find_nexus_defaults(hdf_file: h5py.File, nx_data_path: str | None = None) ->
      - find "axes" attr in default data
      - find "signal" attr in default data
      - generate paths of signal and axes
-     if not nexus compliant, raises KeyError
-    This method is very fast but only works on nexus compliant files
 
     See: https://manual.nexusformat.org/datarules.html#version-3
 
@@ -102,22 +102,31 @@ def find_nexus_defaults(hdf_file: h5py.File, nx_data_path: str | None = None) ->
     nx_data = hdf_file[nx_data_path]
 
     # find the axes field(s)
-    if isinstance(axes := nx_data.attrs[NX_AXES], (str, bytes)):
-        axes_paths = [build_hdf_path(nx_data_path, axes)]
+    if NX_AXES in nx_data.attrs:
+        if isinstance(axes := nx_data.attrs[NX_AXES], (str, bytes)):
+            axes_paths = [build_hdf_path(nx_data_path, axes)]
+        else:
+            axes_paths = [build_hdf_path(nx_data_path, _axes) for _axes in axes]
     else:
-        axes_paths = [build_hdf_path(nx_data_path, _axes) for _axes in axes]
+        logger.warning(f"{repr(nx_data)} does not contain default axes")
+        axes_paths = []
+
     # get the signal field
     if NX_SIGNAL in nx_data.attrs:
         if isinstance(signal := nx_data.attrs[NX_SIGNAL], (str, bytes)):
             signal_paths = [build_hdf_path(nx_data_path, signal)]
         else:
             signal_paths = [build_hdf_path(nx_data_path, _signal) for _signal in signal]
-    else:
+    elif NX_DETECTOR_DATA in nx_data:
         signal_paths = [build_hdf_path(nx_data_path, NX_DETECTOR_DATA)]
+    else:
+        logger.warning(f"{repr(nx_data)} does not contain default signal")
+        signal_paths = []
+
     # Auxiliary signals
     if NX_AUXILIARY in nx_data.attrs:
         signal_paths.extend([
-            build_hdf_path(nx_data_path, signal) for signal in nx_data.attrs[NX_AUXILIARY]
+            build_hdf_path(nx_data_path, name) for name in nx_data.attrs[NX_AUXILIARY]
         ])
     return axes_paths, signal_paths
 
@@ -215,9 +224,9 @@ class NexusMap(HdfMap):
         super()._store_group(hdf_group, path, name)
         if NX_DEFINITION in hdf_group:
             definition = hdf_group[NX_DEFINITION].asstr()[()]  # e.g. NXmx or NXxas
-            self.classes[definition].append(path)
+            self._store_class(definition, path)
 
-    def _default_nexus_paths(self, hdf_file):
+    def _store_default_nexus_paths(self, hdf_file):
         """Load Nexus default axes and signal"""
         try:
             # find the default NXentry group
@@ -365,7 +374,7 @@ class NexusMap(HdfMap):
         self.filename = hdf_file.filename
 
         # Add defaults to arrays
-        self._default_nexus_paths(hdf_file)
+        self._store_default_nexus_paths(hdf_file)
 
         entry_objects = [
             hdf_file.get(name) for name in
