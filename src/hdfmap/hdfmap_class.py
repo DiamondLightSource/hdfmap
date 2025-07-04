@@ -182,7 +182,10 @@ class HdfMap:
         return f"HdfMap based on '{self.filename}'"
 
     def __str__(self):
-        return f"{repr(self)}\n{self.info_names(combined=True, scannables=True, image_data=True)}"
+        out = f"{repr(self)}\n"
+        out += self.info_summary()
+        out += "\n*use print(self.info_names(combined=True, scannables=True, image_data=True)) to see detail\n"
+        return out
 
     def info_groups(self) -> str:
         """Return str info on groups"""
@@ -216,7 +219,7 @@ class HdfMap:
     def info_names(self, arrays=False, values=False, combined=False,
                    metadata=False, scannables=False, image_data=False) -> str:
         """Return str info for different namespaces"""
-        if not (arrays or values or combined or metadata or scannables or image_data):
+        if not any((arrays, values, combined, metadata, scannables, image_data)):
             combined = True
         options = [
             ('Arrays', arrays, self.arrays),
@@ -237,6 +240,27 @@ class HdfMap:
                 out += '\n'
         return out
 
+    def info_summary(self):
+        out = [
+            "--Paths--",
+            f"All paths: {len(self.all_paths)}",
+            f"Groups: {len(self.groups)}",
+            f"Datasets: {len(self.datasets)}",
+            "--Names--",
+            f"Classes: {len(self.classes)}",
+            f"Arrays: {len(self.arrays)}",
+            f"Values: {len(self.values)}",
+            f"Combined: {len(self.combined)}",
+            f"Metadata: {len(self.metadata)}",
+            f"Scannables: {len(self.scannables)}, shape={self.scannables_shape()}, size={self.scannables_length()}",
+            f"Image Data: {len(self.image_data)}, shape={self.get_image_shape()}",
+        ]
+        return '\n'.join(out)
+
+    def _store_class(self, name, path):
+        if path not in self.classes[name]:
+            self.classes[name].append(path)
+
     def _store_group(self, hdf_group: h5py.Group, path: str, name: str):
 
         nx_class = hdf_group.attrs.get('NX_class', default='Group')
@@ -248,8 +272,8 @@ class HdfMap:
             dict(hdf_group.attrs),
             [key for key, item in hdf_group.items() if isinstance(item, h5py.Dataset)]
         )
-        self.classes[name].append(path)
-        self.classes[nx_class].append(path)
+        self._store_class(name, path)
+        self._store_class(nx_class, path)
         logger.debug(f"{path}  HDFGroup: {nx_class}")
         return nx_class
 
