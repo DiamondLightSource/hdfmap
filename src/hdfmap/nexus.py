@@ -376,21 +376,23 @@ class NexusMap(HdfMap):
         # Add defaults to arrays
         self._store_default_nexus_paths(hdf_file)
 
-        entry_objects = [
-            hdf_file.get(name) for name in
-            self.classes[NX_ENTRY] +  # classes[NX_ENTRY] pre-populated by _default_nexus_paths
-            [entry for entry in hdf_file if check_nexus_class(hdf_file.get(entry), NX_ENTRY)]  # all NXentry
+        entry_paths = [
+            build_hdf_path(name) for name in (
+                self.classes[NX_ENTRY] +  # classes[NX_ENTRY] pre-populated by _default_nexus_paths
+                [entry for entry in hdf_file if check_nexus_class(hdf_file.get(entry), NX_ENTRY)]  # all NXentry
+            )
         ]
         # remove duplicates, sort of default is first
-        entry_objects = sorted(set(entry_objects), key=entry_objects.index)
+        entry_paths = sorted(set(entry_paths), key=entry_paths.index)
 
         if default_entry_only:
-            entry_objects = entry_objects[:1]
+            entry_paths = entry_paths[:1]
 
-        for nx_entry in entry_objects:
+        for entry_path in entry_paths:
+            entry = os.path.basename(entry_path)
+            nx_entry = hdf_file.get(entry)
             if nx_entry is None:
                 continue  # group may be missing due to a broken link
-            entry = nx_entry.name
             hdf_path = build_hdf_path(entry)
             logger.debug(f"NX Entry: {hdf_path}")
             self.all_paths.append(hdf_path)

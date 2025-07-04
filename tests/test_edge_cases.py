@@ -53,3 +53,14 @@ def test_new_i16_file():
     assert fname == '1040323.nxs'
 
 
+@only_dls_file_system
+def test_msmapper_file():
+    filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/processed/1098101_msmapper.nxs'
+    assert path.isfile(filename) is True, f"{filename} doesn't exist"
+    mymap = hdfmap.create_nexus_map(filename)
+    assert mymap['unit_cell'] == '/entry0/sample/unit_cell', 'link to old file incorrect'
+    with hdfmap.hdf_loader.load_hdf(filename) as hdf:
+        a, b, c, alpha, beta, gamma = mymap.eval(hdf, 'unit_cell')
+    assert gamma > 1.0, 'unit cell incorrect'
+
+
