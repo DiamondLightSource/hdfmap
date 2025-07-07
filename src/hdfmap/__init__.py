@@ -1,6 +1,6 @@
 """
 hdfmap
-Map objects within an HDF file and create a dataset namespace.
+Map objects within an HDF5 file and create a dataset namespace.
 
 # Usage
 ### HdfMap from NeXus file
@@ -65,8 +65,8 @@ __all__ = [
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
-__version__ = "0.9.4"
-__date__ = "2025/07/04"
+__version__ = "0.9.5"
+__date__ = "2025/07/07"
 
 
 def version_info() -> str:

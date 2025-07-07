@@ -17,7 +17,7 @@ authors = [
 maintainers = [
   {name = "Dan Porter", email = "dan.porter@diamond.ac.uk"},
 ]
-description = "Map objects within a HDF file and create a dataset namespace"
+description = "Map objects within a HDF5 file and create a dataset namespace"
 readme = "README.md"
 license = {file = "LICENSE"}
 keywords = [

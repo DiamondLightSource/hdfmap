@@ -1,5 +1,5 @@
 # hdfmap
-Map objects within an HDF file and create a dataset namespace.
+Map objects within an HDF5 file and create a dataset namespace.
 
 [![PyPI](https://img.shields.io/pypi/v/dls-dodal.svg)](https://pypi.org/project/hdfmap)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
