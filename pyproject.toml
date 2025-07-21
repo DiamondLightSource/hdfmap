@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0", "wheel", "pytest", "numpy>=1.19.3", "h5py>=3.11.0", "hdf5plugin"]
+requires = ["setuptools >= 61.0", "wheel", "pytest", "numpy", "h5py", "hdf5plugin"]
 build-backend = "setuptools.build_meta"
 
 [project]
