@@ -2,6 +2,7 @@
 Map objects within an HDF5 file and create a dataset namespace.
 
 [![PyPI](https://img.shields.io/pypi/v/dls-dodal.svg)](https://pypi.org/project/hdfmap)
+[![Conda Recipe](https://img.shields.io/badge/recipe-hdfmap-green.svg)](https://anaconda.org/conda-forge/hdfmap)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![](https://img.shields.io/github/forks/DiamondLightSource/hdfmap?label=GitHub%20Repo&style=social)](https://github.com/DiamondLightSource/hdfmap)
 
@@ -55,6 +56,11 @@ image_stack = hdf_image(filenames, index=31)
 
 ### Installation
 *Requires:* Python >=3.10, Numpy, h5py
+
+### from conda-forge
+```bash
+conda install -c conda-forge hdfmap
+```
 
 #### from PyPI
 ```bash
