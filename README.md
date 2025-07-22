@@ -6,7 +6,7 @@ Map objects within an HDF5 file and create a dataset namespace.
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![](https://img.shields.io/github/forks/DiamondLightSource/hdfmap?label=GitHub%20Repo&style=social)](https://github.com/DiamondLightSource/hdfmap)
 
-**Version 0.9**
+**Version 1.0**
 
 | By Dan Porter        | 
 |----------------------|
@@ -55,7 +55,7 @@ image_stack = hdf_image(filenames, index=31)
 ```
 
 ### Installation
-*Requires:* Python >=3.10, Numpy, h5py
+*Requires:* Python >=3.10, Numpy, h5py, hdf5plugin, asteval
 
 ### from conda-forge
 ```bash
@@ -80,7 +80,7 @@ Objects within the HDF file are separated into Groups and Datasets. Each object 
 defined 'path' and 'name' paramater, as well as other attributes
 
  - path -> '/entry/measurement/data' -> the location of an object within the file
- - name -> 'data' -> an path expressed as a simple variable name
+ - name -> 'data' -> a dataset expressed as a simple variable name
 
 Paths are unique locations within the file but can be used to identify similar objects in other files
 Names may not be unique within a file and are generated from the path.

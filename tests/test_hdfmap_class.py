@@ -167,7 +167,7 @@ def test_create_scannables_table(hdf_map):
 
 def test_eval(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
-        out = hdf_map.eval(hdf, 'int(np.max(sum / Transmission / count_time))')
+        out = hdf_map.eval(hdf, 'int(max(sum / Transmission / count_time))')
         assert out == 6533183, "Expression output gives wrong result"
 
 
@@ -182,13 +182,13 @@ def test_eval_local_data(hdf_map):
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         out = hdf_map.eval(hdf, 'new_var')
         assert out == 'testing-testing', "Expression output gives wrong result"
-        out = hdf_map.eval(hdf, 'int(np.max(sum / Transmission / count_time))')
+        out = hdf_map.eval(hdf, 'int(max(sum / Transmission / count_time))')
         assert out == 653318, "Expression output gives wrong result"
 
 
 def test_eval_named_expression(hdf_map):
     hdf_map.add_named_expression(
-        norm_data='int(np.max(sum / Transmission / count_time))',
+        norm_data='int(max(sum / Transmission / count_time))',
         my_path=hdf_map['incident_energy']
     )
     with hdfmap.load_hdf(FILE_HKL) as hdf:

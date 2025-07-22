@@ -9,6 +9,7 @@ dependencies = [
   "numpy",
   "h5py",
   "hdf5plugin",
+  "asteval",
 ]
 requires-python = ">=3.10"
 authors = [
