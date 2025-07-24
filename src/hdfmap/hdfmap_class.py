@@ -179,6 +179,11 @@ class HdfMap:
     def __contains__(self, item):
         return item in self.combined or item in self.datasets
 
+    def __call__(self, expression, **kwargs):
+        if 'hdf_file' not in kwargs:
+            kwargs['hdf_file'] = self.load_hdf()
+        return self.eval(expression=expression, **kwargs)
+
     def __repr__(self):
         return f"HdfMap based on '{self.filename}'"
 

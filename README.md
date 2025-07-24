@@ -34,10 +34,14 @@ with load_hdf('file.nxs') as nxs:
     path = m.get_path('scan_command')
     cmd = nxs[path][()]  # returns bytes data direct from file
     cmd = m.get_data(nxs, 'scan_command')  # returns converted str output
+    cmd = m.eval(nxs, 'scan_command.strip()')  # returns evaluated output
     string = m.format_hdf(nxs, "the energy is {energy:.2f} keV")
     d = m.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
 
-# Shortcuts - single file reloader class
+# new in V1.0.0 - evaluate name based expressions in the original file
+m('signal / count_time') # >> numpy array
+
+# Shortcuts - single file reloader class (provides direct access to data)
 from hdfmap import NexusLoader
 
 scan = NexusLoader('file.hdf')
@@ -74,13 +78,13 @@ python -m pip install --upgrade git+https://github.com/DiamondLightSource/hdfmap
 
 ### Description
 Another generic hdf reader but the idea here is to build up a namespace dict of `{'name': 'path'}` 
-for every dataset, then group them in hopefully a useful way. 
+for every dataset, then group them in a hopefully useful way. 
 
 Objects within the HDF file are separated into Groups and Datasets. Each object has a
-defined 'path' and 'name' paramater, as well as other attributes
+defined **path** and **name** identifier, as well as other attributes
 
- - path -> '/entry/measurement/data' -> the location of an object within the file
- - name -> 'data' -> a dataset expressed as a simple variable name
+ - **path** -> '/entry/measurement/data' -> the location of an object within the file
+ - **name** -> 'data' -> a dataset expressed as a simple variable name
 
 Paths are unique locations within the file but can be used to identify similar objects in other files
 Names may not be unique within a file and are generated from the path.
@@ -90,9 +94,36 @@ Names may not be unique within a file and are generated from the path.
 | *Description* | simple identifier of dataset | hdf path built from position in file |
 | *Example*     | `'scan_command'`             | `'/entry/scan_command'`              |
 
-Names of different types of datasets are stored for arrays (size > 0) and values (size 0)
-Names for scannables relate to all arrays of a particular size
-A combined list of names is provided where scannables > arrays > values
+Names of different types of datasets are stored for **arrays** (size > 0) and **values** (size 0)
+Names for **scannables** relate to all **arrays** of a particular size. 
+Names for **metadata** relate to a subset of all datasets based on specified rules.
+Names for **image_data** relate to a subset of **arrays**  that relate to images.
+A **combined** list of names is provided where **scannables** > **image_data** > **arrays** > **values**
+
+#### Default Names
+Several names are reserved and will be populated for NeXus files using attributes:
+
+| **name**  | Description                                             |
+|-----------|---------------------------------------------------------|
+| 'axes'    | the first @axes dataset in the default NXdata group     |
+| 'signal'  | the default @signal dataset in the default NXdata group |
+| 'IMAGE'   | the first found detector image dataset                  |
+
+
+### HdfMap Behaviours
+```python
+from hdfmap import create_nexus_map
+map = create_nexus_map('file.nxs')
+```
+
+| code              | result         | description                              |
+|-------------------|----------------|------------------------------------------| 
+| `map['name']`     | 'hdf/path'     | return dataset path associated with name |
+| `'name' in map`   | True/False     | check if 'name' is in map.combined       | 
+| `for name in map` | iterable       | loop over names in map.combined          |
+| `repr(map)`       | str            | print short description of hdfmap        |
+| `print(map)`      | multi-line str | prints description of hdfmap             | 
+
 
 ### HdfMap Attributes
 |                |                                                        |
@@ -291,6 +322,7 @@ The following patterns are allowed in any expression:
  - '_*name*': str hdf path of *name*
  - '__*name*': str internal name of *name* (e.g. for 'axes')
  - 's_*name*': string representation of dataset (includes units if available)
+ - 'd_*name*': return dataset object. **warning**: this may result in the hdf file or external files not closing on completion
  - '*name*@attr': returns attribute of dataset *name*
  - '*name*?(default)': returns default if *name* doesn't exist
  - '(name1|name2|name3)': returns the first available of the names
@@ -311,6 +343,8 @@ with load_hdf('file.nxs') as nxs:
     name = hmap.eval(nxs, '__axes')  # -> 'h'
     # return label, using dataset attributes
     label = hmap.eval(nxs, 's_ppy')  # example uses @decimals and @units
+    # return dataset object of default detector data
+    detector_dataset = hmap.eval(nxs, 'd_IMAGE') # -> h5py.Dataset object
     # return dataset attributes
     attr = hmap.eval(nxs, 'idgap@units')  # -> 'mm'
     # return first available dataset

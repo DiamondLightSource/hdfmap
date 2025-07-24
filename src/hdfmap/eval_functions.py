@@ -95,6 +95,13 @@ def is_image(shape: tuple[int], min_dim=3):
     return len(shape) >= min_dim and (shape[-2] - 1) * (shape[-1] - 1) > 1
 
 
+def generate_image_roi_slice(start_i: int, stop_i: int, start_j: int, stop_j: int, step_i: int = 1, step_j: int = 1) -> tuple[Ellipsis, slice, slice]:
+    """
+    Generate indexing slice for region of interest (ROI)
+    """
+    return Ellipsis, slice(start_i, stop_i, step_i), slice(start_j, stop_j, step_j)
+
+
 def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=False) -> datetime.datetime | str | np.ndarray:
     """
     Read the data from a h5py Dataset and convert to either datetime, str or squeezed numpy array
@@ -142,7 +149,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
             return np.squeeze(dataset[index])  # other np.ndarray
 
 
-def dataset2str(dataset: h5py.Dataset, index: int | slice = (), units: bool = False) -> str:
+def dataset2str(dataset: h5py.Dataset, index: int | slice | tuple[slice, ...] = (), units: bool = False) -> str:
     """
     Read the data from a h5py Dataset and convert to a representative string
 
@@ -200,19 +207,6 @@ def dataset_attribute(dataset: h5py.Dataset, attribute: str) -> str:
     return value
 
 
-def check_unsafe_eval(eval_str: str) -> None:
-    """
-    Check str for naughty eval arguments such as sys, os or import
-    This is not foolproof.
-    :param eval_str: str
-    :return: pass or raise error
-    """
-    bad_names = ['import', 'os.', 'sys.', 'open(', 'eval', 'exec']
-    for bad in bad_names:
-        if bad in eval_str:
-            raise Exception('This operation is not allowed as it contains: "%s"' % bad)
-
-
 def find_identifiers(expression: str) -> list[str]:
     """Returns list of variable names in expression"""
     return [name for name in asteval.get_ast_names(ast.parse(expression))]
@@ -238,6 +232,7 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
         _*name*: str hdf path of *name*
         __*name*: str internal name of *name* (e.g. for 'axes')
         s_*name*: string representation of dataset
+        d_*name*: return dataset object **warning**: may result in file not closing on completion
         *name*@attr: returns attribute of dataset *name*
 
     :param hdf_file: h5py.File object
@@ -248,7 +243,6 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     """
     if identifiers is None:
         identifiers = list(hdf_namespace.keys())
-    # TODO: add ROI commands e.g. nroi[1,2,3,4] -> default_image([1,2,3,4])
     namespace = {
         name: dataset2data(hdf_file[hdf_namespace[name]])
         for name in identifiers if name in hdf_namespace and hdf_namespace[name] in hdf_file
@@ -257,6 +251,12 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
         name: dataset2str(hdf_file[hdf_namespace[name[2:]]], units=True)
         for name in identifiers
         if name.startswith('s_') and hdf_namespace.get(name[2:]) and hdf_namespace[name[2:]] in hdf_file
+    }
+    # return dataset objects
+    datasets = {
+        name: hdf_file[hdf_namespace[name[2:]]]
+        for name in identifiers
+        if name.startswith('d_') and hdf_namespace.get(name[2:]) and hdf_namespace[name[2:]] in hdf_file
     }
     # generate defaults for non-builtin names that are not in the file
     defaults = {
@@ -270,20 +270,23 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
                  if name.startswith('_') and name[1:] in hdf_namespace}
     hdf_names = {name: generate_identifier(hdf_namespace[name[2:]]) for name in identifiers
                  if name.startswith('__') and name[2:] in hdf_namespace}
-    return {**defaults, **hdf_paths, **hdf_names, **strings, **namespace}
+    return {**defaults, **hdf_paths, **hdf_names, **datasets, **strings, **namespace}
 
 
 def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str],
                        data_namespace: dict[str, typing.Any] | None) -> str:
     """
-    Evaluate an expression using the namespace of the hdf file
+    Prepare an expression for evaluation using the namespace of the hdf file
+    Returns the modified expression replacing attribute names and alternates with
+    valid identifiers. Also updates the data_namespace dict with attribute data.
 
-    The following patterns are allowed:
+    The following patterns are allowed in the expression:
      - 'filename': str, name of hdf_file
      - 'filepath': str, full path of hdf_file
      - '_*name*': str hdf path of *name*
      - '__*name*': str internal name of *name* (e.g. for 'axes')
      - 's_*name*': string representation of dataset (includes units if available)
+     - 'd_*name*': return dataset object. **warning**: may result in file not closing on completion
      - '*name*@attr': returns attribute of dataset *name*
      - '*name*?(default)': returns default if *name* doesn't exist
      - '(name1|name2|name3)': returns the first available of the names
@@ -291,7 +294,7 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
 
     Additional variables can be added to the evaluation local namespace using data_namespace.
 
-    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favouite*expression'}
+    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
 
     :param hdf_file: h5py.File object
     :param expression: str expression to be evaluated
@@ -344,6 +347,7 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
      - '_*name*': str hdf path of *name*
      - '__*name*': str internal name of *name* (e.g. for 'axes')
      - 's_*name*': string representation of dataset (includes units if available)
+     - 'd_*name*': return dataset object. **warning**: may result in file not closing on completion
      - '*name*@attr': returns attribute of dataset *name*
      - '*name*?(default)': returns default if *name* doesn't exist
      - '(name1|name2|name3)': returns the first available of the names
@@ -351,7 +355,7 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
 
     Additional variables can be added to the evaluation local namespace using data_namespace.
 
-    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favouite*expression'}
+    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
 
     New in V1.0: now uses the safer asteval, rather than pure-python eval function
 
@@ -407,3 +411,35 @@ def format_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, st
     return eval_hdf(hdf_file, expression, hdf_namespace, data_namespace, replace_names, default, raise_errors)
 
 
+def create_interpreter(hdf_file: h5py.File, hdf_namespace: dict[str, str],
+                       data_namespace: dict[str, typing.Any], replace_names: dict[str, str],
+                       default: typing.Any = DEFAULT) -> asteval.Interpreter:
+    """
+    Create an asteval Interpreter with a hdfmap namespace accessing data from the hdf file.
+
+    All datasets in the file are read, making this quite slow and heavy.
+
+    The Interpreter can be evaluated with expressions similar to eval_hdf, but does not contain the extended patterns.
+
+    Additional variables can be added to the evaluation local namespace using data_namespace.
+
+    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
+
+    :param hdf_file: h5py.File object
+    :param hdf_namespace: dict of paths: {'variable name': '/hdf/dataset/path'}
+    :param data_namespace: dict of data: {'variable name': value}
+    :param replace_names: dict of {'variable_name': expression}
+    :param default: returned if varname not in namespace
+    :return: asteval(expression)
+    """
+    # build a complete namespace
+    namespace = generate_namespace(hdf_file, hdf_namespace, default=default)
+    data_namespace.update({
+        replacement: namespace[name]
+        for name, replacement in replace_names.items()
+        if name in namespace
+    })
+    namespace.update(data_namespace)
+    # evaluate expression within namespace
+    interpreter = asteval.Interpreter(user_symbols=namespace, use_numpy=True)
+    return interpreter
