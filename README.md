@@ -81,10 +81,10 @@ Another generic hdf reader but the idea here is to build up a namespace dict of 
 for every dataset, then group them in a hopefully useful way. 
 
 Objects within the HDF file are separated into Groups and Datasets. Each object has a
-defined **path** and **name** identifier, as well as other attributes
+defined `path` and `name` identifier, as well as other attributes
 
- - **path** -> '/entry/measurement/data' -> the location of an object within the file
- - **name** -> 'data' -> a dataset expressed as a simple variable name
+ - `path` -> '/entry/measurement/data' -> the location of an object within the file
+ - `name` -> *data* -> a dataset expressed as a simple variable name
 
 Paths are unique locations within the file but can be used to identify similar objects in other files
 Names may not be unique within a file and are generated from the path.
@@ -94,20 +94,20 @@ Names may not be unique within a file and are generated from the path.
 | *Description* | simple identifier of dataset | hdf path built from position in file |
 | *Example*     | `'scan_command'`             | `'/entry/scan_command'`              |
 
-Names of different types of datasets are stored for **arrays** (size > 0) and **values** (size 0)
-Names for **scannables** relate to all **arrays** of a particular size. 
-Names for **metadata** relate to a subset of all datasets based on specified rules.
-Names for **image_data** relate to a subset of **arrays**  that relate to images.
-A **combined** list of names is provided where **scannables** > **image_data** > **arrays** > **values**
+Names of different types of datasets are stored for `arrays` (size > 0) and `values` (size 0)
+Names for `scannables` relate to all **arrays** of a particular size. 
+Names for `metadata` relate to a subset of all datasets based on specified rules.
+Names for `image_data` relate to a subset of **arrays**  that relate to images.
+A `combined` list of names is provided where `scannables` > `image_data` > `arrays` > `values`
 
 #### Default Names
 Several names are reserved and will be populated for NeXus files using attributes:
 
-| **name**  | Description                                             |
-|-----------|---------------------------------------------------------|
-| 'axes'    | the first @axes dataset in the default NXdata group     |
-| 'signal'  | the default @signal dataset in the default NXdata group |
-| 'IMAGE'   | the first found detector image dataset                  |
+| **name**   | Description                                             |
+|------------|---------------------------------------------------------|
+| `'axes'`   | the first @axes dataset in the default NXdata group     |
+| `'signal'` | the default @signal dataset in the default NXdata group |
+| `'IMAGE'`  | the first found detector image dataset                  |
 
 
 ### HdfMap Behaviours
@@ -126,16 +126,16 @@ map = create_nexus_map('file.nxs')
 
 
 ### HdfMap Attributes
-|                |                                                        |
-|----------------|--------------------------------------------------------|
-| map.groups     | stores attributes of each group by path                |
-| map.classes    | stores list of group paths by nx_class                 |
-| map.datasets   | stores attributes of each dataset by path              |
-| map.arrays     | stores array dataset paths by name                     |
-| map.values     | stores value dataset paths by name                     |
-| map.scannables | stores array dataset paths with given size, by name    |
-| map.combined   | stores array and value paths (arrays overwrite values) |
-| map.image_data | stores dataset paths of image data                     |
+|                   |                                                        |
+|-------------------|--------------------------------------------------------|
+| `map.groups`      | stores attributes of each group by path                |
+| `map.classes`     | stores list of group paths by nx_class                 |
+| `map.datasets`    | stores attributes of each dataset by path              |
+| `map.arrays`      | stores array dataset paths by name                     |
+| `map.values`      | stores value dataset paths by name                     |
+| `map.scannables`  | stores array dataset paths with given size, by name    |
+| `map.combined`    | stores array and value paths (arrays overwrite values) |
+| `map.image_data`  | stores dataset paths of image data                     |
 
 #### E.G.
 ```python
