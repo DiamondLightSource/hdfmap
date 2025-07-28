@@ -294,7 +294,7 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
 
     Additional variables can be added to the evaluation local namespace using data_namespace.
 
-    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
+    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favourite*expression'}
 
     :param hdf_file: h5py.File object
     :param expression: str expression to be evaluated
