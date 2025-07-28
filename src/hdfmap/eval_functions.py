@@ -243,33 +243,24 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
     """
     if identifiers is None:
         identifiers = list(hdf_namespace.keys())
-    namespace = {
-        name: dataset2data(hdf_file[hdf_namespace[name]])
-        for name in identifiers if name in hdf_namespace and hdf_namespace[name] in hdf_file
-    }
-    strings = {
-        name: dataset2str(hdf_file[hdf_namespace[name[2:]]], units=True)
-        for name in identifiers
-        if name.startswith('s_') and hdf_namespace.get(name[2:]) and hdf_namespace[name[2:]] in hdf_file
-    }
-    # return dataset objects
-    datasets = {
-        name: hdf_file[hdf_namespace[name[2:]]]
-        for name in identifiers
-        if name.startswith('d_') and hdf_namespace.get(name[2:]) and hdf_namespace[name[2:]] in hdf_file
-    }
+
+    def select_ids(startswith=''):
+        return (
+            name for name in identifiers
+            if name.startswith(startswith) and hdf_namespace.get(name[len(startswith):], '') in hdf_file
+        )
+
+    namespace = {name: dataset2data(hdf_file[hdf_namespace[name]]) for name in select_ids()}
+    strings = {name: dataset2str(hdf_file[hdf_namespace[name[2:]]], units=True) for name in select_ids('s_')}
+    datasets = {name: hdf_file[hdf_namespace[name[2:]]] for name in select_ids('d_')}
+    hdf_paths = {name: hdf_namespace[name[1:]] for name in select_ids('_')}
+    hdf_names = {name: generate_identifier(hdf_namespace[name[2:]]) for name in select_ids('__')}
     # generate defaults for non-builtin names that are not in the file
     defaults = {
         name: default
-        for name in identifiers if (name not in GLOBALS_NAMELIST) and (
-            (name not in hdf_namespace) or
-            (hdf_namespace[name] not in hdf_file)
-        )
+        for name in identifiers
+        if name not in GLOBALS_NAMELIST and hdf_namespace.get(name, '') not in hdf_file
     }
-    hdf_paths = {name: hdf_namespace[name[1:]] for name in identifiers
-                 if name.startswith('_') and name[1:] in hdf_namespace}
-    hdf_names = {name: generate_identifier(hdf_namespace[name[2:]]) for name in identifiers
-                 if name.startswith('__') and name[2:] in hdf_namespace}
     return {**defaults, **hdf_paths, **hdf_names, **datasets, **strings, **namespace}
 
 
@@ -356,8 +347,6 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     Additional variables can be added to the evaluation local namespace using data_namespace.
 
     Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
-
-    New in V1.0: now uses the safer asteval, rather than pure-python eval function
 
     :param hdf_file: h5py.File object
     :param expression: str expression to be evaluated
