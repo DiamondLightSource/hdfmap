@@ -6,7 +6,7 @@ Map objects within an HDF5 file and create a dataset namespace.
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![](https://img.shields.io/github/forks/DiamondLightSource/hdfmap?label=GitHub%20Repo&style=social)](https://github.com/DiamondLightSource/hdfmap)
 
-**Version 0.9**
+**Version 1.0**
 
 | By Dan Porter        | 
 |----------------------|
@@ -34,16 +34,21 @@ with load_hdf('file.nxs') as nxs:
     path = m.get_path('scan_command')
     cmd = nxs[path][()]  # returns bytes data direct from file
     cmd = m.get_data(nxs, 'scan_command')  # returns converted str output
+    cmd = m.eval(nxs, 'scan_command.strip()')  # returns evaluated output
     string = m.format_hdf(nxs, "the energy is {energy:.2f} keV")
     d = m.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
 
-# Shortcuts - single file reloader class
+# new in V1.0.0 - evaluate name based expressions in the original file
+m('signal / count_time') # >> numpy array
+
+# Shortcuts - single file reloader class (provides direct access to data)
 from hdfmap import NexusLoader
 
 scan = NexusLoader('file.hdf')
 [data1, data2] = scan.get_data(['dataset_name_1', 'dataset_name_2'])
 data = scan.eval('dataset_name_1 * 100 + 2')
 string = scan.format('my data is {dataset_name_1:.2f}')
+roi_sum = scan.eval('d_IMAGE[..., 90:110, 200:240].sum(axis=(-1, -2))')
 
 # Shortcuts - multifile load data (generate map from first file)
 from hdfmap import hdf_data, hdf_eval, hdf_format, hdf_image
@@ -55,7 +60,7 @@ image_stack = hdf_image(filenames, index=31)
 ```
 
 ### Installation
-*Requires:* Python >=3.10, Numpy, h5py
+*Requires:* Python >=3.10, Numpy, h5py, hdf5plugin, asteval
 
 ### from conda-forge
 ```bash
@@ -74,13 +79,13 @@ python -m pip install --upgrade git+https://github.com/DiamondLightSource/hdfmap
 
 ### Description
 Another generic hdf reader but the idea here is to build up a namespace dict of `{'name': 'path'}` 
-for every dataset, then group them in hopefully a useful way. 
+for every dataset, then group them in a hopefully useful way. 
 
 Objects within the HDF file are separated into Groups and Datasets. Each object has a
-defined 'path' and 'name' paramater, as well as other attributes
+defined `path` and `name` identifier, as well as other attributes
 
- - path -> '/entry/measurement/data' -> the location of an object within the file
- - name -> 'data' -> an path expressed as a simple variable name
+ - `path` -> '/entry/measurement/data' -> the location of an object within the file
+ - `name` -> *data* -> a dataset expressed as a simple variable name
 
 Paths are unique locations within the file but can be used to identify similar objects in other files
 Names may not be unique within a file and are generated from the path.
@@ -90,21 +95,48 @@ Names may not be unique within a file and are generated from the path.
 | *Description* | simple identifier of dataset | hdf path built from position in file |
 | *Example*     | `'scan_command'`             | `'/entry/scan_command'`              |
 
-Names of different types of datasets are stored for arrays (size > 0) and values (size 0)
-Names for scannables relate to all arrays of a particular size
-A combined list of names is provided where scannables > arrays > values
+Names of different types of datasets are stored for `arrays` (size > 0) and `values` (size 0)
+Names for `scannables` relate to all **arrays** of a particular size. 
+Names for `metadata` relate to a subset of all datasets based on specified rules.
+Names for `image_data` relate to a subset of **arrays**  that relate to images.
+A `combined` list of names is provided where `scannables` > `image_data` > `arrays` > `values`
+
+#### Default Names
+Several names are reserved and will be populated for NeXus files using attributes:
+
+| **name**   | Description                                             |
+|------------|---------------------------------------------------------|
+| `'axes'`   | the first @axes dataset in the default NXdata group     |
+| `'signal'` | the default @signal dataset in the default NXdata group |
+| `'IMAGE'`  | the first found detector image dataset                  |
+
+
+### HdfMap Behaviours
+```python
+from hdfmap import create_nexus_map
+map = create_nexus_map('file.nxs')
+```
+
+| code              | result         | description                              |
+|-------------------|----------------|------------------------------------------| 
+| `map['name']`     | 'hdf/path'     | return dataset path associated with name |
+| `'name' in map`   | True/False     | check if 'name' is in map.combined       | 
+| `for name in map` | iterable       | loop over names in map.combined          |
+| `repr(map)`       | str            | print short description of hdfmap        |
+| `print(map)`      | multi-line str | prints description of hdfmap             | 
+
 
 ### HdfMap Attributes
-|                |                                                        |
-|----------------|--------------------------------------------------------|
-| map.groups     | stores attributes of each group by path                |
-| map.classes    | stores list of group paths by nx_class                 |
-| map.datasets   | stores attributes of each dataset by path              |
-| map.arrays     | stores array dataset paths by name                     |
-| map.values     | stores value dataset paths by name                     |
-| map.scannables | stores array dataset paths with given size, by name    |
-| map.combined   | stores array and value paths (arrays overwrite values) |
-| map.image_data | stores dataset paths of image data                     |
+|                   |                                                        |
+|-------------------|--------------------------------------------------------|
+| `map.groups`      | stores attributes of each group by path                |
+| `map.classes`     | stores list of group paths by nx_class                 |
+| `map.datasets`    | stores attributes of each dataset by path              |
+| `map.arrays`      | stores array dataset paths by name                     |
+| `map.values`      | stores value dataset paths by name                     |
+| `map.scannables`  | stores array dataset paths with given size, by name    |
+| `map.combined`    | stores array and value paths (arrays overwrite values) |
+| `map.image_data`  | stores dataset paths of image data                     |
 
 #### E.G.
 ```python
@@ -272,6 +304,7 @@ of formatted metadata. The Evaluation functions are:
 
  - `HdfMap.eval(hdfobj, 'name')` -> value
  - `HdfMap.format_hdf(hdfobj, '{name}')` -> string
+ - `HdfMap('name')` -> value
  - `HdfLoader('eval')` -> value
  - `HdfLoader.eval('eval')` -> value
  - `HdfLoader.format('{name}')` -> string
@@ -291,6 +324,7 @@ The following patterns are allowed in any expression:
  - '_*name*': str hdf path of *name*
  - '__*name*': str internal name of *name* (e.g. for 'axes')
  - 's_*name*': string representation of dataset (includes units if available)
+ - 'd_*name*': return dataset object. **warning**: this may result in the hdf file or external files not closing on completion
  - '*name*@attr': returns attribute of dataset *name*
  - '*name*?(default)': returns default if *name* doesn't exist
  - '(name1|name2|name3)': returns the first available of the names
@@ -303,14 +337,18 @@ from hdfmap import create_nexus_map, load_hdf
 # HdfMap from NeXus file:
 hmap = create_nexus_map('file.nxs')
 with load_hdf('file.nxs') as nxs:
-    # mathematical array expressions (using np as Numpy)
-    data = hmap.eval(nxs, 'int(np.max(total / Transmission / count_time))')
+    # mathematical array expressions (using Numpy functions)
+    data = hmap.eval(nxs, 'int(max(total / Transmission / count_time))')
     # return the path of a name
     path = hmap.eval(nxs, '_axes')  # -> '/entry/measurement/h'
     # return the real name of a variable
     name = hmap.eval(nxs, '__axes')  # -> 'h'
     # return label, using dataset attributes
     label = hmap.eval(nxs, 's_ppy')  # example uses @decimals and @units
+    # return dataset object of default detector data
+    detector_dataset = hmap.eval(nxs, 'd_IMAGE') # -> h5py.Dataset object
+    # region of interest creation using lazy loading of default detector image
+    roi_sum = hmap.eval(nxs, 'd_IMAGE[..., 90:110, 200:240].sum(axis=(-1, -2))') # -> ndarray
     # return dataset attributes
     attr = hmap.eval(nxs, 'idgap@units')  # -> 'mm'
     # return first available dataset

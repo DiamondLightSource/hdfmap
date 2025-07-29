@@ -36,8 +36,8 @@ def test_old_i16_file():
     assert path.isfile(filename) is True, f"{filename} doesn't exist"
     mymap = hdfmap.create_nexus_map(filename)
     with hdfmap.hdf_loader.load_hdf(filename) as hdf:
-        value, address = mymap.eval(hdf, 'np.sum(sum), _sum')
-    assert abs(value + 407) < 0.01, 'expression "np.sum(sum)" gives wrong result'
+        value, address = mymap.eval(hdf, 'sum.sum(), _sum')
+    assert abs(value + 407) < 0.01, 'expression "sum.sum()" gives wrong result'
     assert address == '/entry1/measurement/sum', 'expression "_sum" returns wrong address'
 
 

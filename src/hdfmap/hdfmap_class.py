@@ -38,13 +38,14 @@ class Dataset(typing.NamedTuple):
     attrs: dict
 
 
-def generate_alt_name(hdf_dataset: h5py.Dataset) -> str:
+def generate_alt_name(hdf_dataset: h5py.Dataset) -> str | None:
     """Generate alt_name of dataset if 'local_name' in attributes"""
     if LOCAL_NAME in hdf_dataset.attrs:
         alt_name = hdf_dataset.attrs[LOCAL_NAME]
         if hasattr(alt_name, 'decode'):
             alt_name = alt_name.decode()
         return expression_safe_name(alt_name.split('.')[-1])
+    return None
 
 
 def disp_dict(mydict: dict, indent: int = 10) -> str:
@@ -177,6 +178,11 @@ class HdfMap:
 
     def __contains__(self, item):
         return item in self.combined or item in self.datasets
+
+    def __call__(self, expression, **kwargs):
+        if 'hdf_file' not in kwargs:
+            kwargs['hdf_file'] = self.load_hdf()
+        return self.eval(expression=expression, **kwargs)
 
     def __repr__(self):
         return f"HdfMap based on '{self.filename}'"
@@ -875,25 +881,27 @@ class HdfMap:
         scannables['metadata'] = DataHolder(**metadata)
         return DataHolder(**scannables)
 
-    def eval(self, hdf_file: h5py.File, expression: str, default=DEFAULT):
+    def eval(self, hdf_file: h5py.File, expression: str, default=DEFAULT, raise_errors: bool = True):
         """
         Evaluate an expression using the namespace of the hdf file
         :param hdf_file: h5py.File object
         :param expression: str expression to be evaluated
         :param default: returned if varname not in namespace
+        :param raise_errors: raise exceptions if True, otherwise return str error message as result and log the error
         :return: eval(expression)
         """
-        return eval_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default)
+        return eval_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default, raise_errors)
 
-    def format_hdf(self, hdf_file: h5py.File, expression: str, default=DEFAULT) -> str:
+    def format_hdf(self, hdf_file: h5py.File, expression: str, default=DEFAULT, raise_errors: bool = True) -> str:
         """
         Evaluate a formatted string expression using the namespace of the hdf file
         :param hdf_file: h5py.File object
         :param expression: str expression using {name} format specifiers
         :param default: returned if varname not in namespace
+        :param raise_errors: raise exceptions if True, otherwise return str error message as result and log the error
         :return: eval_hdf(f"expression")
         """
-        return format_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default)
+        return format_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default, raise_errors)
 
     def create_dataset_summary(self, hdf_file: h5py.File) -> str:
         """Create summary of all datasets in file"""

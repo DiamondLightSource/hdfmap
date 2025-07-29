@@ -21,6 +21,9 @@ with load_hdf('file.nxs') as nxs:
     image = m.get_image(nxs, 30)  # returns image number 30 in list (even in multi-dimension)
     d = m.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
 
+# new in V1.0.0 - evaluate name based expressions in original file
+m('signal / count_time') # >> numpy array
+
 # Shortcuts - single file reloader class
 from hdfmap import NexusLoader
 

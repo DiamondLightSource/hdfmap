@@ -65,8 +65,8 @@ __all__ = [
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
-__version__ = "0.9.5"
-__date__ = "2025/07/07"
+__version__ = "1.0.0"
+__date__ = "2025/07/23"
 
 
 def version_info() -> str:
@@ -85,6 +85,8 @@ def module_info() -> str:
     out += '\n      h5py version: %s' % h5py.__version__
     # import imageio
     # out += '\n   imageio version: %s' % imageio.__version__
+    import asteval
+    out += '\n   asteval version: %s' % asteval.__version__
     try:
         import hdf5plugin
         out += '\n    hdf5plugin: %s' % hdf5plugin.version

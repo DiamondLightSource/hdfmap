@@ -167,8 +167,48 @@ def test_create_scannables_table(hdf_map):
 
 def test_eval(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
-        out = hdf_map.eval(hdf, 'int(np.max(sum / Transmission / count_time))')
+        out = hdf_map.eval(hdf, 'int(max(sum / Transmission / count_time))')
         assert out == 6533183, "Expression output gives wrong result"
+
+
+def test_eval_patterns(hdf_map):
+    with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
+        filename, filepath = hdf_map.eval(hdf, 'filename, filepath')
+        assert filename == '1049598.nxs', "filename is incorrect"
+        assert filepath.endswith(filename), "filepath is incorrect"
+        path, name = hdf_map.eval(hdf, '_scan_command, __measurement_h')
+        assert path == '/entry1/scan_command', '_*name* not working'
+        assert name == 'h', '__*name* not working'
+        string = hdf_map.eval(hdf, 's_fast_pixel_direction')
+        assert string == '0.172 mm', 's_*name* not working'
+        dataset_energy, dataset_image = hdf_map.eval(hdf, 'd_incident_energy, d_IMAGE')
+        assert dataset_energy, 'incident_energy dataset is closed'
+        assert dataset_image.shape == (101, 195, 487), "image dataset is wrong"
+        attribute = hdf_map.eval(hdf, 'fast_pixel_direction@units')
+        assert attribute == 'mm', "incorrect units for fast_pixel_direction dataset"
+        correct, default = hdf_map.eval(hdf, 'source_probe?("none"), source_cat?("meow")')
+        assert correct == 'x-ray', 'source_probe not read correctly'
+        assert default == 'meow', 'default value not returned'
+        # alternate names
+        out = hdf_map.eval(hdf, '(analyser_name|pa_detector_name)')
+        assert out == 'Au111', 'incorrect alternate found'
+        out = hdf_map.eval(hdf, '(analyzer_name|pa_detector_name)')
+        assert out == 'Merlin', 'incorrect alternate found'
+        out = hdf_map.eval(hdf, '(one|two|three?(4))')
+        assert out == 4, 'should return default value'
+    # check closed state of datasets
+    assert not dataset_energy, f"{dataset_energy} is still open"
+    # dataset_image points to an external file which is not closed,
+    # this is a known bug and may be fixed in the future (current date July 2025)
+    # See: https://github.com/h5py/h5py/issues/2454
+    assert dataset_image, f"{dataset_image} has been closed"
+
+
+def test_call(hdf_map):
+    value, address, ub_matrix = hdf_map('sum.sum(), _sum, isnan(ub_matrix)')
+    assert abs(value - 38127391) < 0.01, 'expression "sum.sum()" gives wrong result'
+    assert address == '/entry1/pil3_100k/sum', 'expression "_sum" returns wrong address'
+    assert ub_matrix.shape == (3, 3), '"ub_matrix" is missing or has wrong shape'
 
 
 def test_format_hdf(hdf_map):
@@ -182,13 +222,13 @@ def test_eval_local_data(hdf_map):
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         out = hdf_map.eval(hdf, 'new_var')
         assert out == 'testing-testing', "Expression output gives wrong result"
-        out = hdf_map.eval(hdf, 'int(np.max(sum / Transmission / count_time))')
+        out = hdf_map.eval(hdf, 'int(max(sum / Transmission / count_time))')
         assert out == 653318, "Expression output gives wrong result"
 
 
 def test_eval_named_expression(hdf_map):
     hdf_map.add_named_expression(
-        norm_data='int(np.max(sum / Transmission / count_time))',
+        norm_data='int(max(sum / Transmission / count_time))',
         my_path=hdf_map['incident_energy']
     )
     with hdfmap.load_hdf(FILE_HKL) as hdf:

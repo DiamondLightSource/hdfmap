@@ -46,6 +46,10 @@ data = scan.eval('NXdetector_data[:, 50:60, 60:60]')  # array expressions, group
 axes, signal = scan('axes, signal') # NeXus default signal and axes are in the namespace, scan() is a shortcut
 ```
 
+Expressions are parsed in a two-step process. The first step identifies symbols in the expression 
+that are available in the file, replaces patterns in the expression and builds a data namespace with data from the file. 
+The seconds step evaluates the modified expression in the data namespace.
+
 #### Rules for names in eval/format spec:
  - 'filename', 'filepath' - these are always available
  - 'name' - returns value of dataset '/entry/group/name'
@@ -55,6 +59,7 @@ axes, signal = scan('axes, signal') # NeXus default signal and axes are in the n
  - '_name' - return hdf path of dataset 'name'
  - '__name' - return default name of dataset 'name' (used when requesting 'axes' or 'signal')
  - 's_*name*': string representation of dataset (includes units if available)
+ - 'd_*name*': return dataset object. **warning**: this may result in the hdf file or external files not closing on completion
  - '*name*@*attr*': returns attribute of dataset *name*
  - '*name*?(*default*)': returns default if *name* doesn't exist
  - '(name1|name2|name3)': returns the first available of the names
@@ -84,6 +89,34 @@ expr = {
 scan.map.add_named_expression(**expr)
 ydata = scan.eval('signal/normby')
 ```
+
+#### New in V1.0.0: load datasets
+An additional pattern `'d_*name*'` has been added, allowing hdf dataset objects to be returned. This allows for lazy
+indexing of large datasets, however returning the dataset locally could result in the hdf file, or external files
+pointed to by the dataset, remaining open.
+
+Also, an additional behaviour has been added allowing `HdfMap('expression')`, which opens the default hdf file as a
+shorthand for `HdfMap.eval(HdfMap.load_hdf(), 'expression')`.
+
+```python
+from hdfmap import create_nexus_map
+
+m = create_nexus_map('file.nxs')
+
+dataset = m('d_incident_energy') # -> returns h5py.Dataset object, note that file.nxs is now open
+del dataset # removing the link will close file.nxs
+
+# load detector image (stored in external file)
+image_dataset = m('d_IMAGE')  # -> returns h5py.Dataset
+# note that file.nxs will be closed as the dataset points to an external file, however this external file will be open
+
+# Lazily load just the region on the detector (files will be closed as dataset reference lost)
+roi = m('d_IMAGE[..., 90:110, 200:240]')  # -> array with shape (N,20,40).  
+roi_sum = m('d_IMAGE[..., 90:110, 200:240].sum(axis=(-1, -2))') # -> array with shape (N)
+```
+
+Note: External datasets are currently not closed by context managers (i.e. `with h5py.File...`). 
+This behaviour is a [known bug](https://github.com/h5py/h5py/issues/2454) and may be fixed in the future.
 
 
 ### formatted strings from metadata

@@ -46,7 +46,7 @@ def test_nexus_decimals(hdf_map):
 
 def test_nexus_eval(hdf_map):
     with hdfmap.load_hdf(FILE_NEW_NEXUS) as hdf:
-        out = hdf_map.eval(hdf, 'int(np.max(total / Transmission / count_time))')
+        out = hdf_map.eval(hdf, 'int(max(total / Transmission / count_time))')
         assert out == 70, "Expression output gives wrong result"
         path = hdf_map.eval(hdf, '_axes')
         assert path == '/entry/measurement/h', "Wrong axes path"
@@ -65,7 +65,7 @@ def test_nexus_eval(hdf_map):
         title = hdf_map.format_hdf(hdf, '{filename}: {scan_command}')
         correct = '1040323.nxs: scan hkl [0.97, 0.022, 0.112] [0.97, 0.022, 0.132] [0, 0, 0.001] MapperProc pil3_100k 1'
         assert title == correct, "Expression output gives wrong result"
-        out = hdf_map.format_hdf(hdf, '({np.mean(h):.3g},{np.mean(k):.3g},{np.mean(l):.3g})')
+        out = hdf_map.format_hdf(hdf, '({mean(h):.3g},{mean(k):.3g},{mean(l):.3g})')
         assert out == '(0.97,0.0221,0.122)', "Expression output gives wrong result"
 
 

@@ -3,12 +3,11 @@ Nexus Related functions and nexus class
 """
 
 import os
-from signal import signal
 
 import h5py
 
 from .logging import create_logger
-from .hdfmap_class import HdfMap, disp_dict, IMAGE_DATA
+from .hdfmap_class import HdfMap, disp_dict
 from .eval_functions import generate_identifier, build_hdf_path, is_image
 
 NX_CLASS = 'NX_class'
