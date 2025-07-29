@@ -112,6 +112,7 @@ image_dataset = m('d_IMAGE')  # -> returns h5py.Dataset
 
 # Lazily load just the region on the detector (files will be closed as dataset reference lost)
 roi = m('d_IMAGE[..., 90:110, 200:240]')  # -> array with shape (N,20,40).  
+roi_sum = m('d_IMAGE[..., 90:110, 200:240].sum(axis=(-1, -2))') # -> array with shape (N)
 ```
 
 Note: External datasets are currently not closed by context managers (i.e. `with h5py.File...`). 

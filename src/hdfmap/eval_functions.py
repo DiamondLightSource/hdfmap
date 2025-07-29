@@ -246,15 +246,15 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str], ident
 
     def select_ids(startswith=''):
         return (
-            name for name in identifiers
-            if name.startswith(startswith) and hdf_namespace.get(name[len(startswith):], '') in hdf_file
+            (symbol, name) for symbol in identifiers
+            if symbol.startswith(startswith) and hdf_namespace.get(name := symbol[len(startswith):], '') in hdf_file
         )
 
-    namespace = {name: dataset2data(hdf_file[hdf_namespace[name]]) for name in select_ids()}
-    strings = {name: dataset2str(hdf_file[hdf_namespace[name[2:]]], units=True) for name in select_ids('s_')}
-    datasets = {name: hdf_file[hdf_namespace[name[2:]]] for name in select_ids('d_')}
-    hdf_paths = {name: hdf_namespace[name[1:]] for name in select_ids('_')}
-    hdf_names = {name: generate_identifier(hdf_namespace[name[2:]]) for name in select_ids('__')}
+    namespace = {symbol: dataset2data(hdf_file[hdf_namespace[name]]) for symbol, name in select_ids()}
+    strings = {symbol: dataset2str(hdf_file[hdf_namespace[name]], units=True) for symbol, name in select_ids('s_')}
+    datasets = {symbol: hdf_file[hdf_namespace[name]] for symbol, name in select_ids('d_')}
+    hdf_paths = {symbol: hdf_namespace[name] for symbol, name in select_ids('_')}
+    hdf_names = {symbol: generate_identifier(hdf_namespace[name]) for symbol, name in select_ids('__')}
     # generate defaults for non-builtin names that are not in the file
     defaults = {
         name: default

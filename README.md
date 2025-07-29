@@ -48,6 +48,7 @@ scan = NexusLoader('file.hdf')
 [data1, data2] = scan.get_data(['dataset_name_1', 'dataset_name_2'])
 data = scan.eval('dataset_name_1 * 100 + 2')
 string = scan.format('my data is {dataset_name_1:.2f}')
+roi_sum = scan.eval('d_IMAGE[..., 90:110, 200:240].sum(axis=(-1, -2))')
 
 # Shortcuts - multifile load data (generate map from first file)
 from hdfmap import hdf_data, hdf_eval, hdf_format, hdf_image
@@ -303,6 +304,7 @@ of formatted metadata. The Evaluation functions are:
 
  - `HdfMap.eval(hdfobj, 'name')` -> value
  - `HdfMap.format_hdf(hdfobj, '{name}')` -> string
+ - `HdfMap('name')` -> value
  - `HdfLoader('eval')` -> value
  - `HdfLoader.eval('eval')` -> value
  - `HdfLoader.format('{name}')` -> string
@@ -335,8 +337,8 @@ from hdfmap import create_nexus_map, load_hdf
 # HdfMap from NeXus file:
 hmap = create_nexus_map('file.nxs')
 with load_hdf('file.nxs') as nxs:
-    # mathematical array expressions (using np as Numpy)
-    data = hmap.eval(nxs, 'int(np.max(total / Transmission / count_time))')
+    # mathematical array expressions (using Numpy functions)
+    data = hmap.eval(nxs, 'int(max(total / Transmission / count_time))')
     # return the path of a name
     path = hmap.eval(nxs, '_axes')  # -> '/entry/measurement/h'
     # return the real name of a variable
@@ -345,6 +347,8 @@ with load_hdf('file.nxs') as nxs:
     label = hmap.eval(nxs, 's_ppy')  # example uses @decimals and @units
     # return dataset object of default detector data
     detector_dataset = hmap.eval(nxs, 'd_IMAGE') # -> h5py.Dataset object
+    # region of interest creation using lazy loading of default detector image
+    roi_sum = hmap.eval(nxs, 'd_IMAGE[..., 90:110, 200:240].sum(axis=(-1, -2))') # -> ndarray
     # return dataset attributes
     attr = hmap.eval(nxs, 'idgap@units')  # -> 'mm'
     # return first available dataset
