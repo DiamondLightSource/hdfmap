@@ -10,7 +10,7 @@ import h5py
 
 from . import load_hdf
 from .logging import create_logger
-from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf,
+from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf, HdfMapInterpreter,
                              format_hdf, dataset2data, dataset2str, is_image,
                              DEFAULT, SEP, generate_identifier, build_hdf_path)
 
@@ -902,6 +902,23 @@ class HdfMap:
         :return: eval_hdf(f"expression")
         """
         return format_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default, raise_errors)
+
+    def create_interpreter(self, default=DEFAULT):
+        """
+        Create an interpreter object for the current file
+        The interpreter is a sub-class of asteval.Interpreter that parses expressions for hdfmap eval patters
+        and loads data when required.
+
+        The hdf file self.filename is used to extract data and is only opened during evaluation.
+        """
+        interpreter = HdfMapInterpreter(
+            hdfmap=self,
+            replace_names=self._alternate_names,
+            default=default,
+            user_symbols=self._local_data,
+            use_numpy=True
+        )
+        return interpreter
 
     def create_dataset_summary(self, hdf_file: h5py.File) -> str:
         """Create summary of all datasets in file"""

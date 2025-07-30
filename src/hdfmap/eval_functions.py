@@ -326,6 +326,53 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
     return expression
 
 
+def prepare_expression_load_data(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str],
+                                 data_namespace: dict[str, typing.Any], replace_names: dict[str, str],
+                                 default: typing.Any = DEFAULT):
+    """
+    Prepare an expression for evaluation using the namespace of the hdf file
+    Returns the modified expression replacing attribute names and alternates with
+    valid identifiers. Also updates the data_namespace dict with attribute data and data from the hdf file.
+
+    The following patterns are allowed in the expression:
+     - 'filename': str, name of hdf_file
+     - 'filepath': str, full path of hdf_file
+     - '_*name*': str hdf path of *name*
+     - '__*name*': str internal name of *name* (e.g. for 'axes')
+     - 's_*name*': string representation of dataset (includes units if available)
+     - 'd_*name*': return dataset object. **warning**: may result in file not closing on completion
+     - '*name*@attr': returns attribute of dataset *name*
+     - '*name*?(default)': returns default if *name* doesn't exist
+     - '(name1|name2|name3)': returns the first available of the names
+     - '(name1|name2?(default))': returns the first available name or default
+
+    Additional variables can be added to the evaluation local namespace using data_namespace.
+
+    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favourite*expression'}
+
+    :param hdf_file: h5py.File object
+    :param expression: str expression to be evaluated
+    :param hdf_namespace: dict of {'variable name': '/hdf/dataset/path'}
+    :param data_namespace: dict of {'variable name': value} ** note: values will be added to this dict
+    :param replace_names: dict of {'variable_name': expression}
+    :param default: returned if varname not in namespace
+    :return: str expression
+    """
+    # replace names with expressions
+    for name, replacement in replace_names.items():
+        # TODO: make this more reliable by using either regex or ast
+        expression = expression.replace(name, replacement)
+    # replace parts of the expression
+    expression = prepare_expression(hdf_file, expression, hdf_namespace, data_namespace)  # adds data to data_namespace
+    # find identifier symbols in expression, but don't reload any in data_namespace
+    identifiers = [new_id for new_id in find_identifiers(expression) if new_id not in data_namespace]
+    namespace = generate_namespace(hdf_file, hdf_namespace, identifiers, default)
+    data_namespace.update(namespace)
+    logger.info(f"Expression: {expression}\nidentifiers: {identifiers}\n")
+    logger.debug(f"hdf data namespace: {namespace}\n")
+    return expression
+
+
 def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str],
              data_namespace: dict[str, typing.Any], replace_names: dict[str, str],
              default: typing.Any = DEFAULT, raise_errors: bool = True) -> typing.Any:
@@ -365,16 +412,9 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     # if expression is a hdf path, just return the data
     if expression in hdf_file:
         return dataset2data(hdf_file[expression])
-    # replace parts of the expression
-    expression = prepare_expression(hdf_file, expression, hdf_namespace, data_namespace)  # adds data to data_namespace
-    # find identifier symbols in expression
-    identifiers = find_identifiers(expression)
-    namespace = generate_namespace(hdf_file, hdf_namespace, identifiers, default)
-    namespace.update(data_namespace)  # matching names in namespace are replaced by those in extra_data
-    logger.info(f"Expression: {expression}\nidentifiers: {identifiers}\n")
-    logger.debug(f"namespace: {namespace}\n")
+    expression = prepare_expression_load_data(hdf_file, expression, hdf_namespace, data_namespace, replace_names, default)
     # evaluate expression within namespace
-    safe_eval = asteval.Interpreter(user_symbols=namespace, use_numpy=True)
+    safe_eval = asteval.Interpreter(user_symbols=data_namespace, use_numpy=True)
     result = safe_eval(expression, raise_errors=raise_errors)
     if safe_eval.error_msg:
         logger.error(f"Expression: {expression} gives error message: {safe_eval.error_msg}")
@@ -421,6 +461,7 @@ def create_interpreter(hdf_file: h5py.File, hdf_namespace: dict[str, str],
     :param default: returned if varname not in namespace
     :return: asteval(expression)
     """
+    # TODO: can probably remove this one
     # build a complete namespace
     namespace = generate_namespace(hdf_file, hdf_namespace, default=default)
     data_namespace.update({
@@ -432,3 +473,29 @@ def create_interpreter(hdf_file: h5py.File, hdf_namespace: dict[str, str],
     # evaluate expression within namespace
     interpreter = asteval.Interpreter(user_symbols=namespace, use_numpy=True)
     return interpreter
+
+
+class HdfMapInterpreter(asteval.Interpreter):
+    """
+    HdfMap implementation of asteval.Interpreter
+
+    Expression is parsed for patterns and loads HDF data before evaluation
+    """
+    # TODO: create tests for this and more docs
+    def __init__(self, hdfmap, replace_names: dict[str, str], default: typing.Any = DEFAULT, **kws):
+        super().__init__(**kws)
+        self.hdfmap = hdfmap
+        self.replace_names = replace_names
+        self.default_value = default
+
+    def eval(self, expr, lineno=0, show_errors=True, raise_errors=False):
+        with self.hdfmap.load_hdf() as hdf:
+            new_expression = prepare_expression_load_data(
+                hdf_file=hdf,
+                expression=expr,
+                hdf_namespace=self.hdfmap.combined,
+                data_namespace=self.symtable,
+                replace_names=self.replace_names,
+                default=self.default_value
+            )
+        return super().eval(new_expression, lineno, show_errors, raise_errors)
