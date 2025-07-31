@@ -355,6 +355,32 @@ class HdfMap:
         """Add named expression to the local namespace, used in eval"""
         self._alternate_names.update(kwargs)
 
+    def add_roi(self, name: str, cen_i: int | str, cen_j: int | str,
+                wid_i: int = 30, wid_j: int = 30, image_name: str = 'IMAGE'):
+        """
+        Add an image ROI (region of interest) to the named expressions
+        The ROI operates on the default IMAGE dataset, loading only the required region from the file.
+        The following expressions will be added, for use in self.eval etc.
+            *name* -> returns the whole ROI array
+            *name*_total -> returns the sum of each image in the ROI array
+            *name*_max -> returns the max of each image in the ROI array
+            *name*_min -> returns the min of each image in the ROI array
+        """
+        # TODO: add tests and docs
+        islice = f"{cen_i}-{wid_i:.0f} // 2 : {cen_i}+{wid_i:.0f} // 2"
+        jslice = f"{cen_j}-{wid_j:.0f} // 2 : {cen_j}+{wid_j:.0f} // 2"
+        roi_array = f"d_{image_name}[..., {islice}, {jslice}]"
+        roi_total = f"{roi_array}.sum(axis=(-1, -2))"
+        roi_max = f"{roi_array}.max(axis=(-1, -2))"
+        roi_min = f"{roi_array}.min(axis=(-1, -2))"
+        alternate_names = {
+            f"{name}_total": roi_total,
+            f"{name}_max": roi_max,
+            f"{name}_min": roi_min,
+            name: roi_array,
+        }
+        self.add_named_expression(**alternate_names)
+
     def populate(self, hdf_file: h5py.File):
         """Populate all datasets from file"""
         self.filename = hdf_file.filename
@@ -496,6 +522,7 @@ class HdfMap:
             return self.image_data[name_or_path]
         if name_or_path in self.classes:
             return self.classes[name_or_path][0]  # return first path in list
+        return None
 
     def get_group_path(self, name_or_path):
         """Return group path of object in HdfMap"""
@@ -527,6 +554,7 @@ class HdfMap:
                 dataset = self.datasets[dataset_path]
                 if dataset_name in dataset.names:
                     return dataset_path
+        return None
 
     def find_groups(self, *names_or_classes: str) -> list[str]:
         """
@@ -633,6 +661,7 @@ class HdfMap:
             return self.datasets[self.combined[name_or_path]].attrs
         if name_or_path in self.classes:
             return self.groups[self.classes[name_or_path][0]].attrs
+        return None
 
     def get_attr(self, name_or_path: str, attr_label: str, default: str | typing.Any = '') -> str | None:
         """Return named attribute from dataset or group, or default"""
@@ -673,6 +702,7 @@ class HdfMap:
         group_path = self.get_group_path(name_or_path)
         if group_path:
             return self.groups[group_path].datasets
+        return None
 
     "--------------------------------------------------------"
     "---------------------- FILE READERS --------------------"
@@ -805,6 +835,7 @@ class HdfMap:
         if image_path and image_path in hdf_file:
             # return hdf_file[image_path][index].squeeze()  # remove trailing dimensions
             return self.get_data(hdf_file, image_path, index)  # return array or image paths
+        return None
 
     def _get_numeric_scannables(self, hdf_file: h5py.File) -> list[tuple[str, str, np.ndarray]]:
         """Return numeric scannables available in file"""
@@ -911,6 +942,7 @@ class HdfMap:
 
         The hdf file self.filename is used to extract data and is only opened during evaluation.
         """
+        # TODO: add tests and docs
         interpreter = HdfMapInterpreter(
             hdfmap=self,
             replace_names=self._alternate_names,
