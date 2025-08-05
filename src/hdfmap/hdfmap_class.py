@@ -365,18 +365,36 @@ class HdfMap:
             *name*_total -> returns the sum of each image in the ROI array
             *name*_max -> returns the max of each image in the ROI array
             *name*_min -> returns the min of each image in the ROI array
+            *name*_mean -> returns the mean of each image in the ROI array
+            *name*_bkg -> returns the background ROI array (area around ROI)
+            *name*_rmbkg -> returns the total with background subtracted
         """
         # TODO: add tests and docs
-        islice = f"{cen_i}-{wid_i:.0f} // 2 : {cen_i}+{wid_i:.0f} // 2"
-        jslice = f"{cen_j}-{wid_j:.0f} // 2 : {cen_j}+{wid_j:.0f} // 2"
+        wid_i = abs(wid_i) // 2
+        wid_j = abs(wid_j) // 2
+        islice = f"{cen_i}-{wid_i:.0f} : {cen_i}+{wid_i:.0f}"
+        jslice = f"{cen_j}-{wid_j:.0f} : {cen_j}+{wid_j:.0f}"
         roi_array = f"d_{image_name}[..., {islice}, {jslice}]"
         roi_total = f"{roi_array}.sum(axis=(-1, -2))"
         roi_max = f"{roi_array}.max(axis=(-1, -2))"
         roi_min = f"{roi_array}.min(axis=(-1, -2))"
+        roi_mean = f"{roi_array}.mean(axis=(-1, -2))"
+
+        islice = f"{cen_i}-{wid_i * 2:.0f} : {cen_i}+{wid_i * 2:.0f}"
+        jslice = f"{cen_j}-{wid_j * 2:.0f} : {cen_j}+{wid_j * 2:.0f}"
+        bkg_array = f"d_{image_name}[..., {islice}, {jslice}]"
+        bkg_total = f"{bkg_array}.sum(axis=(-1, -2))"
+        roi_bkg_total = f"({bkg_total} - {roi_total})"
+        roi_bkg_mean = f"{roi_bkg_total}/(12*{wid_i * wid_j})"
+        # Transpose array to broadcast bkg_total
+        roi_rmbkg = f"({roi_array}.T - {roi_bkg_mean}).sum(axis=(0, 1))"
         alternate_names = {
             f"{name}_total": roi_total,
             f"{name}_max": roi_max,
             f"{name}_min": roi_min,
+            f"{name}_mean": roi_mean,
+            f"{name}_bkg": roi_bkg_total,
+            f"{name}_rmbkg": roi_rmbkg,
             name: roi_array,
         }
         self.add_named_expression(**alternate_names)
