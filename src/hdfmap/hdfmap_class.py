@@ -361,20 +361,27 @@ class HdfMap:
         Add an image ROI (region of interest) to the named expressions
         The ROI operates on the default IMAGE dataset, loading only the required region from the file.
         The following expressions will be added, for use in self.eval etc.
-            *name* -> returns the whole ROI array
+            *name* -> returns the whole ROI array as a HDF5 dataset
             *name*_total -> returns the sum of each image in the ROI array
             *name*_max -> returns the max of each image in the ROI array
             *name*_min -> returns the min of each image in the ROI array
             *name*_mean -> returns the mean of each image in the ROI array
             *name*_bkg -> returns the background ROI array (area around ROI)
             *name*_rmbkg -> returns the total with background subtracted
+
+        :param name: string name of the ROI
+        :param cen_i: central pixel index along first dimension, can be callable string
+        :param cen_j: central pixel index along second dimension, can be callable string
+        :param wid_i: full width along first dimension, in pixels
+        :param wid_j: full width along second dimension, in pixels
+        :param image_name: string name of the image
         """
-        # TODO: add tests and docs
         wid_i = abs(wid_i) // 2
         wid_j = abs(wid_j) // 2
         islice = f"{cen_i}-{wid_i:.0f} : {cen_i}+{wid_i:.0f}"
         jslice = f"{cen_j}-{wid_j:.0f} : {cen_j}+{wid_j:.0f}"
-        roi_array = f"d_{image_name}[..., {islice}, {jslice}]"
+        dataset = f"d_{image_name}"
+        roi_array = dataset + f"[..., {islice}, {jslice}]"
         roi_total = f"{roi_array}.sum(axis=(-1, -2))"
         roi_max = f"{roi_array}.max(axis=(-1, -2))"
         roi_min = f"{roi_array}.min(axis=(-1, -2))"
@@ -382,7 +389,7 @@ class HdfMap:
 
         islice = f"{cen_i}-{wid_i * 2:.0f} : {cen_i}+{wid_i * 2:.0f}"
         jslice = f"{cen_j}-{wid_j * 2:.0f} : {cen_j}+{wid_j * 2:.0f}"
-        bkg_array = f"d_{image_name}[..., {islice}, {jslice}]"
+        bkg_array = dataset + f"[..., {islice}, {jslice}]"
         bkg_total = f"{bkg_array}.sum(axis=(-1, -2))"
         roi_bkg_total = f"({bkg_total} - {roi_total})"
         roi_bkg_mean = f"{roi_bkg_total}/(12*{wid_i * wid_j})"
@@ -959,8 +966,10 @@ class HdfMap:
         and loads data when required.
 
         The hdf file self.filename is used to extract data and is only opened during evaluation.
+
+            ii = HdfMap.create_interpreter()
+            out = ii.eval('expression')
         """
-        # TODO: add tests and docs
         interpreter = HdfMapInterpreter(
             hdfmap=self,
             replace_names=self._alternate_names,

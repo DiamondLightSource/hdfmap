@@ -1,3 +1,4 @@
+import h5py
 import pytest
 import sys
 import os
@@ -237,3 +238,27 @@ def test_eval_named_expression(hdf_map):
         out = hdf_map.eval(hdf, 'my_path')
         assert abs(out - 3.58) < 0.001, "Expression output gives wrong result"
 
+
+def test_roi(hdf_map):
+    hdf_map.add_roi('nroi1', 'pil3_centre_j', 'pil3_centre_i', 101, 21)
+    with hdfmap.load_hdf(FILE_HKL) as hdf:
+        out = hdf_map.eval(hdf, 'nroi1')
+        assert out.shape == (101, 100, 20), "ROI output is wrong shape"
+        out = hdf_map.eval(hdf, 'max(nroi1_total)')
+        assert out == 199042, "ROI total gives wrong result"
+        out = hdf_map.eval(hdf, 'max(nroi1_max)')
+        assert out == 13191, "ROI max gives wrong result"
+        out = hdf_map.eval(hdf, 'max(nroi1_min)')
+        assert out == 0, "ROI min gives wrong result"
+        out = hdf_map.eval(hdf, 'max(nroi1_mean)')
+        assert abs(out - 99.521) < 0.001, "ROI mean gives wrong result"
+        out = hdf_map.eval(hdf, 'max(nroi1_bkg)')
+        assert out == 333259, "ROI bkg gives wrong result"
+        out = hdf_map.eval(hdf, 'max(nroi1_rmbkg)')
+        assert abs(out - 195839) < 0.001, "ROI rmbkg gives wrong result"
+
+
+def test_interpreter(hdf_map):
+    ii = hdf_map.create_interpreter()
+    assert abs(ii('abs(mean(max(roi2_sum)))') - 359573) < 0.001, "Expression output gives wrong result"
+    assert 'hkl' in ii('scan_command'), 'Expression output gives wrong result'

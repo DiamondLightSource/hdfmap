@@ -440,48 +440,21 @@ def format_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, st
     return eval_hdf(hdf_file, expression, hdf_namespace, data_namespace, replace_names, default, raise_errors)
 
 
-def create_interpreter(hdf_file: h5py.File, hdf_namespace: dict[str, str],
-                       data_namespace: dict[str, typing.Any], replace_names: dict[str, str],
-                       default: typing.Any = DEFAULT) -> asteval.Interpreter:
-    """
-    Create an asteval Interpreter with a hdfmap namespace accessing data from the hdf file.
-
-    All datasets in the file are read, making this quite slow and heavy.
-
-    The Interpreter can be evaluated with expressions similar to eval_hdf, but does not contain the extended patterns.
-
-    Additional variables can be added to the evaluation local namespace using data_namespace.
-
-    Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
-
-    :param hdf_file: h5py.File object
-    :param hdf_namespace: dict of paths: {'variable name': '/hdf/dataset/path'}
-    :param data_namespace: dict of data: {'variable name': value}
-    :param replace_names: dict of {'variable_name': expression}
-    :param default: returned if varname not in namespace
-    :return: asteval(expression)
-    """
-    # TODO: can probably remove this one
-    # build a complete namespace
-    namespace = generate_namespace(hdf_file, hdf_namespace, default=default)
-    data_namespace.update({
-        replacement: namespace[name]
-        for name, replacement in replace_names.items()
-        if name in namespace
-    })
-    namespace.update(data_namespace)
-    # evaluate expression within namespace
-    interpreter = asteval.Interpreter(user_symbols=namespace, use_numpy=True)
-    return interpreter
-
-
 class HdfMapInterpreter(asteval.Interpreter):
     """
     HdfMap implementation of asteval.Interpreter
 
     Expression is parsed for patterns and loads HDF data before evaluation
+
+        m = HdfMap('file.nxs')
+        ii = HdfMapInterpreter(m, replace_names={}, default='', **kwargs)
+        out = ii.eval('expression')
+
+    :param hdfmap: HdfMap instance (including hdfmap.filename pointing to the HDF file)
+    :param replace_names: dict of {'variable_name': expression}
+    :param default: returned if varname not in namespace
+    :param kwargs: keyword arguments passed to asteval.Interpreter
     """
-    # TODO: create tests for this and more docs
     def __init__(self, hdfmap, replace_names: dict[str, str], default: typing.Any = DEFAULT, **kws):
         super().__init__(**kws)
         self.hdfmap = hdfmap
