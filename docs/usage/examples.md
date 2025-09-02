@@ -118,6 +118,33 @@ roi_sum = m('d_IMAGE[..., 90:110, 200:240].sum(axis=(-1, -2))') # -> array with 
 Note: External datasets are currently not closed by context managers (i.e. `with h5py.File...`). 
 This behaviour is a [known bug](https://github.com/h5py/h5py/issues/2454) and may be fixed in the future.
 
+### New in V1.0.1: Custom ROIs
+User defined Regions of Interest (ROIs) can be assigned for image datasets. The ROIs will only
+be evaluated when read and will only read the required region - not the whole dataset.
+
+On defining a ROI, several names will be added to the namespace:
+ - *name* -> returns the whole ROI array as a HDF5 dataset
+ - *name*_total -> returns the sum of each image in the ROI array
+ - *name*_max -> returns the max of each image in the ROI array
+ - *name*_min -> returns the min of each image in the ROI array
+ - *name*_mean -> returns the mean of each image in the ROI array
+ - *name*_bkg -> returns the background ROI array (area around ROI)
+ - *name*_rmbkg -> returns the total with background subtracted
+ - *name*_box -> returns the pixel positions of the ROI
+ - *name*_bkg_box -> returns the pixel positions of the background ROI
+
+Each ROI is given a name and must have a centre and widths defined. The centre value can be a string expression,
+allowing you to call other values from the file, such as a defined detector centre.
+
+```python
+from hdfmap import create_nexus_map
+
+m = create_nexus_map('file.nxs')
+m.add_roi('my_roi1', 'pil3_centre_j', 'pil3_centre_i', 31, 21)
+roi_volume = m('my_roi1')  # shape: (n, 31, 21)
+roi_total = m('my_roi1_total')  # shape: (n, )
+```
+
 
 ### formatted strings from metadata
 Format strings can also be parsed to obtain data from the hdf files. 
