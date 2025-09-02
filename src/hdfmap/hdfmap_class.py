@@ -368,6 +368,8 @@ class HdfMap:
             *name*_mean -> returns the mean of each image in the ROI array
             *name*_bkg -> returns the background ROI array (area around ROI)
             *name*_rmbkg -> returns the total with background subtracted
+            *name*_box -> returns the pixel positions of the ROI
+            *name*_bkg_box -> returns the pixel positions of the background ROI
 
         :param name: string name of the ROI
         :param cen_i: central pixel index along first dimension, can be callable string
@@ -386,6 +388,15 @@ class HdfMap:
         roi_max = f"{roi_array}.max(axis=(-1, -2))"
         roi_min = f"{roi_array}.min(axis=(-1, -2))"
         roi_mean = f"{roi_array}.mean(axis=(-1, -2))"
+        roi_box = (
+            'array([' +
+            f"[{cen_i}-{wid_i:.0f}, {cen_j}-{wid_j:.0f}]," +
+            f"[{cen_i}-{wid_i:.0f}, {cen_j}+{wid_j:.0f}]," +
+            f"[{cen_i}+{wid_i:.0f}, {cen_j}+{wid_j:.0f}]," +
+            f"[{cen_i}+{wid_i:.0f}, {cen_j}-{wid_j:.0f}]," +
+            f"[{cen_i}-{wid_i:.0f}, {cen_j}-{wid_j:.0f}]," +
+            '])'
+        )
 
         islice = f"{cen_i}-{wid_i * 2:.0f} : {cen_i}+{wid_i * 2:.0f}"
         jslice = f"{cen_j}-{wid_j * 2:.0f} : {cen_j}+{wid_j * 2:.0f}"
@@ -395,6 +406,16 @@ class HdfMap:
         roi_bkg_mean = f"{roi_bkg_total}/(12*{wid_i * wid_j})"
         # Transpose array to broadcast bkg_total
         roi_rmbkg = f"({roi_array}.T - {roi_bkg_mean}).sum(axis=(0, 1))"
+        roi_bkg_box = (
+            'array([' +
+            f"[{cen_i}-{wid_i * 2:.0f}, {cen_j}-{wid_j * 2:.0f}]," +
+            f"[{cen_i}-{wid_i * 2:.0f}, {cen_j}+{wid_j * 2:.0f}]," +
+            f"[{cen_i}+{wid_i * 2:.0f}, {cen_j}+{wid_j * 2:.0f}]," +
+            f"[{cen_i}+{wid_i * 2:.0f}, {cen_j}-{wid_j * 2:.0f}]," +
+            f"[{cen_i}-{wid_i * 2:.0f}, {cen_j}-{wid_j * 2:.0f}]," +
+            '])'
+        )
+
         alternate_names = {
             f"{name}_total": roi_total,
             f"{name}_max": roi_max,
@@ -402,6 +423,8 @@ class HdfMap:
             f"{name}_mean": roi_mean,
             f"{name}_bkg": roi_bkg_total,
             f"{name}_rmbkg": roi_rmbkg,
+            f"{name}_box": roi_box,
+            f"{name}_bkg_box": roi_bkg_box,
             name: roi_array,
         }
         self.add_named_expression(**alternate_names)
