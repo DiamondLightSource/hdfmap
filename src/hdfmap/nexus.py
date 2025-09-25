@@ -268,9 +268,15 @@ class NexusMap(HdfMap):
     def nexus_default_names(self) -> tuple[dict[str, str], dict[str, str]]:
         """Return name of default axes and signal paths, as defined in scannables"""
         axes_paths, signal_paths = self.nexus_default_paths()
-        axes_names = [self.datasets[path].name for path in axes_paths ]
+        axes_names = [self.datasets[path].name for path in axes_paths]
         signal_names = [self.datasets[path].name for path in signal_paths]
-        return self.first_last_scannables(axes_names, signal_names)
+        # axes_names = [name for path in axes_paths for name in self.datasets[path].names]
+        # signal_names = [name for path in signal_paths for name in self.datasets[path].names]
+        alt_names = {
+            self.datasets[path].name: self.datasets[path].names
+            for path in axes_paths + signal_paths
+        }
+        return self.first_last_scannables(axes_names, signal_names, alt_names)
 
     def generate_scannables_from_nxdata(self, hdf_file: h5py.File, use_auxiliary: bool = True):
         """Generate scannables from default NXdata, using axuiliary_names if available"""

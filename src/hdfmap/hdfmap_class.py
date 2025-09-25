@@ -537,7 +537,8 @@ class HdfMap:
         # self.generate_combined()
 
     def first_last_scannables(self, first_names: list[str] = (),
-                              last_names: list[str] = ()) -> tuple[dict[str, str], dict[str, str]]:
+                              last_names: list[str] = (),
+                              alt_names: dict[str, list[str]] | None = None) -> tuple[dict[str, str], dict[str, str]]:
         """
         Returns default names from scannables
             output first_names returns dict of N names, where N is the number of dimensions in scannable shape
@@ -546,12 +547,27 @@ class HdfMap:
 
         :param first_names: list of names of plottable axes in scannables
         :param last_names: list of names of plottable values in scannables
+        :param alt_names: dict of alternative names for each plottable value
         :return {first_names: path}, {last_names: path}
         """
-        all_names = list(first_names) + list(self.scannables.keys()) + list(last_names)
+        if alt_names is None:
+            alt_names = {}
+        list_names = list(first_names) + list(self.scannables.keys()) + list(last_names)
         # check names are in scannables
-        warnings = [name for name in all_names if name not in self.scannables]
-        all_names = [name for name in all_names if name in self.scannables]
+        warnings = []
+        all_names = []
+        for name in list_names:
+            if name in self.scannables:
+                all_names.append(name)
+            elif name in alt_names:
+                alt_name = next((alt for alt in alt_names[name] if alt in self.scannables), None)
+                if alt_name:
+                    all_names.append(alt_name)
+                else:
+                    warnings.append(name)
+            else:
+                warnings.append(name)
+
         for name in warnings:
             logger.warning(f"name: '{name}' not in scannables")
         # return correct number of values from start and end
