@@ -166,6 +166,7 @@ class HdfMap:
         self._local_data = {}  # stores variables and data to be used in eval
         self._alternate_names = {}  # stores variable names for expressions to be evaluated
         self._default_image_path = None
+        self._use_local_data = False  # if True, preferentially loads data from _local_data
 
         if isinstance(file, h5py.File):
             self.populate(file)
@@ -350,6 +351,16 @@ class HdfMap:
     def add_local(self, **kwargs):
         """Add value to the local namespace, used in eval"""
         self._local_data.update(kwargs)
+
+    def use_local_data(self, use_data: bool = True):
+        """
+        Activate the option to reload data from the namespace locally, rather than from the file.
+
+        self.eval(hdf, 'cmd') -> default will load 'cmd' from the file based on the hdf path associated with cmd
+        self.use_local_data() -> self.eval(hdf, 'cmd') will return 'cmd' from local data if available, or from the file.
+        self.use_local_data(False) -> returns to default behaviour
+        """
+        self._use_local_data = use_data
 
     def add_named_expression(self, **kwargs):
         """Add named expression to the local namespace, used in eval"""
@@ -985,7 +996,16 @@ class HdfMap:
         :param raise_errors: raise exceptions if True, otherwise return str error message as result and log the error
         :return: eval(expression)
         """
-        return eval_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default, raise_errors)
+        return eval_hdf(
+            hdf_file=hdf_file,
+            expression=expression,
+            hdf_namespace=self.combined,
+            data_namespace=self._local_data,
+            replace_names=self._alternate_names,
+            default=default,
+            use_stored_data=self._use_local_data,
+            raise_errors=raise_errors
+        )
 
     def format_hdf(self, hdf_file: h5py.File, expression: str, default=DEFAULT, raise_errors: bool = True) -> str:
         """
@@ -996,7 +1016,16 @@ class HdfMap:
         :param raise_errors: raise exceptions if True, otherwise return str error message as result and log the error
         :return: eval_hdf(f"expression")
         """
-        return format_hdf(hdf_file, expression, self.combined, self._local_data, self._alternate_names, default, raise_errors)
+        return format_hdf(
+            hdf_file=hdf_file,
+            expression=expression,
+            hdf_namespace=self.combined,
+            data_namespace=self._local_data,
+            replace_names=self._alternate_names,
+            default=default,
+            use_stored_data=self._use_local_data,
+            raise_errors=raise_errors
+        )
 
     def create_interpreter(self, default=DEFAULT):
         """
@@ -1016,6 +1045,7 @@ class HdfMap:
             user_symbols=self._local_data,
             use_numpy=True
         )
+        interpreter.use_stored_data = self._use_local_data
         return interpreter
 
     def create_dataset_summary(self, hdf_file: h5py.File) -> str:

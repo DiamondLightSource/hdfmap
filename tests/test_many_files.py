@@ -11,6 +11,22 @@ NFILES = 1332  # number of files to test (max 1332)
 # FORMAT_STRING = """#{entry_identifier}\ncmd: {scan_command}\n"""
 FORMAT_STRING = '#{entry_identifier}: {start_time} : E={incident_energy:.3f} keV : {scan_command}'
 
+DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
+LOCAL_FILES = [
+    DATA_FOLDER + '/1040323.nxs',  # new nexus format
+    DATA_FOLDER + '/i06-353130.nxs',  # new nexus format
+]
+
+
+def test_use_local_data():
+    m = hdfmap.create_nexus_map(LOCAL_FILES[0])
+    exp = "(cmd|scan_command)"
+    cmd = [m.eval(hdfmap.load_hdf(f), exp) for f in LOCAL_FILES]
+    assert len(set(cmd)) > 1, "datasets from different files are the same when they shouldn't be"
+    m.use_local_data(True)
+    cmd = [m.eval(hdfmap.load_hdf(f), exp) for f in LOCAL_FILES]
+    assert len(set(cmd)) == 1, "datasets from different files are different when they shouldn't be"
+
 
 @only_dls_file_system
 def test_compare_time_for_many_files():

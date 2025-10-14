@@ -142,10 +142,12 @@ def test_get_metadata(hdf_map):
 def test_create_metadata_list(hdf_map):
     with hdfmap.hdf_loader.load_hdf(FILE_HKL) as hdf:
         meta = hdf_map.create_metadata_list(hdf)
+    # remove first line to avoid filepath errors
+    meta = '\n'.join(meta.splitlines()[1:])
     if sys.version_info >= (3, 11, 0):
-        assert len(meta) == 5280, "Length of metadata list wrong"
+        assert len(meta) == 5214, "Length of metadata list wrong"
     else:  # length of time strings changes
-        assert len(meta) == 5312, "Length of metadata list wrong"
+        assert len(meta) == 5182, "Length of metadata list wrong"
 
 
 def test_get_scannables(hdf_map):
@@ -219,11 +221,11 @@ def test_format_hdf(hdf_map):
 
 
 def test_eval_local_data(hdf_map):
-    hdf_map.add_local(new_var='testing-testing', Transmission=10.)
+    hdf_map.add_local(new_var='testing-testing', myTransmission=10.)
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         out = hdf_map.eval(hdf, 'new_var')
         assert out == 'testing-testing', "Expression output gives wrong result"
-        out = hdf_map.eval(hdf, 'int(max(sum / Transmission / count_time))')
+        out = hdf_map.eval(hdf, 'int(max(sum / myTransmission / count_time))')
         assert out == 653318, "Expression output gives wrong result"
 
 
