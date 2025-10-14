@@ -219,11 +219,11 @@ def test_format_hdf(hdf_map):
 
 
 def test_eval_local_data(hdf_map):
-    hdf_map.add_local(new_var='testing-testing', Transmission=10.)
+    hdf_map.add_local(new_var='testing-testing', myTransmission=10.)
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         out = hdf_map.eval(hdf, 'new_var')
         assert out == 'testing-testing', "Expression output gives wrong result"
-        out = hdf_map.eval(hdf, 'int(max(sum / Transmission / count_time))')
+        out = hdf_map.eval(hdf, 'int(max(sum / myTransmission / count_time))')
         assert out == 653318, "Expression output gives wrong result"
 
 
