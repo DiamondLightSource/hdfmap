@@ -52,8 +52,9 @@ def test_hdf_tree_dict():
 
 def test_hdf_compare():
     comparison = hdfmap.hdf_compare(FILE_HKL, FILE_NEW_NEXUS)
-    print(comparison)
-    assert len(comparison) == 26879, "comparison string wrong length"
+    # Remove file paths for comparison
+    comparison = '\n'.join(comparison.splitlines()[4:])
+    assert len(comparison) == 26745, "comparison string wrong length"
 
 
 def test_hdf_find():
