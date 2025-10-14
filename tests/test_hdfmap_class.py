@@ -145,9 +145,9 @@ def test_create_metadata_list(hdf_map):
     # remove first line to avoid filepath errors
     meta = '\n'.join(meta.splitlines()[1:])
     if sys.version_info >= (3, 11, 0):
-        assert len(meta) == 5182, "Length of metadata list wrong"
-    else:  # length of time strings changes
         assert len(meta) == 5214, "Length of metadata list wrong"
+    else:  # length of time strings changes
+        assert len(meta) == 5182, "Length of metadata list wrong"
 
 
 def test_get_scannables(hdf_map):
