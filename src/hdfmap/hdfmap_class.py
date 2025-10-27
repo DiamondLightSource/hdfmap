@@ -3,12 +3,12 @@ hdfmap class definition
 """
 import typing
 from collections import defaultdict
-from types import SimpleNamespace
 
 import numpy as np
 import h5py
 
 from . import load_hdf
+from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
 from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf, HdfMapInterpreter,
                              format_hdf, dataset2data, dataset2str, is_image,
@@ -46,29 +46,6 @@ def generate_alt_name(hdf_dataset: h5py.Dataset) -> str | None:
             alt_name = alt_name.decode()
         return expression_safe_name(alt_name.split('.')[-1])
     return None
-
-
-def disp_dict(mydict: dict, indent: int = 10) -> str:
-    return '\n'.join([f"{key:>{indent}}: {value}" for key, value in mydict.items()])
-
-
-class DataHolder(SimpleNamespace):
-    """
-    Convert dict to class that looks like a class object with key names as attributes
-    Replicates slightly the old scisoftpy.dictutils.DataHolder class, also known as DLS dat format.
-        obj = DataHolder(**{'item1': 'value1'})
-        obj['item1'] -> 'value1'
-        obj.item1 -> 'value1'
-    """
-
-    def __getitem__(self, item):
-        return self.__dict__.__getitem__(item)
-
-    def __iter__(self):
-        return self.__dict__.__iter__()
-
-    def keys(self):
-        return self.__dict__.keys()
 
 
 class HdfMap:
@@ -778,6 +755,26 @@ class HdfMap:
         if group_path:
             return self.groups[group_path].datasets
         return None
+
+    def generate_ids(self, *names: str, modify_missing: bool = True) -> list[str]:
+        """
+        Will return the path identifier of the given name if the name is in the namespace,
+        otherwise a valid identifier will be generated.
+
+            xlabel, ylabel = generate_axis_labels('axes', 'signal')
+            generate_axis_labels('my/data/label', modify_missing=True) #-> ['label', ]
+            generate_axis_labels('(x-y)/y', modify_missing=False) #-> ['(x-y)/y', ]
+
+        :param names: names to generate axis labels for
+        :param modify_missing: if True, modifies names even if they are not in namespace
+        :return: list of axis labels as valid identifiers
+        """
+        return [
+            generate_identifier(self.combined.get(name, name)) if modify_missing else (
+                generate_identifier(self.combined[name]) if name in self.combined else name
+            )
+            for name in names
+        ]
 
     "--------------------------------------------------------"
     "---------------------- FILE READERS --------------------"

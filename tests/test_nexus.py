@@ -98,3 +98,11 @@ def test_3d_scan():
         assert image.shape == (512, 512), "image shape is wrong"
 
 
+def test_generate_ids(hdf_map):
+    xlabel, ylabel, expression = hdf_map.generate_ids('axes', 'signal', 'entry/measurement/sum')
+    assert xlabel == 'h'
+    assert ylabel == 'rc'
+    assert expression == 'sum'
+    expression, = hdf_map.generate_ids('signal/Transmission', modify_missing=False)
+    assert expression == 'signal/Transmission'
+

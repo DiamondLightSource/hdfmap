@@ -7,7 +7,8 @@ import os
 import h5py
 
 from .logging import create_logger
-from .hdfmap_class import HdfMap, disp_dict
+from .hdfmap_class import HdfMap
+from .data_holder import disp_dict
 from .eval_functions import generate_identifier, build_hdf_path, is_image
 
 NX_CLASS = 'NX_class'
