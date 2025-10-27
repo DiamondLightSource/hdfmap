@@ -202,8 +202,9 @@ with load_hdf('file.nxs') as nxs:
     axes = hmap.get_data(nxs, 'axes')
     signal = hmap.get_data(nxs, 'signal')
     title = hmap.format_hdf(nxs, "{entry_identifier}\n{scan_command}")
-axes_label = hmap.get_path('axes')
-signal_label = hmap.get_path('signal')
+# axes_label = hmap.get_path('axes')
+# signal_label = hmap.get_path('signal')
+axes_label, signal_label = hmap.generate_ids('axes', 'signal')  # new in V1.1
 # plot the data (e.g. using matplotlib)
 plt.figure()
 plt.plot(axes, signal)
@@ -230,6 +231,7 @@ from hdfmap import create_nexus_map, load_hdf
 hmap = create_nexus_map('file.nxs')
 image_location = hmap.get_image_path()  # returns the hdf path chosen for the default detector
 with load_hdf('file.nxs') as nxs:
+    name, = hmap.generate_ids('IMAGE')  # returns detector name, new in V1.1
     middle_image = hmap.get_image(nxs)  # returns single image from index len(dataset)//2
     first_image = hmap.get_image(nxs, 0)  # returns single image from dataset[0, :, :]
     volume = hmap.get_image(nxs, ())  # returns whole volume as array
@@ -275,6 +277,7 @@ axes_paths, signal_paths = scan.map.nexus_default_paths()
 axes_x = scan('axes0')
 axes_y = scan('axes1')
 signal = scan('signal')
+x_label, y_label, signal_label = scan.map.generate_ids('axes0', 'axes1', 'signal')  # new in V1.1
 
 # Image data from MD scans
 scan_shape = scan.map.get_image_shape()

@@ -58,6 +58,7 @@ from .reloader_class import HdfLoader, NexusLoader
 
 
 __all__ = [
+    'HdfMap', 'NexusMap', 'HdfLoader', 'NexusLoader',
     'load_hdf', 'create_hdf_map', 'create_nexus_map', 'list_files',
     'hdf_tree_string', 'hdf_tree_dict', 'hdf_dataset_list', 'hdf_compare', 'compare_maps', 'hdf_find',
     'hdf_find_first', 'hdf_linked_files',
@@ -65,8 +66,9 @@ __all__ = [
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
-__version__ = "1.0.2"
-__date__ = "2025/10/14"
+__version__ = "1.1.0"
+__date__ = "2025/10/27"
+__author__ = "Dan Porter"
 
 
 def version_info() -> str:
