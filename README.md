@@ -6,7 +6,7 @@ Map objects within an HDF5 file and create a dataset namespace.
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![](https://img.shields.io/github/forks/DiamondLightSource/hdfmap?label=GitHub%20Repo&style=social)](https://github.com/DiamondLightSource/hdfmap)
 
-**Version 1.0**
+**Version 1.1**
 
 | By Dan Porter        | 
 |----------------------|
@@ -37,6 +37,7 @@ with load_hdf('file.nxs') as nxs:
     cmd = m.eval(nxs, 'scan_command.strip()')  # returns evaluated output
     string = m.format_hdf(nxs, "the energy is {energy:.2f} keV")
     d = m.get_dataholder(nxs)  # classic data table, d.scannable, d.metadata
+    xlabel, ylabel = m.generate_ids('axes', 'signal')  # return path identifier of name
 
 # new in V1.0.0 - evaluate name based expressions in the original file
 m('signal / count_time') # >> numpy array
@@ -239,13 +240,12 @@ with load_hdf('file.nxs') as nxs:
     axes = hmap.get_data(nxs, 'axes')
     signal = hmap.get_data(nxs, 'signal')
     title = hmap.format_hdf(nxs, "{entry_identifier}\n{scan_command}")
-axes_label = hmap.get_path('axes')
-signal_label = hmap.get_path('signal')
+xlabel, ylabel = hmap.generate_ids('axes', 'signal')
 # plot the data (e.g. using matplotlib)
 plt.figure()
 plt.plot(axes, signal)
-plt.xlabel(axes_label)
-plt.ylabel(signal_label)
+plt.xlabel(xlabel)
+plt.ylabel(ylabel)
 plt.title(title)
 
 # Or, using NexusLoader:
