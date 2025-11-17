@@ -254,6 +254,7 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str],
             if symbol.startswith(startswith) and hdf_namespace.get(name := symbol[len(startswith):], '') in hdf_file
         )
 
+    extra_data = extra_hdf_data(hdf_file)
     namespace = {symbol: dataset2data(hdf_file[hdf_namespace[name]]) for symbol, name in select_ids()}
     strings = {symbol: dataset2str(hdf_file[hdf_namespace[name]], units=True) for symbol, name in select_ids('s_')}
     datasets = {symbol: hdf_file[hdf_namespace[name]] for symbol, name in select_ids('d_')}
@@ -266,8 +267,8 @@ def generate_namespace(hdf_file: h5py.File, hdf_namespace: dict[str, str],
         if name not in data_namespace and name not in GLOBALS_NAMELIST
            and hdf_namespace.get(name, '') not in hdf_file
     }
-    # combine with precendence
-    data = {**defaults, **hdf_paths, **hdf_names, **datasets, **strings, **namespace}
+    # combine with precedence
+    data = {**defaults, **hdf_paths, **hdf_names, **datasets, **strings, **namespace, **extra_data}
     # add or overwrite data in data_namespace
     data_namespace.update(data)
     return data
@@ -304,16 +305,13 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
     """
     if data_namespace is None:
         data_namespace = {}
-    # get extra data
-    extra_data = extra_hdf_data(hdf_file)
     # find name@attribute in expression
     attributes = {
         f"attr__{name}_{attr}": dataset_attribute(hdf_file[path], attr)
-        for name, attr in re_dataset_attributes.findall(expression)
+        for name, attr in re_dataset_attributes.findall(expression)  # name@attr
         if (path := hdf_namespace.get(name, '')) in hdf_file
     }
-    extra_data.update(attributes)
-    data_namespace.update(extra_data)  # update in the parent function
+    data_namespace.update(attributes)  # adds data in the parent function
     # replace name@attribute in expression
     expression = re_dataset_attributes.sub(r'attr__\g<1>_\g<2>', expression)
     # find values with defaults '..?(..)'

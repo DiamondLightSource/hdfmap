@@ -18,6 +18,7 @@ def test_edge_cases():
         assert path.isfile(chk['filename']) is True, f"{chk['filename']} doesn't exist"
         mymap = hdfmap.create_nexus_map(chk['filename'])
         assert isinstance(mymap, hdfmap.NexusMap), f"{chk['filename']} is not NexusMap"
+        assert mymap('filepath') == chk['filename']
         assert len(mymap.combined) == chk['len_combined'], "{chk['filename']} has wrong size of combined"
         assert len(mymap.scannables) == chk['len_scannables'], f"{chk['filename']} has wrong size of scannables"
         assert mymap.scannables_length() == chk['scannables_length'], f"{chk['filename']} has wrong scannables_length"
@@ -51,6 +52,22 @@ def test_new_i16_file():
     assert h.shape == (21,), 'expression "h" has wrong shape'
     assert hkl == '--', 'default for expression "hkl" is incorrect'
     assert fname == '1040323.nxs'
+
+
+@only_dls_file_system
+def test_newer_i16_file():
+    filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1109527.nxs'
+    assert path.isfile(filename) is True, f"{filename} doesn't exist"
+    mymap = hdfmap.create_nexus_map(filename)
+    with hdfmap.hdf_loader.load_hdf(filename) as hdf:
+        axes, signal, IMAGE, fname, fpath = mymap.eval(hdf, 'axes, signal, _IMAGE, filename, filepath')
+    assert axes.shape == (61, ), 'expression "axes" has wrong shape'
+    assert signal.shape == (61,), 'expression "axes" has wrong shape'
+    assert signal.max() == 692919
+    assert isinstance(fname, str), "expression 'filename' has wrong type"
+    assert filename.endswith(fname)
+    assert isinstance(fpath, str), "expression 'filepath' has wrong type"
+    assert fpath == filename
 
 
 @only_dls_file_system
