@@ -28,6 +28,7 @@ NX_AXES = 'axes'
 NX_DETECTOR = 'NXdetector'
 NX_DETECTOR_DATA = 'data'
 NX_IMAGE_DATA = 'image_data'
+NX_IMAGE_NUMBER = 'path'
 NX_UNITS = 'units'
 logger = create_logger(__name__)
 
@@ -189,6 +190,7 @@ class NexusMap(HdfMap):
         nxmap.populate(nxs, default_entry_only=True)  # populates only from the default entry
 
     # Special behaviour
+    nxmap.image_data is preferentially populated by NXdetector groups
     nxmap['axes'] -> return path of default axes dataset
     nxmap['signal'] -> return path of default signal dataset
     nxmap['image_data'] -> return path of first area detector data object
@@ -340,6 +342,7 @@ class NexusMap(HdfMap):
             # detector data is stored in NXdata in dataset 'data'
             data_path = build_hdf_path(group_path, NX_DETECTOR_DATA)
             image_data_path = build_hdf_path(group_path, NX_IMAGE_DATA)
+            image_data_numbers = build_hdf_path(group_path, NX_IMAGE_NUMBER)
             logger.debug(f"Looking for image_data at: '{data_path}' or '{image_data_path}'")
             if data_path in self.datasets and is_image(self.datasets[data_path].shape, image_ndim):
                 logger.info(f"Adding image_data ['{detector_name}'] = '{data_path}'")
@@ -348,13 +351,22 @@ class NexusMap(HdfMap):
                 # also save image_data if available
                 if image_data_path in self.datasets:
                     detector_name = f"{detector_name}_image_list"
-                    logger.info(f"Adding image_data ['{detector_name}'] = '{image_data_path}'")
+                    logger.info(f"Adding image_data str ['{detector_name}'] = '{image_data_path}'")
                     self.image_data[detector_name] = image_data_path
                     self.arrays[detector_name] = image_data_path
+                elif image_data_numbers in self.datasets:
+                    detector_name = f"{detector_name}_image_list"
+                    logger.info(f"Adding image_data 1D ['{detector_name}'] = '{image_data_numbers}'")
+                    self.image_data[detector_name] = image_data_numbers
+                    self.arrays[detector_name] = image_data_numbers
             elif image_data_path in self.datasets:
-                logger.info(f"Adding image_data ['{detector_name}'] = '{image_data_path}'")
+                logger.info(f"Adding image_data str ['{detector_name}'] = '{image_data_path}'")
                 self.image_data[detector_name] = image_data_path
                 self.arrays[detector_name] = image_data_path
+            elif image_data_numbers in self.datasets:
+                logger.info(f"Adding image_data 1D ['{detector_name}'] = '{image_data_numbers}'")
+                self.image_data[detector_name] = image_data_numbers
+                self.arrays[detector_name] = image_data_numbers
             else:
                 # Use first dataset with > 2 dimensions
                 image_dataset = next((

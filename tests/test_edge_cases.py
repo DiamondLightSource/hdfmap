@@ -71,6 +71,18 @@ def test_newer_i16_file():
 
 
 @only_dls_file_system
+def test_i16_bpm_file():
+    filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1113658.nxs'
+    assert path.isfile(filename) is True, f"{filename} doesn't exist"
+    mymap = hdfmap.create_nexus_map(filename)
+    assert mymap.get_image_path() == '/entry/instrument/bpm/path'
+    with hdfmap.hdf_loader.load_hdf(filename) as hdf:
+        image = mymap.get_image(hdf)
+    assert image.ndim == 0, 'bpm image has wrong shape'
+    assert int(image) == 11, 'bpm image has wrong value'
+
+
+@only_dls_file_system
 def test_msmapper_file():
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/processed/1098101_msmapper.nxs'
     assert path.isfile(filename) is True, f"{filename} doesn't exist"

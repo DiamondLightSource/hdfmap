@@ -356,7 +356,7 @@ class HdfMap:
             *name*_mean -> returns the mean of each image in the ROI array
             *name*_bkg -> returns the background ROI array (area around ROI)
             *name*_rmbkg -> returns the total with background subtracted
-            *name*_box -> returns the pixel positions of the ROI
+            *name*_box -> returns the pixel positions of the ROI corners
             *name*_bkg_box -> returns the pixel positions of the background ROI
 
         :param name: string name of the ROI
