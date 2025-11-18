@@ -322,12 +322,12 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
         else:
             expression = expression.replace(match.group(), name)
     # find alternate names '(opt1|opt2|opt3)'
-    for alt_names in re_dataset_alternate.findall(expression):  # alt_names = 'opt1|opt2|opt3
+    for alt_names in re_dataset_alternate.findall(expression):  # alt_names = 'opt1|opt2|opt3'
         names = alt_names.split('|')
         # first available name in hdf_namespace or last name
         name = next(
             (n for n in names if n in attributes),
-            next((n for n in names if n in hdf_namespace), names[-1])
+            next((n for n in names if hdf_namespace.get(n, '') in hdf_file), names[-1])
         )
         expression = expression.replace(f"({alt_names})", name)  # replace parentheses
     return expression

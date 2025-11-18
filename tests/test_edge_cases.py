@@ -93,3 +93,19 @@ def test_msmapper_file():
     assert gamma > 1.0, 'unit cell incorrect'
 
 
+@only_dls_file_system
+def test_alternate_name_local_data():
+    f1 = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1109527.nxs'
+    f2 = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1113658.nxs'
+    m = hdfmap.create_nexus_map(f1)
+
+    with hdfmap.load_hdf(f1) as nxs:
+        scan_command1 = m.get_data(nxs, 'scan_command')
+        print(scan_command1)
+        cmd1 = m.eval(nxs, '(cmd|scan_command)')
+        assert scan_command1 != cmd1, 'cmd and scan_command should not be the same'
+    with hdfmap.load_hdf(f2) as nxs:
+        scan_command2 = m.get_data(nxs, 'scan_command')
+        cmd2 = m.eval(nxs, '(cmd|scan_command)')
+        assert scan_command2 == cmd2, 'cmd and scan_command should be the same'
+    assert cmd1 != cmd2, 'cmd of both files should not be the same'
