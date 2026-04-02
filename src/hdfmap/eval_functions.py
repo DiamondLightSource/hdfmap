@@ -377,7 +377,8 @@ def prepare_expression_load_data(hdf_file: h5py.File, expression: str, hdf_names
     if use_stored_data:
         # remove identifiers already in data_namespace so they aren't reloaded
         identifiers = [new_id for new_id in identifiers if new_id not in data_namespace]
-    generate_namespace(hdf_file, hdf_namespace, identifiers, default, data_namespace)  # load data into data_namespace
+    # load identifiers data from file into data_namespace
+    generate_namespace(hdf_file, hdf_namespace, identifiers, default, data_namespace)
     logger.info(f"Expression: {expression}\nidentifiers: {identifiers}\n")
     logger.debug(f"hdf data namespace: {data_namespace}\n")
     return expression

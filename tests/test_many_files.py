@@ -1,7 +1,6 @@
 import os
 from time import perf_counter
 import hdfmap
-import hdfmap.hdf_loader
 
 from . import only_dls_file_system
 
@@ -36,7 +35,7 @@ def test_compare_time_for_many_files():
     start = perf_counter()
     output1 = []
     for file in files:
-        with hdfmap.hdf_loader.load_hdf(file) as hdf:
+        with hdfmap.load_hdf(file) as hdf:
             output1.append((
                 hdf['/entry1/scan_command'][()],
                 hdf['/entry1/entry_identifier'][()],
@@ -56,7 +55,7 @@ def test_compare_time_for_many_files():
     start = perf_counter()
     output1 = []
     for file in files:
-        with hdfmap.hdf_loader.load_hdf(file) as hdf:
+        with hdfmap.load_hdf(file) as hdf:
             output1.append((
                 hdf['/entry1/scan_command'][()],
                 hdf['/entry1/entry_identifier'][()],
@@ -72,3 +71,30 @@ def test_compare_time_for_many_files():
     print(f"Performance factor: {((multi_time-single_time2) / single_time2):+.1%} of direct access time")
     # Typically around 40% slower
     assert multi_time < 1.5 * single_time2, "mult-read is much slower than direct read"
+
+
+@only_dls_file_system
+def test_local_data_from_different_files():
+    """Test for issue #42 - multiple instances of HdfLoader contain the same local namespace"""
+    # i21 files 2026 mm23841-1
+    folder = '/dls/science/groups/das/ExampleData/hdfmap_tests/i21/mm23841-1'
+    file1, file2 = [folder + f'/i21-{n}.nxs' for n in [472812, 472811]]
+    m1 = hdfmap.create_nexus_map(file1)
+    m2 = hdfmap.create_nexus_map(file2)
+    assert 'user_input_command' in m1
+    assert 'user_input_command' not in m2
+
+    scan1 = hdfmap.NexusLoader(file1, m1)
+    scan2 = hdfmap.NexusLoader(file2, m1)
+    scan1.add_local(some_data=55)
+    assert scan1.map is scan2.map
+
+    cmd1 = scan1.format('{(cmd|user_input_command|user_command|scan_command)}')
+    cmd2 = scan2.format('{(cmd|user_input_command|user_command|scan_command)}')
+    assert cmd1 != cmd2
+    assert scan1('some_data') == 55
+
+    # setting local data of scan2 also updates scan 1
+    scan2.add_local(some_data=44)
+    assert scan2('some_data') == 44
+    assert scan1('some_data') == 55
