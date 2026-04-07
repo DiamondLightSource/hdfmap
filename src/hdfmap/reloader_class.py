@@ -2,6 +2,7 @@
 Reloader class
 """
 
+import os
 import h5py
 import numpy as np
 
@@ -30,6 +31,11 @@ class HdfLoader:
             self.map = create_hdf_map(hdf_filename)
         else:
             self.map = hdf_map
+        self._prefer_local_data = True
+        self._local_data = {
+            'filepath': os.path.abspath(hdf_filename),
+            'filename': os.path.basename(hdf_filename),
+        }
 
     def __repr__(self):
         return f"HdfReloader('{self.filename}')"
@@ -42,13 +48,33 @@ class HdfLoader:
     def __getitem__(self, item):
         return self.get_data(item)
 
+    # def __iter__(self):
+    #     return iter(self.combined)
+
+    def __contains__(self, item):
+        return item in self.map or item in self._local_data
+
     def __call__(self, expression):
         return self.eval(expression)
 
     def _load(self) -> h5py.File:
         return load_hdf(self.filename)
 
-    def get_hdf_path(self, name_or_path: str) -> str or None:
+    def add_local(self, **kwargs):
+        """Add value to the local namespace, used in eval and format"""
+        self._local_data.update(kwargs)
+
+    def live_mode(self, live_mode: bool = True):
+        """
+        Activate the option to reload data from the file each time, rather than from local data
+
+        self.eval('cmd') -> default will load 'cmd' from local storage if available, or from the file
+        self.live_mode() -> self.eval('cmd') will return 'cmd' from the file using hdfmap
+        self.live_mode(False) -> returns to default behavior
+        """
+        self._prefer_local_data = live_mode
+
+    def get_hdf_path(self, name_or_path: str) -> str | None:
         """Return hdf path of object in HdfMap"""
         return self.map.get_path(name_or_path)
 
@@ -125,25 +151,46 @@ class HdfLoader:
         with self._load() as hdf:
             return self.map.create_dataset_summary(hdf)
 
-    def eval(self, expression: str, default=DEFAULT):
+    def eval(self, expression: str, default=DEFAULT, prefer_local: bool | None = None, raise_errors: bool = True):
         """
         Evaluate an expression using the namespace of the hdf file
         :param expression: str expression to be evaluated
         :param default: returned if varname not in namespace
+        :param prefer_local: if True, uses values in local_data first if available
+        :param raise_errors: raise exceptions if True, otherwise return str error message as result and log the error
         :return: eval(expression)
         """
+        prefer_local = self._prefer_local_data if prefer_local is None else prefer_local
+        if prefer_local and expression in self._local_data:
+            return self._local_data[expression]
         with self._load() as hdf:
-            return self.map.eval(hdf, expression, default)
+            return self.map.eval(
+                hdf_file=hdf,
+                expression=expression,
+                default=default,
+                local_data=self._local_data,
+                prefer_local=prefer_local,
+                raise_errors=raise_errors
+            )
 
-    def format(self, expression: str, default=DEFAULT):
+    def format(self, expression: str, default=DEFAULT, prefer_local: bool | None = None, raise_errors: bool = True) -> str:
         """
         Evaluate a formatted string expression using the namespace of the hdf file
         :param expression: str expression using {name} format specifiers
         :param default: returned if varname not in namespace
+        :param prefer_local: if True, uses values in local_data first if available
+        :param raise_errors: raise exceptions if True, otherwise return str error message
         :return: eval_hdf(f"expression")
         """
         with self._load() as hdf:
-            return self.map.format_hdf(hdf, expression, default)
+            return self.map.format_hdf(
+                hdf_file=hdf,
+                expression=expression,
+                default=default,
+                local_data=self._local_data,
+                prefer_local=self._prefer_local_data if prefer_local is None else prefer_local,
+                raise_errors=raise_errors
+            )
 
 
 class NexusLoader(HdfLoader):

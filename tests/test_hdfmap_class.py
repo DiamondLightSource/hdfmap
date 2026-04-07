@@ -232,13 +232,18 @@ def test_eval_local_data(hdf_map):
 def test_eval_named_expression(hdf_map):
     hdf_map.add_named_expression(
         norm_data='int(max(sum / Transmission / count_time))',
-        my_path=hdf_map['incident_energy']
+        my_path=hdf_map['incident_energy'],
+        kap="kth"
     )
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         out = hdf_map.eval(hdf, 'norm_data')
         assert out == 6533183, "Expression output gives wrong result"
         out = hdf_map.eval(hdf, 'my_path')
-        assert abs(out - 3.58) < 0.001, "Expression output gives wrong result"
+        assert out == pytest.approx(3.58, 0.001), "Expression output gives wrong result"
+        kap, kappa, kth = hdf_map.eval(hdf, 'mean(kap), mean(kappa), mean(kth)')
+        assert kap == pytest.approx(81.122, 0.001), "kap not correctly replaced"
+        assert kappa == pytest.approx(-134.192, 0.001), "kappa has been changed incorrectly"
+        assert kth == pytest.approx(81.122, 0.001), "kth has been changed incorrectly"
 
 
 def test_roi(hdf_map):
