@@ -154,6 +154,19 @@ class HdfLoader:
     def eval(self, expression: str, default=DEFAULT, prefer_local: bool | None = None, raise_errors: bool = True):
         """
         Evaluate an expression using the namespace of the hdf file
+
+        The following patterns are allowed:
+         - 'filename': str, name of hdf_file
+         - 'filepath': str, full path of hdf_file
+         - '_*name*': str hdf path of *name*
+         - '__*name*': str internal name of *name* (e.g. for 'axes')
+         - 's_*name*': string representation of dataset (includes units if available)
+         - 'd_*name*': return dataset object. **warning**: may result in file not closing on completion
+         - '*name*@attr': returns attribute of dataset *name*
+         - '*name*?(default)': returns default if *name* doesn't exist
+         - '(name1|name2|name3)': returns the first available of the names
+         - '(name1|name2?(default))': returns the first available name or default
+
         :param expression: str expression to be evaluated
         :param default: returned if varname not in namespace
         :param prefer_local: if True, uses values in local_data first if available
@@ -176,6 +189,13 @@ class HdfLoader:
     def format(self, expression: str, default=DEFAULT, prefer_local: bool | None = None, raise_errors: bool = True) -> str:
         """
         Evaluate a formatted string expression using the namespace of the hdf file
+        Identifiers from the namespace can be called inside {} as a
+        formatted f-string.
+
+        E.G.
+            expression = '{scan_command} E={mean(incident_energy):.2f}'
+            output = scan.format(expression)
+
         :param expression: str expression using {name} format specifiers
         :param default: returned if varname not in namespace
         :param prefer_local: if True, uses values in local_data first if available
