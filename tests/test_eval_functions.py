@@ -8,7 +8,7 @@ from hdfmap.eval_functions import replace_expression_vars, prepare_expression_lo
 
 
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
-FILE_HKL = DATA_FOLDER + "/1049598.nxs"  # hkl scan, pilatus
+FILE_HKL = DATA_FOLDER + "/1040323.nxs"  # hkl scan, pilatus
 
 
 def test_replace_expression_vars():
@@ -19,10 +19,16 @@ def test_replace_expression_vars():
 
 
 def test_prepare_expression_load_data():
-    expression = 'idgap@units'
+    expression = 'idgap@units, x*y'
+    repl = {
+        'x': 'a',
+    }
+    hdf_map = {'idgap': '/entry/instrument/insertion_device/gap'}
+    data = {}
     with hdfmap.load_hdf(FILE_HKL) as hdf:
-        new_expr = prepare_expression_load_data(hdf, expression, {}, {}, {})
-    assert new_expr == expression
+        new_expr = prepare_expression_load_data(hdf, expression, hdf_map, data, repl)
+    assert new_expr == "attr__idgap_units, a*y"
+    assert data['attr__idgap_units'] == 'mm'
 
 
 

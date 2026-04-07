@@ -212,20 +212,6 @@ def find_identifiers(expression: str) -> list[str]:
     return [name for name in asteval.get_ast_names(ast.parse(expression))]
 
 
-class _NameReplacer(ast.NodeTransformer):
-    """NodeTransformer to replace variable names using a mapping"""
-    def __init__(self, var_mapping: dict[str, str]):
-        self.mapping = var_mapping
-
-    def visit_Name(self, node: ast.Name) -> ast.Name:
-        if node.id in self.mapping:
-            return ast.copy_location(
-                ast.Name(id=self.mapping[node.id], ctx=node.ctx),
-                node
-            )
-        return node
-
-
 def replace_expression_vars(expr: str, mapping: dict[str, str]) -> str:
     """
     Replace variable names in an expression
@@ -236,9 +222,10 @@ def replace_expression_vars(expr: str, mapping: dict[str, str]) -> str:
     :param mapping: mapping from variable names to replacements
     :return: replaced expression
     """
-    tree = ast.parse(expr, mode='eval')
-    new_tree = _NameReplacer(mapping).visit(tree)
-    return ast.unparse(new_tree)
+    for name, repl in mapping.items():
+        pattern = r'\b' + re.escape(name) + r'\b'
+        expr = re.sub(pattern, repl, expr)
+    return expr
 
 
 def extra_hdf_data(hdf_file: h5py.File) -> dict:
