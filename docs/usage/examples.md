@@ -71,6 +71,7 @@ Additional variables can be assigned to the local namespace accessed during eval
 data, or as shorthand for a path or expression.
 
 **Note V1.0.2**: local variables will be overwritten by values from files, unless use_local_data() is set.   
+**Note V1.2.0**: local variables now stored at higher level and will be loaded before file is read if available.
 
 ```python
 from hdfmap import NexusLoader
@@ -78,7 +79,7 @@ from hdfmap import NexusLoader
 scan = NexusLoader('file.nxs')
 
 # add local data
-scan.map.add_local(my_parameter=800.)
+scan.add_local(my_parameter=800.)
 monitor = scan.eval('ic1monitor / my_parameter')
 # add replacement path
 scan.map.add_named_expression(cmd='/entry1/scan_command')
@@ -92,21 +93,20 @@ scan.map.add_named_expression(**expr)
 ydata = scan.eval('signal/normby')
 ```
 
-#### New in V1.0.2: reload data from local namespace
+#### New in V1.2: reload data from local namespace
 When datasets are read using hdfmap.eval or similar, the data is stored with local data. This data can be accessed 
-rapidly by turning the option on. This is particuarly useful when having to reload large datasets over a slow 
-network connection, but should not be used if reading from multiple files using the same hdfmap object.
+again from memory. This is particuarly useful when having to reload large datasets over a slow 
+network connection, but should not be used if reading a file that could change (like live data collection).
 
 ```python
 from hdfmap import NexusLoader
 
 scan = NexusLoader('file.nxs')
-scan.map.use_local_data()
 
 volume = scan.eval('IMAGE')  # loads the entire image volume, which can be slow
 norm_vol = scan.eval('IMAGE / Transmission')  # repeated call is much faster because IMAGE was already in memory
 
-scan.map.use_local_data(False)  # return to the default behaviour
+scan.live_mode()  # with live mode enabled, the IMAGE dataset will be reloaded from the file.
 ```
 
 #### New in V1.0.0: load datasets

@@ -1,21 +1,18 @@
-# hdfmap
-Map objects within an HDF5 file and create a dataset namespace.
-
 [![PyPI](https://img.shields.io/pypi/v/dls-dodal.svg)](https://pypi.org/project/hdfmap)
 [![Conda Recipe](https://img.shields.io/badge/recipe-hdfmap-green.svg)](https://anaconda.org/conda-forge/hdfmap)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![](https://img.shields.io/github/forks/DiamondLightSource/hdfmap?label=GitHub%20Repo&style=social)](https://github.com/DiamondLightSource/hdfmap)
 
-**Version 1.1**
+# hdfmap
+Map objects within an HDF5 or NeXus file and create a dataset namespace.
 
-| By Dan Porter        | 
-|----------------------|
-| Diamond Light Source |
-| 2024-2025            |
 
-### Documentation
-[![Docs](https://img.shields.io/badge/Material_for_MkDocs-526CFE?style=for-the-badge&logo=MaterialForMkDocs&logoColor=white)](https://diamondlightsource.github.io/hdfmap/)
-[diamondlightsource.github.io/hdfmap](https://diamondlightsource.github.io/hdfmap/)
+Source          | <https://github.com/DiamondLightSource/hdfmap>
+:---:           | :---:
+PyPI            | `pip install hdfmap`
+Documentation   | <https://diamondlightsource.github.io/hdfmap/>
+Releases        | <https://github.com/DiamondLightSource/hdfmap/releases>
+
 
 ### TL;DR - Usage
 

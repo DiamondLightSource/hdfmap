@@ -27,7 +27,7 @@ Map objects within an HDF5 file and create a dataset namespace.
     image = hdf_image(filenames, index=31)
 
 
-Copyright 2024-2025 Daniel G. Porter
+Copyright 2024-2026 Daniel G. Porter
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ Copyright 2024-2025 Daniel G. Porter
 
 By Dr Dan Porter
 Diamond Light Source Ltd
-2024-2025
+2024-2026
 """
 
 from .logging import set_all_logging_level
@@ -67,7 +67,7 @@ __all__ = [
 ]
 
 __version__ = "1.2.0"
-__date__ = "2026/04/02"
+__date__ = "2026/04/07"
 __author__ = "Dan Porter"
 
 
