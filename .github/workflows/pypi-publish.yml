@@ -9,14 +9,14 @@ jobs:
     runs-on: "ubuntu-latest"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout (v6.0.3)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
       - name: Build sdist and wheel
         run: pipx run build
 
-      - name: Upload sdist and wheel as artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload sdist and wheel as artifacts (v7.0.1)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: dist
           path: dist
@@ -35,8 +35,11 @@ jobs:
 
     steps:
       # download sdist and wheel from dist job
-      - uses: actions/download-artifact@v4
+      - name: download sdist and wheel (v8.0.1)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          path: dist
 
       # publish to PyPI using trusted publishing
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish to PyPI (v1.14.0)
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
