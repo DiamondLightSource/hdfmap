@@ -13,6 +13,7 @@ from .eval_functions import generate_identifier, build_hdf_path, is_image
 
 NX_CLASS = 'NX_class'
 NX_ENTRY = 'NXentry'
+NX_SUBENTRY = 'NXsubentry'
 NX_DATA = 'NXdata'
 NX_DEFINITION = 'definition'
 NX_LOCALNAME = 'local_name'
@@ -208,10 +209,23 @@ class NexusMap(HdfMap):
             for path, grp in self.groups.items() if (nxclass := grp.attrs.get(NX_CLASS))
         })
 
+    def all_applications(self) -> dict[str, list[str]]:
+        """Return dict of NX application definitions used in NXgroups"""
+        entries = self.classes.get(NX_ENTRY, []) + self.classes.get(NX_SUBENTRY, [])
+        return {
+            name: paths for name, paths in self.classes.items()
+            if name not in [NX_ENTRY, NX_SUBENTRY] and
+               name.startswith('NX') and
+               next(iter(paths), '') in entries
+        }
+
     def info_nexus(self, scannables=True, image_data=True, metadata=False) -> str:
         """Return str info on nexus format"""
         out = f"{repr(self)}\n"
-        out += f"{NX_CLASS}:\n"
+        out += "NeXus Application Definitions:\n"
+        nx_apps = self.all_applications()
+        out += disp_dict(nx_apps, 20)
+        out += f"\n{NX_CLASS}:\n"
         nx_classes = self.all_nxclasses()
         out += disp_dict({k: v for k, v in self.classes.items() if k in nx_classes}, 20)
         out += '\nDefaults:\n'

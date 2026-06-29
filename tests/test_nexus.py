@@ -106,3 +106,13 @@ def test_generate_ids(hdf_map):
     expression, = hdf_map.generate_ids('signal/Transmission', modify_missing=False)
     assert expression == 'signal/Transmission'
 
+
+def test_info_nexus(hdf_map):
+    info = hdf_map.info_nexus()
+    assert 'NXmx: [\'/entry\']' in info
+    assert "NXdata: ['/entry/measurement', '/entry/pil3_100k', '/entry/pil3_100k_max_val', '/entry/pil3_100k_max_x', '/entry/pil3_100k_max_y', '/entry/pil3_100k_roi1.max_val', '/entry/pil3_100k_roi1.max_x', '/entry/pil3_100k_roi1.max_y', '/entry/pil3_100k_roi1.total', '/entry/pil3_100k_roi2.max_val', '/entry/pil3_100k_roi2.max_x', '/entry/pil3_100k_roi2.max_y', '/entry/pil3_100k_roi2.total', '/entry/pil3_100k_roi3.max_val', '/entry/pil3_100k_roi3.max_x', '/entry/pil3_100k_roi3.max_y', '/entry/pil3_100k_roi3.total', '/entry/pil3_100k_roi4.max_val', '/entry/pil3_100k_roi4.max_x', '/entry/pil3_100k_roi4.max_y', '/entry/pil3_100k_roi4.total', '/entry/pil3_100k_total']" in info
+    assert "@default: ['/entry']" in info
+    assert "@axes: /entry/measurement/h" in info
+    assert "@signal: /entry/measurement/rc" in info
+    assert "h: (21,)      : /entry/measurement/h " in info
+    assert "pil3_100k: (21, 195, 487) : /entry/instrument/pil3_100k/data" in info
