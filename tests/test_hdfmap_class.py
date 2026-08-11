@@ -29,6 +29,11 @@ def test_scannables_length(hdf_map):
     assert hdf_map.scannables_length() == 101, "scannables length should be 101"
 
 
+def test_scannables_index(hdf_map):
+    assert hdf_map.scannables_index(0) == (0, )
+    assert hdf_map.scannables_index(-1) == (100, )
+
+
 def test_generate_scannables(hdf_map):
     hdf_map.generate_scannables(3)
     assert hdf_map.scannables_length() == 3, "Scannable size should be 3"
