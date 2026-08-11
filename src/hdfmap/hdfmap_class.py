@@ -477,12 +477,19 @@ class HdfMap:
         path = next(iter(self.scannables.values()))
         return self.datasets[path].size
 
-    def scannables_shape(self) -> tuple:
+    def scannables_shape(self) -> tuple[int, ...]:
         """Return the shape of the first axis of scannables array"""
         if not self.scannables:
             return (0, )
         path = next(iter(self.scannables.values()))
         return self.datasets[path].shape
+
+    def scannables_index(self, index: int) -> tuple[int, ...]:
+        """Return index of scannables array, converts 1D index into tuple"""
+        shape = self.scannables_shape()
+        if index < 0:
+            index = np.prod(shape) + index
+        return np.unravel_index(index, shape)
 
     def generate_scannables(self, array_size):
         """Populate self.scannables field with datasets size that match array_size"""
@@ -752,16 +759,16 @@ class HdfMap:
             return self._default_image_path
         return next(iter(self.image_data.values()), '')
 
-    def get_image_shape(self) -> tuple:
+    def get_image_shape(self) -> tuple[int, int]:
         """Return the scan shape of the detector dataset"""
         path = self.get_image_path()
         if path in self.datasets:
             return self.datasets[path].shape[-2:]
         return 0, 0
 
-    def get_image_index(self, index: int) -> tuple:
+    def get_image_index(self, index: int) -> tuple[int, ...]:
         """Return image slice index for index along total scan size"""
-        return np.unravel_index(index, self.scannables_shape())
+        return self.scannables_index(index)
 
     def get_group_datasets(self, name_or_path: str) -> list[str] | None:
         """Find the path associate with the given name and return all datasets in that group"""
