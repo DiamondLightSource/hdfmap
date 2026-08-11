@@ -131,12 +131,15 @@ def test_get_metadata(hdf_map):
         meta = hdf_map.get_metadata(hdf)
         meta_small = hdf_map.get_metadata(hdf, name_list=['scan_command', 'incident_energy'])
         meta_string = hdf_map.get_metadata(hdf, string_output=True)
+        meta_numbers = hdf_map.get_metadata(hdf, numeric_only=True)
     assert len(meta) == 221, "Length of metadata wrong"
     assert meta['filename'] == '1049598.nxs', "filename is wrong"
     assert abs(meta_small['incident_energy'] - 3.58) < 0.01, "Energy is wrong"
     cmd = "'scan hkl [-0.05, -7.878e-16, 0.933] [0.05, -7.878e-16, 0.933] [0.001, 0, 0] BeamOK pil3_100k 1 roi2 roi1'"
     assert meta_string['scan_command'] == cmd
     assert meta_string['ppchi'] == '-44.999994057'
+    assert len(meta_numbers) == 192
+    assert meta_numbers['ppchi'] == pytest.approx(-45, 0.0001)
 
 
 def test_create_metadata_list(hdf_map):

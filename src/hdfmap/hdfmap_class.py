@@ -841,7 +841,7 @@ class HdfMap:
         return default
 
     def get_metadata(self, hdf_file: h5py.File, default=None, direct_load=False,
-                     name_list: list = None, string_output=False) -> dict:
+                     name_list: list = None, string_output=False, numeric_only=False) -> dict:
         """
         Return metadata dict from file, loading data for each item in the metadata list
         The metadata list is taken from name_list, otherwise self.metadata or self.values
@@ -850,6 +850,7 @@ class HdfMap:
         :param direct_load: if True, loads data from hdf file directory, without conversion
         :param name_list: if available, uses this list of dataset names to generate the metadata list
         :param string_output: if True, returns string summary of each value
+        :param numeric_only: if True, only returns numeric type datasets
         :return: {name: value}
         """
         extra = extra_hdf_data(hdf_file)
@@ -861,6 +862,12 @@ class HdfMap:
             logger.warning("'local_names' metadata is not available, using all size=1 datasets.")
             # metadata_paths = self.values
             metadata_paths = {ds.name: path for path, ds in self.datasets.items() if ds.size <= 1}
+        if numeric_only:
+            # only read numeric type datasets
+            metadata_paths = {
+                name: path for name, path in metadata_paths.items()
+                if (dataset := hdf_file.get(path)) and np.issubdtype(dataset.dtype, np.number)
+            }
         if string_output:
             extra = {key: f"'{val}'" for key, val in extra.items()}
             metadata = {
