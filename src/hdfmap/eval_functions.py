@@ -25,7 +25,7 @@ re_special_characters = re.compile(r'\W')  # finds all special non-alphanumberic
 re_long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
 re_dataset_attributes = re.compile(r'([a-zA-Z_]\w*)@([a-zA-Z_]\w*)')  # finds 'name@attribute' in expressions
 re_dataset_default = re.compile(r'(\w+)\?\((.+?)\)')  # finds 'name?('noname'), return (name, 'noname')
-re_dataset_alternate = re.compile(r'\((\w\S*\|\w\S*?)\)')  # finds '(name1|name2|name3)', return 'name1|name2|name3'
+re_dataset_alternate = re.compile(r'\((\w\S*\|\w\S*)\)')  # finds '(name1|name2|name3)', return 'name1|name2|name3'
 # fromisoformat requires python 3.11+
 datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
 
@@ -222,9 +222,23 @@ def replace_expression_vars(expr: str, mapping: dict[str, str]) -> str:
     :param mapping: mapping from variable names to replacements
     :return: replaced expression
     """
+    # Remove (alternate|names) if any part would be replaced
+    hidden = []
+    def hide(match):
+        sub_str = match.group(0)
+        if any(name in sub_str for name in mapping):
+            hidden.append(match.group(0))
+            return f"__ALT{len(hidden)-1}__"
+        return sub_str
+    expr = re_dataset_alternate.sub(hide, expr)
+
     for name, repl in mapping.items():
         pattern = r'\b' + re.escape(name) + r'\b'
         expr = re.sub(pattern, repl, expr)
+
+    # recover original expression parts
+    for ii, match in enumerate(hidden):
+        expr = expr.replace(f"__ALT{ii}__", match)
     return expr
 
 
