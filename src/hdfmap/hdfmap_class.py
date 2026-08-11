@@ -209,6 +209,7 @@ class HdfMap:
     def info_names(self, arrays=False, values=False, combined=False,
                    metadata=False, scannables=False, image_data=False) -> str:
         """Return str info for different namespaces"""
+        #TODO: add internal data and alternate names
         if not any((arrays, values, combined, metadata, scannables, image_data)):
             combined = True
         options = [
@@ -380,6 +381,7 @@ class HdfMap:
         :param wid_j: full width along second dimension, in pixels
         :param image_name: string name of the image
         """
+        # TODO: set cen-wid<0 == 0, cen+wid>image == image.shape
         wid_i = abs(wid_i) // 2
         wid_j = abs(wid_j) // 2
         islice = f"{cen_i}-{wid_i:.0f} : {cen_i}+{wid_i:.0f}"
@@ -559,7 +561,9 @@ class HdfMap:
         warnings = []
         all_names = []
         for name in list_names:
-            if name in self.scannables:
+            if name in all_names:
+                continue
+            elif name in self.scannables:
                 all_names.append(name)
             elif name in alt_names:
                 alt_name = next((alt for alt in alt_names[name] if alt in self.scannables), None)

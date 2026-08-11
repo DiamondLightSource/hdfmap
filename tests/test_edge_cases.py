@@ -109,3 +109,16 @@ def test_alternate_name_local_data():
         cmd2 = m.eval(nxs, '(cmd|scan_command)')
         assert scan_command2 == cmd2, 'cmd and scan_command should be the same'
     assert cmd1 != cmd2, 'cmd of both files should not be the same'
+
+
+@only_dls_file_system
+def test_i06_pol_scan():
+    f = '/dls/science/groups/das/ExampleData/hdfmap_tests/i06/i06-384074.nxs'
+    m = hdfmap.create_nexus_map(f)
+
+    axes_paths, signal_paths = m.nexus_default_paths()
+    axes_names, signal_names = m.nexus_default_names()
+
+    assert len(axes_paths) == len(axes_names)
+    # assert axes_names[1] == 'ds'
+
