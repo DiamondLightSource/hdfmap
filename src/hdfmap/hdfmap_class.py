@@ -130,7 +130,7 @@ class HdfMap:
     __slots__ = (
         "filename", "all_paths", "groups", "datasets",
         "classes", "arrays", "values", "metadata", "scannables",
-        "combined", "image_data", "_alternate_names", "_default_image_path",
+        "combined", "image_data", "alternate_names", "_default_image_path",
         "_local_data", "_use_local_data"
     )
 
@@ -146,8 +146,8 @@ class HdfMap:
         self.scannables = {}  # stores array dataset paths with given size, by name
         self.combined = {}  # stores array and value paths (arrays overwrite values)
         self.image_data = {}  # stores dataset paths of image data
+        self.alternate_names = {}  # stores variable names for expressions to be evaluated
         self._local_data = {}  # stores variables and data to be used in eval
-        self._alternate_names = {}  # stores variable names for expressions to be evaluated
         self._default_image_path = None
         self._use_local_data = False  # if True, preferentially loads data from _local_data
 
@@ -355,7 +355,7 @@ class HdfMap:
 
         :param kwargs: keyword arguments, each should be a string expression
         """
-        self._alternate_names.update(kwargs)
+        self.alternate_names.update(kwargs)
 
     def add_roi(self, name: str, cen_i: int | str, cen_j: int | str,
                 wid_i: int = 30, wid_j: int = 30, image_name: str = 'IMAGE'):
@@ -1016,7 +1016,7 @@ class HdfMap:
             expression=expression,
             hdf_namespace=self.combined,
             data_namespace=self._local_data if local_data is None else local_data,
-            replace_names=self._alternate_names,
+            replace_names=self.alternate_names,
             default=default,
             use_stored_data=self._use_local_data if prefer_local is None else prefer_local,
             raise_errors=raise_errors
@@ -1040,7 +1040,7 @@ class HdfMap:
             expression=expression,
             hdf_namespace=self.combined,
             data_namespace=self._local_data if local_data is None else local_data,
-            replace_names=self._alternate_names,
+            replace_names=self.alternate_names,
             default=default,
             use_stored_data=self._use_local_data if prefer_local is None else prefer_local,
             raise_errors=raise_errors
@@ -1063,7 +1063,7 @@ class HdfMap:
         """
         interpreter = HdfMapInterpreter(
             hdfmap=self,
-            replace_names=self._alternate_names,
+            replace_names=self.alternate_names,
             default=default,
             user_symbols=self._local_data if local_data is None else local_data,
             use_numpy=True
