@@ -17,6 +17,11 @@ def test_replace_expression_vars():
     new_expr = replace_expression_vars(expression, mapping)
     assert new_expr == "x + data_a + max(x)"
 
+    expression = "(cmd|command|scan_command?(''))\nstr((cmd|command|scan_command?('')))\ncmd"
+    mapping = {'cmd': 'path'}
+    new_expr = replace_expression_vars(expression, mapping)
+    assert new_expr == "(cmd|command|scan_command?(''))\nstr((cmd|command|scan_command?('')))\npath"
+
 
 def test_prepare_expression_load_data():
     expression = 'idgap@units, x*y'
