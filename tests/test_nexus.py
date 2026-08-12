@@ -116,3 +116,18 @@ def test_info_nexus(hdf_map):
     assert "@signal: /entry/measurement/rc" in info
     assert "h: (21,)      : /entry/measurement/h " in info
     assert "pil3_100k: (21, 195, 487) : /entry/instrument/pil3_100k/data" in info
+
+
+def test_save_load(hdf_map):
+    hdf_map.add_named_expression(**{"cmd": "(cmd|scan_command?('no_cmd'))"})
+    save = hdf_map.generate_json_str()
+    new_map = hdfmap.NexusMap(save)
+    assert hdf_map.combined == new_map.combined
+    assert hdf_map.scannables_length() == new_map.scannables_length()
+    assert tuple(new_map.datasets['/entry/instrument/pil3_100k/data'].shape) == (21, 195, 487)
+    cmd = new_map.eval(new_map.load_hdf(), 'cmd')
+    assert cmd == 'scan hkl [0.97, 0.022, 0.112] [0.97, 0.022, 0.132] [0, 0, 0.001] MapperProc pil3_100k 1'
+    assert new_map.datasets['/entry/instrument/monochromator/energy'].attrs == hdf_map.datasets['/entry/instrument/monochromator/energy'].attrs
+    new_save = new_map.generate_json_str()
+    assert save == new_save
+

@@ -80,6 +80,20 @@ def test_find_datasets(hdf_map):
     assert len(hdf_map.find_datasets('measurement', 'sum')) == 1
 
 
+def test_save_load(hdf_map):
+    hdf_map.add_named_expression(**{"cmd": "(cmd|scan_command?('no_cmd'))"})
+    save = hdf_map.generate_json_str()
+    new_map = hdfmap.HdfMap(save)
+    assert hdf_map.combined == new_map.combined
+    assert hdf_map.scannables_length() == new_map.scannables_length()
+    assert tuple(new_map.datasets['/entry1/pil3_100k/data'].shape) == (101, 195, 487)
+    cmd = new_map.eval(new_map.load_hdf(), 'cmd')
+    assert cmd == 'scan hkl [-0.05, -7.878e-16, 0.933] [0.05, -7.878e-16, 0.933] [0.001, 0, 0] BeamOK pil3_100k 1 roi2 roi1'
+    assert new_map.datasets['/entry1/sample/beam/incident_energy'].attrs == hdf_map.datasets['/entry1/sample/beam/incident_energy'].attrs
+    new_save = new_map.generate_json_str()
+    assert save == new_save
+
+
 "--------------------------------------------------------"
 "---------------------- FILE READERS --------------------"
 "--------------------------------------------------------"

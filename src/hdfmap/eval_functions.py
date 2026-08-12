@@ -11,6 +11,7 @@ import re
 import typing
 import numpy as np
 import h5py
+from types import EllipsisType
 
 from .logging import create_logger
 
@@ -95,11 +96,36 @@ def is_image(shape: tuple[int], min_dim=3):
     return len(shape) >= min_dim and (shape[-2] - 1) * (shape[-1] - 1) > 1
 
 
-def generate_image_roi_slice(start_i: int, stop_i: int, start_j: int, stop_j: int, step_i: int = 1, step_j: int = 1) -> tuple[Ellipsis, slice, slice]:
+def generate_image_roi_slice(start_i: int, stop_i: int, start_j: int, stop_j: int, step_i: int = 1, step_j: int = 1) -> tuple[EllipsisType, slice, slice]:
     """
     Generate indexing slice for region of interest (ROI)
     """
     return Ellipsis, slice(start_i, stop_i, step_i), slice(start_j, stop_j, step_j)
+
+
+def make_json_serialisable(obj):
+    """Convert h5py/numpy objects into JSON-compatible types."""
+    if isinstance(obj, bytes):
+        return obj.decode()
+
+    if isinstance(obj, np.ndarray):
+        return [make_json_serialisable(v) for v in obj.tolist()]
+
+    if isinstance(obj, np.generic):
+        return obj.item()
+
+    if isinstance(obj, dict):
+        return {k: make_json_serialisable(v) for k, v in obj.items()}
+
+    if isinstance(obj, (list, tuple)):
+        return [make_json_serialisable(v) for v in obj]
+
+    return obj
+
+
+def attrs2dict(obj: h5py.Group | h5py.Dataset) -> dict:
+    """Extract obj.attrs as a serialisable dict"""
+    return {name: make_json_serialisable(item) for name, item in obj.attrs.items()}
 
 
 def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=False) -> datetime.datetime | str | np.ndarray:

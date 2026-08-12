@@ -1,6 +1,7 @@
 """
 hdfmap class definition
 """
+import json
 import typing
 from collections import defaultdict
 
@@ -11,7 +12,7 @@ from . import load_hdf
 from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
 from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf, HdfMapInterpreter,
-                             format_hdf, dataset2data, dataset2str, is_image,
+                             format_hdf, dataset2data, dataset2str, is_image, attrs2dict,
                              DEFAULT, SEP, generate_identifier, build_hdf_path)
 
 
@@ -88,10 +89,11 @@ class HdfMap:
     - map.datasets    stores attributes of each dataset by path
     - map.arrays      stores array dataset paths by name
     - map.values      stores value dataset paths by name
-    - map.metadata   stores value dataset path by altname only
+    - map.metadata    stores value dataset path by altname only
     - map.scannables  stores array dataset paths with given size, by name, all arrays have the same shape
     - map.combined    stores array and value paths (arrays overwrite values)
     - map.image_data  stores dataset paths of image data (arrays with 2+ dimensions or arrays of image files)
+    - map.alternate_names   stores names for expressions that will be replaced in evaluation.
     #### E.G.
     - map.groups = {'/hdf/group': ('class', 'name', {attrs}, [datasets])}
     - map.classes = {'class_name': ['/hdf/group1', '/hdf/group2']}
@@ -116,6 +118,7 @@ class HdfMap:
     - map.find_attr('attr_name') -> return list of paths of groups or datasets containing attribute 'attr_name'
     - map.add_local(local_variable=value) -> add to the local namespace accessed by eval
     - map.add_named_expression(alternate_name='expression') -> add local variables for expressions replaced during eval
+    - map.generate_json_str() -> generate a serialised string of the HdfMap object
     ### File Methods
     - map.get_metadata(h5py.File) -> returns dict of value datasets
     - map.get_scannables(h5py.File) -> returns dict of scannable datasets
@@ -126,6 +129,8 @@ class HdfMap:
     - map.get_string(h5py.File, 'name') -> returns string summary of dataset
     - map.eval(h5py.File, 'expression') -> returns output of expression
     - map.format(h5py.File, 'string {name}') -> returns output of str expression
+
+    :param file: h5py.File type, JSON string type from map.generate_json_str(), or None (default)
     """
     __slots__ = (
         "filename", "all_paths", "groups", "datasets",
@@ -134,25 +139,27 @@ class HdfMap:
         "_local_data", "_use_local_data"
     )
 
-    def __init__(self, file: h5py.File | None = None):
+    def __init__(self, file: h5py.File | str | None = None):
         self.filename = ''
-        self.all_paths = []
-        self.groups = {}  # stores attributes of each group by path
-        self.datasets = {}  # stores attributes of each dataset by path
-        self.classes = defaultdict(list)  # stores lists of group paths by nx_class
-        self.arrays = {}  # stores array dataset paths by name, altname + group_name
-        self.values = {}  # stores value dataset paths by name, altname + group_name
-        self.metadata = {}  # stores value dataset path by altname only
-        self.scannables = {}  # stores array dataset paths with given size, by name
-        self.combined = {}  # stores array and value paths (arrays overwrite values)
-        self.image_data = {}  # stores dataset paths of image data
-        self.alternate_names = {}  # stores variable names for expressions to be evaluated
-        self._local_data = {}  # stores variables and data to be used in eval
-        self._default_image_path = None
-        self._use_local_data = False  # if True, preferentially loads data from _local_data
+        self.all_paths: list[str] = []
+        self.groups: dict[str, Group] = {}  # stores attributes of each group by path
+        self.datasets: dict[str, Dataset] = {}  # stores attributes of each dataset by path
+        self.classes: dict[str, list[str]] = defaultdict(list)  # stores lists of group paths by nx_class
+        self.arrays: dict[str, str] = {}  # stores array dataset paths by name, altname + group_name
+        self.values: dict[str, str] = {}  # stores value dataset paths by name, altname + group_name
+        self.metadata: dict[str, str] = {}  # stores value dataset path by altname only
+        self.scannables: dict[str, str] = {}  # stores array dataset paths with given size, by name
+        self.combined: dict[str, str] = {}  # stores array and value paths (arrays overwrite values)
+        self.image_data: dict[str, str] = {}  # stores dataset paths of image data
+        self.alternate_names: dict[str, str] = {}  # stores variable names for expressions to be evaluated
+        self._local_data: dict[str, typing.Any] = {}  # stores variables and data to be used in eval
+        self._default_image_path: str | None = None
+        self._use_local_data: bool = False  # if True, preferentially loads data from _local_data
 
         if isinstance(file, h5py.File):
             self.populate(file)
+        elif isinstance(file, str):
+            self.populate_from_json_str(file)
 
     def __getitem__(self, item):
         return self.combined[item]
@@ -207,10 +214,10 @@ class HdfMap:
         return out
 
     def info_names(self, arrays=False, values=False, combined=False,
-                   metadata=False, scannables=False, image_data=False) -> str:
+                   metadata=False, scannables=False, image_data=False,
+                   local=False, alternate=False) -> str:
         """Return str info for different namespaces"""
-        #TODO: add internal data and alternate names
-        if not any((arrays, values, combined, metadata, scannables, image_data)):
+        if not any((arrays, values, combined, metadata, scannables, image_data, local, alternate)):
             combined = True
         options = [
             ('Arrays', arrays, self.arrays),
@@ -229,6 +236,18 @@ class HdfMap:
                     for name, path in namespace.items()
                 ])
                 out += '\n'
+        if alternate:
+            out += f"\nAlternate Names for expressions:\n"
+            out += '\n'.join([
+                f"{name:>30}: {alt}"
+                for name, alt in self.alternate_names.items()
+            ])
+        if local:
+            out += f"\nLocal Data:\n"
+            out += '\n'.join([
+                f"{name:>30}: {data}"
+                for name, data in self._local_data.items()
+            ])
         return out
 
     def info_summary(self):
@@ -260,7 +279,7 @@ class HdfMap:
         self.groups[path] = Group(
             nx_class,
             name,
-            dict(hdf_group.attrs),
+            attrs2dict(hdf_group),
             [key for key, item in hdf_group.items() if isinstance(item, h5py.Dataset)]
         )
         self._store_class(name, path)
@@ -277,13 +296,13 @@ class HdfMap:
         # group_name = generate_identifier(f"{hdf_path.split(SEP)[-2]}_{name}")
         # alt_name = generate_identifier(hdf_dataset.attrs[LOCAL_NAME]) if LOCAL_NAME in hdf_dataset.attrs else None
         alt_name = generate_alt_name(hdf_dataset)
-        names = {n: hdf_path for n in {name, group_name, class_name, alt_name} if n}
+        names = {n or '': hdf_path for n in {name, group_name, class_name, alt_name} if n}
         self.datasets[hdf_path] = Dataset(
             name=name,
             names=list(names),
             size=hdf_dataset.size,
             shape=hdf_dataset.shape,
-            attrs=dict(hdf_dataset.attrs),
+            attrs=attrs2dict(hdf_dataset),
         )
         if is_image(hdf_dataset.shape):
             self.image_data[name] = hdf_path
@@ -381,9 +400,10 @@ class HdfMap:
         :param wid_j: full width along second dimension, in pixels
         :param image_name: string name of the image
         """
-        # TODO: set cen-wid<0 == 0, cen+wid>image == image.shape
+        # TODO: set cen-wid<0 == 0, cen+wid>image == image.shape (this is not easy!)
         wid_i = abs(wid_i) // 2
         wid_j = abs(wid_j) // 2
+        # Note that cen_i, cen_j maybe str and only evaluated when the expression is run
         islice = f"{cen_i}-{wid_i:.0f} : {cen_i}+{wid_i:.0f}"
         jslice = f"{cen_j}-{wid_j:.0f} : {cen_j}+{wid_j:.0f}"
         dataset = f"d_{image_name}"
@@ -441,6 +461,24 @@ class HdfMap:
         size = self.most_common_size()
         self.generate_scannables(size)
         self.generate_combined()
+
+    def populate_from_json_str(self, json_str: str):
+        """Populate HdfMap from serialised json string"""
+        obj = json.loads(json_str)
+        self.filename = obj["filename"]
+        self.all_paths = obj["all_paths"]
+        self.groups = {name: Group(**grp) for name, grp in obj["groups"].items()}
+        self.datasets = {name: Dataset(**ds) for name, ds in obj["datasets"].items()}
+        self.classes = obj["classes"]
+        self.arrays = obj["arrays"]
+        self.values = obj["values"]
+        self.metadata = obj["metadata"]
+        self.scannables = obj["scannables"]
+        self.combined = obj["combined"]
+        self.image_data = obj["image_data"]
+        self.alternate_names = obj["alternate_names"]
+        if 'default_image_path' in obj:
+            self._default_image_path = obj["default_image_path"]
 
     def generate_combined(self):
         """Finalise the mapped namespace by combining dataset names"""
@@ -800,6 +838,27 @@ class HdfMap:
             )
             for name in names
         ]
+
+    def generate_json_str(self) -> str:
+        """Generate a json string of the HDFmap"""
+        obj = {
+            'filename': self.filename,
+            'all_paths': self.all_paths,
+            'groups': {name: grp._asdict() for name, grp in self.groups.items()},
+            'datasets': {name: ds._asdict() for name, ds in self.datasets.items()},
+            'classes': self.classes,
+            'arrays': self.arrays,
+            'values': self.values,
+            'metadata': self.metadata,
+            'scannables': self.scannables,
+            'combined': self.combined,
+            'image_data': self.image_data,
+            'alternate_names': self.alternate_names,
+        }
+        if self._default_image_path:
+            obj['default_image_path'] = self._default_image_path
+        return json.dumps(obj)
+
 
     "--------------------------------------------------------"
     "---------------------- FILE READERS --------------------"

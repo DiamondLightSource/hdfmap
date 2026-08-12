@@ -109,6 +109,25 @@ norm_vol = scan.eval('IMAGE / Transmission')  # repeated call is much faster bec
 scan.live_mode()  # with live mode enabled, the IMAGE dataset will be reloaded from the file.
 ```
 
+#### New in V1.3: reload a saved HdfMap
+It is now possible to save a json version of the hdfmap, then re-load this later, which is potentially much faster
+and more convenient than reading the the nexus file.
+
+```python
+import json
+from hdfmap import NexusMap, load_hdf
+
+# Create and save HdfMap
+with load_hdf('some_file.nxs') as hdf:
+    hmap = NexusMap(hdf)
+    with open('my_map.json') as f:
+        json.dump(f, hmap.generate_json_str())
+
+# Load and use HdfMap
+new_map = NexusMap(json.load(open('my_map.json')))
+output = new_map.eval(load_hdf('another_file.nxs'), 'scan_command')
+```
+
 #### New in V1.0.0: load datasets
 An additional pattern `'d_*name*'` has been added, allowing hdf dataset objects to be returned. This allows for lazy
 indexing of large datasets, however returning the dataset locally could result in the hdf file, or external files

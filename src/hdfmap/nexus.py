@@ -197,6 +197,8 @@ class NexusMap(HdfMap):
     nxmap['image_data'] -> return path of first area detector data object
     [axes_paths], [signal_paths] = nxmap.nexus_default_paths()
     [axes_names], [signal_names] = nxmap.nexus_default_names()  # returns default names in nxmap.scannables
+
+    :param file: h5py.File type, JSON string type from nxmap.generate_json_str(), or None (default)
     """
 
     def __repr__(self):
