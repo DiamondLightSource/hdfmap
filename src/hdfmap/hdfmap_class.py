@@ -208,10 +208,10 @@ class HdfMap:
         return out
 
     def info_names(self, arrays=False, values=False, combined=False,
-                   metadata=False, scannables=False, image_data=False) -> str:
+                   metadata=False, scannables=False, image_data=False,
+                   local=False, alternate=False) -> str:
         """Return str info for different namespaces"""
-        #TODO: add internal data and alternate names
-        if not any((arrays, values, combined, metadata, scannables, image_data)):
+        if not any((arrays, values, combined, metadata, scannables, image_data, local, alternate)):
             combined = True
         options = [
             ('Arrays', arrays, self.arrays),
@@ -230,6 +230,18 @@ class HdfMap:
                     for name, path in namespace.items()
                 ])
                 out += '\n'
+        if alternate:
+            out += f"\nAlternate Names for expressions:\n"
+            out += '\n'.join([
+                f"{name:>30}: {alt}"
+                for name, alt in self.alternate_names.items()
+            ])
+        if local:
+            out += f"\nLocal Data:\n"
+            out += '\n'.join([
+                f"{name:>30}: {data}"
+                for name, data in self._local_data.items()
+            ])
         return out
 
     def info_summary(self):
