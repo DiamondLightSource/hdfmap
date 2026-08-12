@@ -89,10 +89,11 @@ class HdfMap:
     - map.datasets    stores attributes of each dataset by path
     - map.arrays      stores array dataset paths by name
     - map.values      stores value dataset paths by name
-    - map.metadata   stores value dataset path by altname only
+    - map.metadata    stores value dataset path by altname only
     - map.scannables  stores array dataset paths with given size, by name, all arrays have the same shape
     - map.combined    stores array and value paths (arrays overwrite values)
     - map.image_data  stores dataset paths of image data (arrays with 2+ dimensions or arrays of image files)
+    - map.alternate_names   stores names for expressions that will be replaced in evaluation.
     #### E.G.
     - map.groups = {'/hdf/group': ('class', 'name', {attrs}, [datasets])}
     - map.classes = {'class_name': ['/hdf/group1', '/hdf/group2']}
@@ -117,6 +118,7 @@ class HdfMap:
     - map.find_attr('attr_name') -> return list of paths of groups or datasets containing attribute 'attr_name'
     - map.add_local(local_variable=value) -> add to the local namespace accessed by eval
     - map.add_named_expression(alternate_name='expression') -> add local variables for expressions replaced during eval
+    - map.generate_json_str() -> generate a serialised string of the HdfMap object
     ### File Methods
     - map.get_metadata(h5py.File) -> returns dict of value datasets
     - map.get_scannables(h5py.File) -> returns dict of scannable datasets
@@ -127,6 +129,8 @@ class HdfMap:
     - map.get_string(h5py.File, 'name') -> returns string summary of dataset
     - map.eval(h5py.File, 'expression') -> returns output of expression
     - map.format(h5py.File, 'string {name}') -> returns output of str expression
+
+    :param file: h5py.File type, JSON string type from map.generate_json_str(), or None (default)
     """
     __slots__ = (
         "filename", "all_paths", "groups", "datasets",
@@ -135,7 +139,7 @@ class HdfMap:
         "_local_data", "_use_local_data"
     )
 
-    def __init__(self, file: h5py.File | None = None):
+    def __init__(self, file: h5py.File | str | None = None):
         self.filename = ''
         self.all_paths: list[str] = []
         self.groups: dict[str, Group] = {}  # stores attributes of each group by path
@@ -154,6 +158,8 @@ class HdfMap:
 
         if isinstance(file, h5py.File):
             self.populate(file)
+        elif isinstance(file, str):
+            self.populate_from_json_str(file)
 
     def __getitem__(self, item):
         return self.combined[item]
@@ -394,9 +400,10 @@ class HdfMap:
         :param wid_j: full width along second dimension, in pixels
         :param image_name: string name of the image
         """
-        # TODO: set cen-wid<0 == 0, cen+wid>image == image.shape
+        # TODO: set cen-wid<0 == 0, cen+wid>image == image.shape (this is not easy!)
         wid_i = abs(wid_i) // 2
         wid_j = abs(wid_j) // 2
+        # Note that cen_i, cen_j maybe str and only evaluated when the expression is run
         islice = f"{cen_i}-{wid_i:.0f} : {cen_i}+{wid_i:.0f}"
         jslice = f"{cen_j}-{wid_j:.0f} : {cen_j}+{wid_j:.0f}"
         dataset = f"d_{image_name}"
