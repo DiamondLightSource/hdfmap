@@ -83,6 +83,26 @@ def test_i16_bpm_file():
 
 
 @only_dls_file_system
+def test_i16_burst_mode():
+    # See https://github.com/DiamondLightSource/hdfmap/issues/29
+    filename = '/dls/science/groups/das/ExampleData/i16/burstmode_i16-788/16.nxs'
+    assert path.isfile(filename) is True, f"{filename} doesn't exist"
+    mymap = hdfmap.create_nexus_map(filename)
+    shape = mymap.scannables_shape()
+    image_shape = mymap.get_image_shape()
+
+    with mymap.load_hdf() as hdf:
+        cmd = mymap.eval(hdf, 'scan_command')
+        scan_shape = hdf[mymap.get_image_path()].shape
+        image = mymap.get_image(hdf, 0)
+
+    # Burst mode scans return stack of images
+    assert scan_shape != shape + image_shape
+    assert scan_shape == (10, 5, 960, 1280)
+    assert image.ndim == 3
+
+
+@only_dls_file_system
 def test_msmapper_file():
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/processed/1098101_msmapper.nxs'
     assert path.isfile(filename) is True, f"{filename} doesn't exist"

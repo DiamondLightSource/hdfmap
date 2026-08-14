@@ -985,9 +985,12 @@ class HdfMap:
 
         Image filenames may be relative to the location of the current file (this is not checked)
 
+        Returned arrays are usually 2D, however in the case of e.g. Burst Mode scans, a 3D array, or
+        stack of images will be returned.
+
         :param hdf_file: hdf file object
         :param index: (slice,) or None to take the middle image
-        :return: 2D numpy array of image, or string file path of image
+        :return: 2D numpy array of image, or 3D numpy stack of images, or string file path of image
         """
         if index is None:
             index = self.get_image_index(self.scannables_length() // 2)
