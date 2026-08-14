@@ -19,6 +19,7 @@ FILES = [
     (DIR + 'i16/1109527.nxs', 'i16 pilatus eta scan, new nexus format'),
     (DIR + 'i16/1113658.nxs', 'i16 bpm scan, new nexus format'),
     (DIR + 'i16/processed/1090391_msmapper.nxs', 'msmapper volume'),
+    (DIR + 'i16/16.nxs', 'i16 Burst mode example'),
     (DIR + 'i10/i10-608314.nxs', 'i10 pimte scan'),
     (DIR + 'i10/i10-618365.nxs', 'i10 scan'),
     (DIR + 'i10/i10-854741.nxs', 'i10 pimte scan, single point with TIFF'),
@@ -62,6 +63,7 @@ if __name__ == '__main__':
 
     output = []
     differences = []
+    new_file = []
     for n, (file, desc) in enumerate(FILES):
         print(f"\n------{file}-------")
         print(f"Description: {desc}")
@@ -80,9 +82,13 @@ if __name__ == '__main__':
                             differences.append(f"{file}: {key} changed: {old_data[n][key]} != {value}")
                 else:
                     differences.append(f"{file}: {key} missing.")
+        else:
+            new_file.append(file)
 
     print("\nDifferences:")
     print('\n'.join(differences) if differences else 'None!')
+    print("\nNew files:")
+    print('\n'.join(new_file) if new_file else 'None!')
 
     save = input('\nSave the new file [y/n]? ')
     if 'y' in save.lower():
