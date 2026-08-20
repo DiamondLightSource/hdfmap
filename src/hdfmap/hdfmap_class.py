@@ -29,6 +29,8 @@ class Group(typing.NamedTuple):
     name: str
     attrs: dict
     datasets: list[str]
+    parent: Group | None
+    default: bool
 
 
 class Dataset(typing.NamedTuple):
@@ -37,6 +39,7 @@ class Dataset(typing.NamedTuple):
     size: int
     shape: tuple[int]
     attrs: dict
+    parent: Group
 
 
 def generate_alt_name(hdf_dataset: h5py.Dataset) -> str | None:
@@ -273,14 +276,18 @@ class HdfMap:
 
     def _store_group(self, hdf_group: h5py.Group, path: str, name: str):
 
-        nx_class = hdf_group.attrs.get('NX_class', default='Group')
-        if hasattr(nx_class, 'decode'):
-            nx_class = nx_class.decode()
+        parent = self.groups.get(hdf_group.parent.name, None)
+        attrs = attrs2dict(hdf_group)
+        parent_attrs = parent.attrs if parent else {}
+        nx_class = attrs.get('NX_class', 'Group')
+        nx_default = parent_attrs.get('default', None) == name
         self.groups[path] = Group(
-            nx_class,
-            name,
-            attrs2dict(hdf_group),
-            [key for key, item in hdf_group.items() if isinstance(item, h5py.Dataset)]
+            nx_class=nx_class,
+            name=name,
+            attrs=attrs,
+            datasets=[key for key, item in hdf_group.items() if isinstance(item, h5py.Dataset)],
+            parent=parent,
+            default=nx_default
         )
         self._store_class(name, path)
         self._store_class(nx_class, path)
@@ -303,18 +310,25 @@ class HdfMap:
             size=hdf_dataset.size,
             shape=hdf_dataset.shape,
             attrs=attrs2dict(hdf_dataset),
+            parent=group,
         )
-        if is_image(hdf_dataset.shape):
-            self.image_data[name] = hdf_path
-            self.image_data[group_name] = hdf_path
-            self.arrays.update(names)
-            logger.debug(f"{hdf_path}  HDFDataset: image_data & array {name, hdf_dataset.size, hdf_dataset.shape}")
-        elif hdf_dataset.ndim > 0:
-            self.arrays.update(names)
+        if hdf_dataset.ndim > 0:
+            if is_image(hdf_dataset.shape):
+                logger.debug(f"{hdf_path}  HDFDataset: image_data {name, hdf_dataset.size, hdf_dataset.shape}")
+                self.image_data[name] = hdf_path
+                self.image_data[group_name] = hdf_path
+                if hdf_path.endswith('/data'):
+                    names['data'] = hdf_path  # add data name back as removed by generate_identifiers
+            array_names = {
+                name: path for name, path in names.items()
+                if group.default or name not in self.arrays
+            }
+            self.arrays.update(array_names)
             logger.debug(f"{hdf_path}  HDFDataset: array {name, hdf_dataset.size, hdf_dataset.shape}")
         else:
             self.values.update(names)
             if alt_name:
+                # metadata only stored for single value entries with alt_name defined
                 self.metadata[alt_name] = hdf_path
             logger.debug(f"{hdf_path}  HDFDataset: value")
 
@@ -581,50 +595,25 @@ class HdfMap:
         logger.debug(f"Scannables from names: {array_names}")
         array_size = self.datasets[self.arrays[array_names[0]]].size
         self.scannables = {
-            name: self.arrays[name] for name in array_names if self.datasets[self.arrays[name]].size == array_size
+            self.datasets[self.arrays[name]].name: self.arrays[name]
+            for name in array_names
+            if self.datasets[self.arrays[name]].size == array_size
         }
         # self.generate_combined()
 
-    def first_last_scannables(self, first_names: list[str] = (),
-                              last_names: list[str] = (),
-                              alt_names: dict[str, list[str]] | None = None) -> tuple[dict[str, str], dict[str, str]]:
+    def first_last_scannables(self, last_n: int = 1) -> tuple[dict[str, str], dict[str, str]]:
         """
-        Returns default names from scannables
-            output first_names returns dict of N names, where N is the number of dimensions in scannable shape
-                if fewer axes_names are provided than required, use the first items of scannables instead
-            output signal_names returns the last dict item in the list of scannables + signal_names
+        Returns default names from scannables based on order
+            output first N scannables, where N is the number of dimensions of scannables_shape()
+            Output last N scannables, where N is last_n
 
-        :param first_names: list of names of plottable axes in scannables
-        :param last_names: list of names of plottable values in scannables
-        :param alt_names: dict of alternative names for each plottable value
+        :param last_n: return last N scannables
         :return {first_names: path}, {last_names: path}
         """
-        if alt_names is None:
-            alt_names = {}
-        list_names = list(first_names) + list(self.scannables.keys()) + list(last_names)
-        # check names are in scannables
-        warnings = []
-        all_names = []
-        for name in list_names:
-            if name in all_names:
-                continue
-            elif name in self.scannables:
-                all_names.append(name)
-            elif name in alt_names:
-                alt_name = next((alt for alt in alt_names[name] if alt in self.scannables), None)
-                if alt_name:
-                    all_names.append(alt_name)
-                else:
-                    warnings.append(name)
-            else:
-                warnings.append(name)
-
-        for name in warnings:
-            logger.warning(f"name: '{name}' not in scannables")
-        # return correct number of values from start and end
-        ndims = len(self.scannables_shape())
-        first = {name: self.scannables[name] for name in all_names[:ndims]}
-        last = {name: self.scannables[name] for name in all_names[-(len(last_names) or 1):]}
+        scannable_names = list(self.scannables)
+        first_n = len(self.scannables_shape())
+        first = {name: self.scannables[name] for name in scannable_names[:first_n]}
+        last = {name: self.scannables[name] for name in scannable_names[::-1][:last_n]}
         return first, last
 
     def get_path(self, name_or_path):

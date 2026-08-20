@@ -168,13 +168,13 @@ def names_from_scan_fields(hdf_file: h5py.File, scan_fields_path: str) -> list[s
 
     scan_fields stores scannables as class_name.dataset_name, return only the dataset_name
 
-    :param hdf_file:
-    :param scan_fields_path:
-    :returns: ['names',]
+    :param hdf_file: h5py.File object, reads 'scan_fields' dataset
+    :param scan_fields_path: str path to the 'scan_fields' dataset
+    :returns: list of names for datasets
     """
     scan_fields_dataset = hdf_file.get(scan_fields_path)
     if scan_fields_dataset:
-        return [name.decode().split('.')[-1] for name in scan_fields_dataset[()]]
+        return [generate_identifier(name) for name in scan_fields_dataset.asstr()[...]]
     return []
 
 
@@ -279,23 +279,68 @@ class NexusMap(HdfMap):
             pass
 
     def nexus_default_paths(self) -> tuple[list[str], list[str]]:
-        """Return default axes and signal paths"""
+        """
+        Return default axes and signal paths, as defined by NeXus
+
+        The default axes and signal are defined as attributes @axes and @signal
+        of the @default NXdata within the @default NXentry groups
+        of the NeXus file.
+
+        The number of axes will equal the number of scannable dimensions.
+        There may be more then one signal path, as @auxilliary_signals may
+        contain additional paths, however the first in the list is @signal.
+
+        :return: list of hdf paths for axes, list of hdf paths for signals
+        """
         axes_paths = [self.arrays[axes] for n in range(10) if (axes := f"{NX_AXES}{n}") in self.arrays]
         signal_paths = [self.arrays[signal] for n in range(10) if (signal := f"{NX_SIGNAL}{n}") in self.arrays]
         return axes_paths, signal_paths
 
     def nexus_default_names(self) -> tuple[dict[str, str], dict[str, str]]:
-        """Return name of default axes and signal paths, as defined in scannables"""
+        """
+        Return name of default axes and signal names, as defined by scannables
+
+        The way by which scannables are set will change the output.
+
+        By Default, NeXus default paths will be used, providing they are available in the
+        list of scannables.
+
+        :return: {'axes name: 'hdf_path', ...}, {'signal name: 'hdf_path', ...}
+        """
         axes_paths, signal_paths = self.nexus_default_paths()
         axes_names = [self.datasets[path].name for path in axes_paths]
         signal_names = [self.datasets[path].name for path in signal_paths]
-        # axes_names = [name for path in axes_paths for name in self.datasets[path].names]
-        # signal_names = [name for path in signal_paths for name in self.datasets[path].names]
         alt_names = {
             self.datasets[path].name: self.datasets[path].names
             for path in axes_paths + signal_paths
         }
-        return self.first_last_scannables(axes_names, signal_names, alt_names)
+        scannable_names = list(self.scannables)
+
+        for name in axes_names:
+            if name not in self.scannables:
+                if name in self.arrays and self.datasets[self.arrays[name]].shape == self.scannables_shape():
+                    logger.warning(f"axes '{name}' not found in scannables, appending '{name}' to scannables")
+                    self.scannables[name] = self.arrays[name]
+                else:
+                    raise KeyError(f"axes '{name}' not found in scannables")
+        for n, name in enumerate(signal_names):
+            scannable_name = next(
+                (alt_name for alt_name in alt_names[name] if alt_name in scannable_names),
+                None
+            )
+            if scannable_name is None:
+                if name in self.arrays and self.datasets[self.arrays[name]].shape == self.scannables_shape():
+                    logger.warning(f"signal '{name}' not found in scannables, appending '{name}' to scannables")
+                    self.scannables[name] = self.arrays[name]
+                else:
+                    logger.warning(
+                        f"signal '{name}' not found in scannables, " +
+                        f"switching to '{scannable_names[-(n + 1)]}'"
+                    )
+                    signal_names[n] = scannable_names[-(n + 1)]
+        axes_dict = {name: self.scannables[name] for name in axes_names}
+        signal_dict = {name: self.scannables[name] for name in signal_names}
+        return axes_dict, signal_dict
 
     def generate_scannables_from_nxdata(self, hdf_file: h5py.File, use_auxiliary: bool = True):
         """Generate scannables from default NXdata, using axuiliary_names if available"""
@@ -325,7 +370,6 @@ class NexusMap(HdfMap):
         # find 'scan_fields' to generate scannables list
         if NX_SCANFIELDS in self.arrays:
             scan_fields_path = self.arrays[NX_SCANFIELDS]
-            # scan_fields = hdf_file[scan_fields_path][()]
             scan_fields = names_from_scan_fields(hdf_file, scan_fields_path)
             if scan_fields:
                 logger.info(f"Generating Scannables from NX ScanFields: {scan_fields_path}: {scan_fields}")
