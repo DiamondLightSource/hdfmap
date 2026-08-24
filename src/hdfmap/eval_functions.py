@@ -26,7 +26,6 @@ re_special_characters = re.compile(r'\W')  # finds all special non-alphanumberic
 re_long_floats = re.compile(r'\d+\.\d{5,}')  # finds floats with long trailing decimals
 re_dataset_attributes = re.compile(r'([a-zA-Z_]\w*)@([a-zA-Z_]\w*)')  # finds 'name@attribute' in expressions
 re_dataset_default = re.compile(r'(\w+)\?\((.+?)\)')  # finds 'name?('noname'), return (name, 'noname')
-re_dataset_alternate = re.compile(r'\((\w\S*\|\w\S*)\)')  # finds '(name1|name2|name3)', return 'name1|name2|name3'
 # fromisoformat requires python 3.11+
 datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.decode() if hasattr(x, 'decode') else x))
 
@@ -239,6 +238,34 @@ def find_identifiers(expression: str) -> list[str]:
     return [name for name in asteval.get_ast_names(ast.parse(expression))]
 
 
+def find_or_expressions(expr: str) -> set[str]:
+    """
+    Returns instances of OR-expressions within the expression,
+
+    An OR-expression is given as '(a|b|c)'
+
+    Brackets are counted correctly so only the OR-expression will be returned.
+
+    :param expr: string expression
+    :return: set of unique string expressions
+    """
+    stack = []
+    alternates = []
+
+    for i, ch in enumerate(expr):
+        if ch == '(':
+            stack.append(i)
+        elif ch == ')':
+            if not stack:
+                continue
+            start = stack.pop()
+            sub_str = expr[start:i + 1]
+            if '|' in sub_str:
+                alternates.append(sub_str)
+                stack.clear()
+    return set(alternates)
+
+
 def replace_expression_vars(expr: str, mapping: dict[str, str]) -> str:
     """
     Replace variable names in an expression
@@ -249,23 +276,20 @@ def replace_expression_vars(expr: str, mapping: dict[str, str]) -> str:
     :param mapping: mapping from variable names to replacements
     :return: replaced expression
     """
-    # Remove (alternate|names) if any part would be replaced
-    hidden = []
-    def hide(match):
-        sub_str = match.group(0)
-        if any(name in sub_str for name in mapping):
-            hidden.append(match.group(0))
-            return f"__ALT{len(hidden)-1}__"
-        return sub_str
-    expr = re_dataset_alternate.sub(hide, expr)
+    # Find OR expressions (a|b), don't replace anything in these
+    sub_expr = find_or_expressions(expr)
 
+    for n, sub_str in enumerate(sub_expr):
+        expr = expr.replace(sub_str, f"__ALT{n}__")
+
+    # Replace names in mapping
     for name, repl in mapping.items():
         pattern = r'\b' + re.escape(name) + r'\b'
         expr = re.sub(pattern, repl, expr)
 
     # recover original expression parts
-    for ii, match in enumerate(hidden):
-        expr = expr.replace(f"__ALT{ii}__", match)
+    for n, sub_str in enumerate(sub_expr):
+        expr = expr.replace(f"__ALT{n}__", sub_str)
     return expr
 
 
@@ -383,14 +407,14 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
         else:
             expression = expression.replace(match.group(), name)
     # find alternate names '(opt1|opt2|opt3)'
-    for alt_names in re_dataset_alternate.findall(expression):  # alt_names = 'opt1|opt2|opt3'
-        names = alt_names.split('|')
-        # first available name in hdf_namespace or last name
-        name = next(
-            (n for n in names if n in attributes),
-            next((n for n in names if hdf_namespace.get(n, '') in hdf_file), names[-1])
-        )
-        expression = expression.replace(f"({alt_names})", name)  # replace parentheses
+    while or_expressions := find_or_expressions(expression):
+        for or_exp in or_expressions:
+            names = or_exp.strip('()').split('|')
+            name = next(
+                (n for n in names if n in attributes),
+                next((n for n in names if hdf_namespace.get(n, '') in hdf_file), names[-1])
+            )
+            expression = expression.replace(or_exp, name)
     return expression
 
 

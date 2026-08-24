@@ -2,6 +2,7 @@ from os import path
 import json
 import hdfmap
 import hdfmap.hdf_loader
+from pytest import approx
 
 from . import only_dls_file_system
 
@@ -171,3 +172,19 @@ def test_i06_pol_scan():
     assert len(axes_paths) == len(axes_names)
     # assert axes_names[1] == 'ds'
 
+
+@only_dls_file_system
+def test_complex_eval():
+    f = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1109527.nxs'
+    m = hdfmap.create_nexus_map(f)
+
+    m.add_named_expression(**{
+        '_t': '(count_time|counttime|t?(1.0))',
+        '_cmd': '(cmd|user_input_command|user_command|scan_command)',
+        'cmd': '(cmd|user_input_command|user_command|scan_command)',
+    })
+
+    with m.load_hdf() as hdf:
+        assert m.eval(hdf, '_cmd') == 'flyscancn eta_fly 0.005 61 pil3_100k 0.1 0.5 roi1 roi2'
+        assert m.eval(hdf, 'max(signal / Transmission / (rc/300.) / _t)') == approx(1215483134.5953412)
+        assert m.eval(hdf, 'cmd') == 'flyscancn eta_fly 0.005 61 pil3_100k 0.1 0.5 roi1 roi2'
