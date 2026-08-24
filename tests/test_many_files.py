@@ -29,16 +29,21 @@ def test_use_local_data():
 
 def test_population_time():
     # time to populate a single file
+    # Use the i06 file as the i16 file is very large
     n_tries = 10
-    start = perf_counter()
-    with hdfmap.load_hdf(LOCAL_FILES[1]) as hdf:
-        mymap = hdfmap.NexusMap()
-        for n in range(n_tries):
-            mymap.populate(hdf)
-    stop = perf_counter()
-    population_time = (stop - start) / n_tries
-    print(f"Population time (single file): {population_time:.3f} s")
-    assert population_time < 0.06
+    population_time = [0, 0]
+    for n, filename in enumerate(LOCAL_FILES):
+        with hdfmap.load_hdf(filename) as hdf:
+            mymap = hdfmap.NexusMap()
+            mymap.populate(hdf)  # warm-up
+            start = perf_counter()
+            for _ in range(n_tries):
+                mymap.populate(hdf)
+            stop = perf_counter()
+        population_time[n] = (stop - start) / n_tries
+        print(f"Population time ('{os.path.basename(filename)}'): {population_time[n]:.3f} s")
+    print(f"Large i16 file takes {population_time[0] / population_time[1]:.2%} longer than i06 file")
+    assert population_time[0] / population_time[1] < 5
 
 
 @only_dls_file_system
