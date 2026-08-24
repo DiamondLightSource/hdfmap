@@ -29,7 +29,7 @@ class Group(typing.NamedTuple):
     name: str
     attrs: dict
     datasets: list[str]
-    parent: Group | None
+    parent: "Group | None"
     default: bool
 
 
@@ -333,7 +333,7 @@ class HdfMap:
             logger.debug(f"{hdf_path}  HDFDataset: value")
 
     def _populate(self, hdf_group: h5py.Group, root: str = '',
-                  recursive: bool = True, groups: list[str] = None):
+                  recursive: bool = True, groups: list[str] | None = None):
         """
         populate HdfMap dictionary's using recursive method
         :param hdf_group: HDF group object, from HDF File
@@ -552,8 +552,8 @@ class HdfMap:
         # create combined dict, scannables and arrays overwrite values with same name
         # self.generate_combined()
 
-    def generate_scannables_from_group(self, hdf_group: h5py.Group, group_path: str = None,
-                                       dataset_names: list[str] = None):
+    def generate_scannables_from_group(self, hdf_group: h5py.Group, group_path: str | None = None,
+                                       dataset_names: list[str] | None = None):
         """
         Generate scannables list from a specific group, using the first item to define array size
         :param hdf_group: h5py.Group
@@ -794,7 +794,8 @@ class HdfMap:
         """Return the scan shape of the detector dataset"""
         path = self.get_image_path()
         if path in self.datasets:
-            return self.datasets[path].shape[-2:]
+            i, j = self.datasets[path].shape[-2:]
+            return i, j
         return 0, 0
 
     def get_image_index(self, index: int) -> tuple[int, ...]:
@@ -853,7 +854,7 @@ class HdfMap:
     "---------------------- FILE READERS --------------------"
     "--------------------------------------------------------"
 
-    def load_hdf(self, filename: str | None = None, name_or_path: str = None, **kwargs) -> h5py.File | h5py.Dataset:
+    def load_hdf(self, filename: str | None = None, name_or_path: str | None = None, **kwargs) -> h5py.File | h5py.Dataset:
         """
         Load hdf file or hdf dataset in open state
         :param filename: str filename of hdf file, or None to use self.filename
@@ -900,7 +901,7 @@ class HdfMap:
         return default
 
     def get_metadata(self, hdf_file: h5py.File, default=None, direct_load=False,
-                     name_list: list = None, string_output=False, numeric_only=False) -> dict:
+                     name_list: list | None = None, string_output=False, numeric_only=False) -> dict:
         """
         Return metadata dict from file, loading data for each item in the metadata list
         The metadata list is taken from name_list, otherwise self.metadata or self.values
@@ -940,7 +941,7 @@ class HdfMap:
             }
         return {**extra, **metadata}
 
-    def create_metadata_list(self, hdf_file: h5py.File, default=None, name_list: list = None,
+    def create_metadata_list(self, hdf_file: h5py.File, default=None, name_list: list | None = None,
                              line_separator: str = '\n', value_separator: str = '=') -> str:
         """
         Return a metadata string, using self.get_metadata
@@ -989,7 +990,9 @@ class HdfMap:
         logger.info(f"image path: {image_path}")
         if image_path and image_path in hdf_file:
             # return hdf_file[image_path][index].squeeze()  # remove trailing dimensions
-            return self.get_data(hdf_file, image_path, index)  # return array or image paths
+            image_array = self.get_data(hdf_file, image_path, index)  # return array or image paths
+            assert isinstance(image_array, np.ndarray)
+            return image_array
         return None
 
     def _get_numeric_scannables(self, hdf_file: h5py.File) -> list[tuple[str, str, np.ndarray]]:
