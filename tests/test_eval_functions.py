@@ -22,6 +22,11 @@ def test_replace_expression_vars():
     new_expr = replace_expression_vars(expression, mapping)
     assert new_expr == "(cmd|command|scan_command?(''))\nstr((cmd|command|scan_command?('no_cmd')))\npath"
 
+    expression = "max(_t)"
+    mapping = {'_t': '(count_time|counttime|t?(1.0))'}
+    new_expr = replace_expression_vars(expression, mapping)
+    assert new_expr == "max((count_time|counttime|t?(1.0)))"
+
 
 def test_prepare_expression_load_data():
     expression = 'idgap@units, x*y'
