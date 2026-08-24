@@ -32,6 +32,25 @@ def test_dataset_names(hdf_map):
     assert hdf_map['x_gap'] == '/entry/instrument/s7/x_gap', "Name: 'x_gap' points to wrong path"
 
 
+def test_default_scannables_path():
+    """
+    Ensure that paths in scannables always point to the default path
+    """
+    with hdfmap.load_hdf(FILE_NEW_NEXUS) as hdf:
+        hdf_map = hdfmap.NexusMap(hdf)
+        hdf_map.generate_scannables_from_nxdata(hdf)  # this does not work if scan_fields is used.
+        default_nxdata_path = hdf['entry'][hdf['entry'].attrs['default']].name
+        nx_data_datasets = list(hdf[default_nxdata_path])
+
+    for name, path in hdf_map.scannables.items():
+        print(name, path, name in nx_data_datasets)
+        if name in nx_data_datasets:
+            dataset = hdf_map.datasets[path]
+            group = dataset.parent
+            assert group.default
+            assert path.startswith(default_nxdata_path)
+
+
 def test_find_datasets(hdf_map):
     assert len(hdf_map.find_datasets('NXslit', 'x_gap')) == 7
     assert len(hdf_map.find_datasets('NXdetector', 'data')) == 1
@@ -43,6 +62,7 @@ def test_nexus_decimals(hdf_map):
         assert out == '-0.00047'
         out = hdf_map.get_string(hdf, 'pppiezo2')
         assert out == '12345.01236'
+
 
 def test_nexus_eval(hdf_map):
     with hdfmap.load_hdf(FILE_NEW_NEXUS) as hdf:
@@ -114,8 +134,58 @@ def test_info_nexus(hdf_map):
     assert "@default: ['/entry']" in info
     assert "@axes: /entry/measurement/h" in info
     assert "@signal: /entry/measurement/rc" in info
-    assert "h: (21,)      : /entry/measurement/h " in info
+    assert "h: (21,)      : /entry/instrument/hkl/h " in info
     assert "pil3_100k: (21, 195, 487) : /entry/instrument/pil3_100k/data" in info
+
+
+def test_nexus_default_names_i16():
+    """
+    In scan 1040323.nxs, the @signal is incorrectly set and does not
+    match the last item in the scan_fields dataset, which defines scannables
+    """
+    with hdfmap.load_hdf(FILE_NEW_NEXUS) as hdf:
+        hdf_map = hdfmap.NexusMap(hdf)
+        scan_fields = hdf['/entry/scan_fields'].asstr()[...]
+    # @signal, @axes are defined in @default NXdata
+    default_axes_paths, default_signal_paths = hdf_map.nexus_default_paths()
+    assert default_axes_paths[0] == '/entry/measurement/h'
+    assert default_signal_paths[0] == '/entry/measurement/rc'
+
+    # The same is returned using nexus_default_names
+    default_axes, default_signal = hdf_map.nexus_default_names()
+    assert len(default_axes) == len(default_axes_paths)
+    assert len(default_signal) == len(default_signal_paths)
+    assert default_axes == {'h': '/entry/instrument/hkl/h'}
+    assert default_signal == {'rc': '/entry/measurement/rc'}
+    assert all(name in hdf_map.scannables for name in list(default_axes) + list(default_signal))
+
+    # Better defaults are available if scan_fields is used
+    default_axes, default_signal = hdf_map.first_last_scannables(len(default_signal_paths))
+    assert len(default_axes) == len(default_axes_paths)
+    assert len(default_signal) == len(default_signal_paths)
+    assert default_axes == {'h': '/entry/instrument/hkl/h'}
+    assert default_signal == {'total': '/entry/instrument/pil3_100k/total'}
+
+
+def test_nexus_default_names_i06(hdf_map):
+    """
+    In scan i06-353130.nxs, the first @axes points to a dataset
+    that is not in scan_fields, which defines scannables.
+    Also, the @signal points to a dataset with the wrong shape (detector data)
+    """
+    with hdfmap.load_hdf(FILE_3D_NEXUS) as hdf:
+        hdf_map = hdfmap.NexusMap(hdf)
+    default_axes_paths, default_signal_paths = hdf_map.nexus_default_paths()
+    assert default_axes_paths[0] == '/entry/medipix/pol'
+    assert default_signal_paths[0] == '/entry/medipix/data'
+
+    default_axes, default_signal = hdf_map.nexus_default_names()
+    assert default_axes == {'pol': '/entry/medipix/pol', 'energy': '/entry/medipix/energy', 'ds': '/entry/medipix/ds'}
+    assert default_signal == {'Region1_meanvalue': '/entry/instrument/medipix/Region1_meanvalue'}
+    assert all(name in hdf_map.scannables for name in list(default_axes) + list(default_signal))
+
+    assert default_axes_paths[0] == list(default_axes.values())[0]
+    assert default_signal_paths[0] != list(default_signal.values())[0]
 
 
 def test_save_load(hdf_map):

@@ -27,6 +27,25 @@ def test_use_local_data():
     assert len(set(cmd)) == 1, "datasets from different files are different when they shouldn't be"
 
 
+def test_population_time():
+    # time to populate a single file
+    # Use the i06 file as the i16 file is very large
+    n_tries = 10
+    population_time = [0, 0]
+    for n, filename in enumerate(LOCAL_FILES):
+        with hdfmap.load_hdf(filename) as hdf:
+            mymap = hdfmap.NexusMap()
+            mymap.populate(hdf)  # warm-up
+            start = perf_counter()
+            for _ in range(n_tries):
+                mymap.populate(hdf)
+            stop = perf_counter()
+        population_time[n] = (stop - start) / n_tries
+        print(f"Population time ('{os.path.basename(filename)}'): {population_time[n]:.3f} s")
+    print(f"Large i16 file takes {population_time[0] / population_time[1]:.2%} longer than i06 file")
+    assert population_time[0] / population_time[1] < 5
+
+
 @only_dls_file_system
 def test_compare_time_for_many_files():
     files = hdfmap.list_files(THOUSAND_FILES)[:NFILES]

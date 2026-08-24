@@ -19,7 +19,7 @@ from .logging import create_logger
 GLOBALS_NAMELIST = asteval.make_symbol_table(use_numpy=True).keys()
 DEFAULT: typing.Any = np.array('--')  # default return in eval
 SEP = '/'  # HDF path separator
-OMIT = '/value'  # omit this name in paths when determining identifier
+OMIT = ['/value', '/data']  # omit these names in paths when determining identifier
 logger = create_logger(__name__)
 # regex patterns
 re_special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
@@ -38,7 +38,7 @@ def generate_identifier(hdf_path: str | bytes) -> str:
     """
     Generate a valid python identifier from a hdf dataset path or other string
      - Decodes to ascii
-     - omits '/value'
+     - omits '/value' and '/data'
      - splits by path separator (/) and takes final element
      - converts special characters to '_'
      - removes replication of strings separated by '_'
@@ -52,12 +52,12 @@ def generate_identifier(hdf_path: str | bytes) -> str:
     """
     if hasattr(hdf_path, 'decode'):  # Byte string
         hdf_path = hdf_path.decode('ascii')
-    if hdf_path.endswith(OMIT):
-        hdf_path = hdf_path[:-len(OMIT)]  # omit 'value'
-    substrings = hdf_path.split(SEP)
-    name = expression_safe_name(substrings[-1])
+    for omit in OMIT:
+        hdf_path = hdf_path.removesuffix(omit)  # omit 'value' or 'data'
+    substring = hdf_path.split(SEP)[-1]
     # remove replication (handles local_names 'name.name' convention)
-    return '_'.join(dict.fromkeys(name.split('_')))
+    substring = '.'.join(dict.fromkeys(substring.split('.')))
+    return expression_safe_name(substring)
 
 
 def build_hdf_path(*args: str | bytes) -> str:
@@ -150,6 +150,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
         return dataset[index]
     if np.issubdtype(dataset, np.number):
         logger.debug(f"Dataset {repr(dataset)} is numeric, return numpy array")
+        # note that squeeze returns float if np.float64 is given.
         return np.squeeze(dataset[index])  # numeric np.ndarray
     try:
         # str integers will be cast as timestamps (years), capture as int

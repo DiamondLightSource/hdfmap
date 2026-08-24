@@ -18,7 +18,24 @@ def hdf_map():
 
 def test_populate(hdf_map):
     assert len(hdf_map.datasets) == 360, "Wrong number of datasets loaded"
-    assert len(hdf_map.combined) == 895, "Wrong number of names in map.combined"
+    assert len(hdf_map.combined) == 896, "Wrong number of names in map.combined"
+
+
+def test_parents(hdf_map):
+    """
+    pilatus data in a symbolic link to another file, so the
+    hdf parent of that dataset is a group within that file.
+    Ensure the correct parent in the curent file is kept.
+    """
+    with hdf_map.load_hdf() as h:
+        hdf_dataset = h['/entry1/instrument/pil3_100k/data']
+        assert hdf_dataset.name == '/entry/instrument/detector/data'
+        assert hdf_dataset.parent.name == '/entry/instrument/detector'
+
+    dataset = hdf_map.datasets['/entry1/instrument/pil3_100k/data']
+    parent = dataset.parent
+    assert parent.name == 'pil3_100k'
+    assert parent.parent.name == 'instrument'
 
 
 def test_most_common_size(hdf_map):
@@ -42,7 +59,7 @@ def test_generate_scannables(hdf_map):
 def test_get_item(hdf_map):
     assert hdf_map['sum'] == '/entry1/pil3_100k/sum', '__get_item__ failed'
     assert 'sum' in hdf_map, '__contains__ failed'
-    assert len([path for path in hdf_map]) == 895, '__iter__ failed'
+    assert len([path for path in hdf_map]) == 896, '__iter__ failed'
 
 
 def test_get_path(hdf_map):
@@ -78,6 +95,14 @@ def test_find_groups(hdf_map):
 
 def test_find_datasets(hdf_map):
     assert len(hdf_map.find_datasets('measurement', 'sum')) == 1
+
+
+def test_first_last_scannables(hdf_map):
+    first, last = hdf_map.first_last_scannables()
+    assert len(first) == len(hdf_map.scannables_shape())
+    assert len(last) == 1
+    assert first == {'beamOK': '/entry1/roi2/beamOK'}
+    assert last == {'theta': '/entry1/sample/transformations/theta'}
 
 
 def test_save_load(hdf_map):

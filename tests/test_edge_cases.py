@@ -15,6 +15,7 @@ with open(TEST_FILES, 'r') as f:
 def test_edge_cases():
     n = 0
     for chk in CHECK_FILES:
+        print(f"Checking {chk['filename']}")
         assert path.isfile(chk['filename']) is True, f"{chk['filename']} doesn't exist"
         mymap = hdfmap.create_nexus_map(chk['filename'])
         assert isinstance(mymap, hdfmap.NexusMap), f"{chk['filename']} is not NexusMap"
@@ -72,6 +73,7 @@ def test_newer_i16_file():
 
 @only_dls_file_system
 def test_i16_bpm_file():
+    """Tests an i16 scan with bpm images which are returned in the old style as TIFF"""
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1113658.nxs'
     assert path.isfile(filename) is True, f"{filename} doesn't exist"
     mymap = hdfmap.create_nexus_map(filename)
@@ -80,6 +82,33 @@ def test_i16_bpm_file():
         image = mymap.get_image(hdf)
     assert image.ndim == 0, 'bpm image has wrong shape'
     assert int(image) == 11, 'bpm image has wrong value'
+
+
+@only_dls_file_system
+def test_i16_default_signal():
+    mymap = hdfmap.create_nexus_map('/dls/science/groups/das/ExampleData/i16/azimuths/1108750.nxs')
+
+    axes_names, signal_names = mymap.nexus_default_names()
+
+    assert next(iter(axes_names)) == 'eta_fly_fly'
+    assert next(iter(signal_names)) == 'mroi2_sum'
+    assert axes_names == {'eta_fly_fly': '/entry/measurement/eta_fly_fly'}
+    assert len(signal_names) == 6
+    assert signal_names == {
+        'mroi2_sum': '/entry/instrument/mroi2/mroi2_sum',
+        'count_time': '/entry/instrument/merlin/count_time',
+        'merlin_max_val': '/entry/instrument/merlin/merlin_max_val',
+        'merlin_max_x': '/entry/instrument/merlin/merlin_max_x',
+        'merlin_max_y': '/entry/instrument/merlin/merlin_max_y',
+        'merlin_total': '/entry/instrument/merlin/merlin_total'
+    }
+
+
+@only_dls_file_system
+def test_i10_scannables():
+    mymap = hdfmap.create_nexus_map('/dls/science/groups/das/ExampleData/hdfmap_tests/i10/i10-1-28428.nxs')
+    scan_fields = mymap.get_data(mymap.load_hdf(), 'scan_fields')
+    assert len(mymap.scannables) == len(scan_fields)
 
 
 @only_dls_file_system
