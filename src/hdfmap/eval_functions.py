@@ -150,6 +150,7 @@ def dataset2data(dataset: h5py.Dataset, index: int | slice = (), direct_load=Fal
         return dataset[index]
     if np.issubdtype(dataset, np.number):
         logger.debug(f"Dataset {repr(dataset)} is numeric, return numpy array")
+        # note that squeeze returns float if np.float64 is given.
         return np.squeeze(dataset[index])  # numeric np.ndarray
     try:
         # str integers will be cast as timestamps (years), capture as int

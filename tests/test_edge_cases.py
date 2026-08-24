@@ -73,6 +73,7 @@ def test_newer_i16_file():
 
 @only_dls_file_system
 def test_i16_bpm_file():
+    """Tests an i16 scan with bpm images which are returned in the old style as TIFF"""
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1113658.nxs'
     assert path.isfile(filename) is True, f"{filename} doesn't exist"
     mymap = hdfmap.create_nexus_map(filename)

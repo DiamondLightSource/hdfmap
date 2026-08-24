@@ -990,8 +990,8 @@ class HdfMap:
         logger.info(f"image path: {image_path}")
         if image_path and image_path in hdf_file:
             # return hdf_file[image_path][index].squeeze()  # remove trailing dimensions
-            image_array = self.get_data(hdf_file, image_path, index)  # return array or image paths
-            assert isinstance(image_array, np.ndarray)
+            # note that squeeze returns float if np.float64 is given.
+            image_array = np.asarray(self.get_data(hdf_file, image_path, index))
             return image_array
         return None
 
