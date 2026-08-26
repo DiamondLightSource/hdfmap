@@ -225,6 +225,7 @@ class NexusLoader(HdfLoader):
         data = hdf.eval('dataset_name_1 * 100 + 2')
         string = hdf.format('my data is {dataset_name_1:.2f}')
     """
+    map: NexusMap
 
     def __init__(self, nxs_filename: str, hdf_map: NexusMap | None = None):
         if not hdf_map:

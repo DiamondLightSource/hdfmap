@@ -45,6 +45,30 @@ def test_old_i16_file():
 
 
 @only_dls_file_system
+def test_very_old_i16_file():
+    """file with no default plotting"""
+    filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/777777.nxs'
+    assert path.isfile(filename) is True, f"{filename} doesn't exist"
+    mymap = hdfmap.create_nexus_map(filename)
+
+    axes_names, signal_names = mymap.nexus_default_names()
+    assert axes_names == {'TimeFromEpoch': '/entry1/measurement/TimeFromEpoch'}
+    assert signal_names == {'sum': '/entry1/measurement/sum'}
+
+    assert mymap['axes'] == '/entry1/measurement/TimeFromEpoch'
+    assert mymap['signal'] == '/entry1/measurement/sum'
+
+    with hdfmap.hdf_loader.load_hdf(filename) as hdf:
+        data = mymap.get_plot_data(hdf)
+        assert data['xlabel'] == 'TimeFromEpoch'
+        assert data['ylabel'] == 'sum'
+        assert data['xdata'].shape == (81, )
+        assert data['ydata'].shape == (81,)
+        assert data['axes_names'] == ['TimeFromEpoch']
+        assert data['signal_names'] == ['sum']
+
+
+@only_dls_file_system
 def test_new_i16_file():
     filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1040323.nxs'
     assert path.isfile(filename) is True, f"{filename} doesn't exist"
@@ -141,6 +165,36 @@ def test_msmapper_file():
     with hdfmap.hdf_loader.load_hdf(filename) as hdf:
         a, b, c, alpha, beta, gamma = mymap.eval(hdf, 'unit_cell')
     assert gamma > 1.0, 'unit cell incorrect'
+
+    # defaults in /processed but scan_fields causes scannables to use /entry0
+    assert len(mymap.scannables) == 36
+    assert mymap.scannables_shape() == (81, )
+    axes_paths, signal_paths = mymap.nexus_default_paths()
+    assert axes_paths == ['/processed/reciprocal_space/h-axis', '/processed/reciprocal_space/k-axis', '/processed/reciprocal_space/l-axis']
+    assert signal_paths == ['/processed/reciprocal_space/volume', '/processed/reciprocal_space/weight']
+    axes_names, signal_names = mymap.nexus_default_names()
+    assert axes_names == {'beamOK': '/entry0/roi2/beamOK'}
+    assert signal_names == {'theta': '/entry0/sample/transformations/theta'}
+
+    # alternative file with /entry0, /processed, /analysis{@default}
+    filename = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/processed/1109527_msmapper.nxs'
+    mymap = hdfmap.create_nexus_map(filename, default_entry_only=False)
+    assert len(mymap.scannables) == 23
+    assert mymap.scannables_shape() == (61,)
+    axes_paths, signal_paths = mymap.nexus_default_paths()
+    assert axes_paths == ['/analysis/l_axis/l']
+    assert signal_paths == ['/analysis/l_axis/intensity', '/analysis/l_axis/fit']
+    axes_names, signal_names = mymap.nexus_default_names()
+    assert axes_names == {'eta_fly_fly': '/entry0/instrument/eta_fly_fly/value'}
+    assert signal_names == {'pil_total': '/entry0/instrument/pil3_100k/pil_total', 'pil_max_y': '/entry0/instrument/pil3_100k/pil_max_y'}
+
+    # Real defaults stored in /analysis, normally overridden by scan_fields
+    mymap = hdfmap.create_nexus_map(filename, default_entry_only=True)
+    assert len(mymap.scannables) == 3
+    assert mymap.scannables_shape() == (1185,)
+    axes_names, signal_names = mymap.nexus_default_names()
+    assert axes_names == {'l': '/analysis/l_axis/l'}
+    assert signal_names == {'intensity': '/analysis/l_axis/intensity', 'fit': '/analysis/l_axis/fit'}
 
 
 @only_dls_file_system
