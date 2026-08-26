@@ -238,8 +238,8 @@ class NexusMap(HdfMap):
         out += f""
         return out
 
-    def _store_group(self, hdf_group: h5py.Group, path: str, name: str):
-        super()._store_group(hdf_group, path, name)
+    def _store_group(self, hdf_group: h5py.Group, path: str, name: str, external: str | None):
+        super()._store_group(hdf_group, path, name, external)
         if NX_DEFINITION in hdf_group:
             definition = hdf_group[NX_DEFINITION].asstr()[()]  # e.g. NXmx or NXxas
             self._store_class(definition, path)
@@ -251,12 +251,16 @@ class NexusMap(HdfMap):
             nx_entry_name = default_nxentry(hdf_file)
             nx_entry = hdf_file[nx_entry_name]
             nx_entry_path = build_hdf_path(nx_entry_name)
-            self._store_group(nx_entry, nx_entry_path, NX_ENTRY)
+            nx_entry_link = hdf_file.get(nx_entry_name, getlink=True)
+            external_file = nx_entry_link.filename if isinstance(nx_entry_link, h5py.ExternalLink) else None
+            self._store_group(nx_entry, nx_entry_path, NX_ENTRY, external_file)
             # find the default NXdata group
             nx_data_name = default_nxdata(nx_entry)
             nx_data = nx_entry[nx_data_name]
             nx_data_path = build_hdf_path(nx_entry_name, nx_data_name)
-            self._store_group(nx_data, nx_data_path, NX_DATA)
+            nx_data_link = nx_entry.get(nx_data_name, getlink=True)
+            external_file = nx_data_link.filename if isinstance(nx_data_link, h5py.ExternalLink) else None
+            self._store_group(nx_data, nx_data_path, NX_DATA, external_file)
 
             axes_paths, signal_paths = find_nexus_defaults(hdf_file, nx_data_path)
             if axes_paths and isinstance(hdf_file.get(axes_paths[0]), h5py.Dataset):
@@ -471,10 +475,12 @@ class NexusMap(HdfMap):
             nx_entry = hdf_file.get(entry)
             if nx_entry is None:
                 continue  # group may be missing due to a broken link
+            nx_entry_link = hdf_file.get(entry, getlink=True)
+            external_file = nx_entry_link.filename if isinstance(nx_entry_link, h5py.ExternalLink) else None
             hdf_path = build_hdf_path(entry)
             logger.debug(f"NX Entry: {hdf_path}")
             self.all_paths.append(hdf_path)
-            self._store_group(nx_entry, hdf_path, entry)
+            self._store_group(nx_entry, hdf_path, entry, external_file)
             self._populate(nx_entry, root=hdf_path, groups=groups)  # nx_entry.name can be wrong!
 
         if not self.datasets:

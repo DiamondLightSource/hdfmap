@@ -31,6 +31,7 @@ class Group(typing.NamedTuple):
     datasets: list[str]
     parent: "Group | None"
     default: bool
+    external_file: str | None
 
 
 class Dataset(typing.NamedTuple):
@@ -40,6 +41,7 @@ class Dataset(typing.NamedTuple):
     shape: tuple[int]
     attrs: dict
     parent: Group
+    external_file: str | None
 
 
 def generate_alt_name(hdf_dataset: h5py.Dataset) -> str | None:
@@ -274,7 +276,7 @@ class HdfMap:
         if path not in self.classes[name]:
             self.classes[name].append(path)
 
-    def _store_group(self, hdf_group: h5py.Group, path: str, name: str):
+    def _store_group(self, hdf_group: h5py.Group, path: str, name: str, external: str | None):
 
         parent = self.groups.get(hdf_group.parent.name, None)
         attrs = attrs2dict(hdf_group)
@@ -287,14 +289,15 @@ class HdfMap:
             attrs=attrs,
             datasets=[key for key, item in hdf_group.items() if isinstance(item, h5py.Dataset)],
             parent=parent,
-            default=nx_default
+            default=nx_default,
+            external_file=external
         )
         self._store_class(name, path)
         self._store_class(nx_class, path)
         logger.debug(f"{path}  HDFGroup: {nx_class}")
         return nx_class
 
-    def _store_dataset(self, hdf_dataset: h5py.Dataset, hdf_path: str, name: str):
+    def _store_dataset(self, hdf_dataset: h5py.Dataset, hdf_path: str, name: str, external: str | None):
         # New: add group_name to namespace as standard, helps with names like s5/x + s4/x
         # this significantly increases the number of names in namespaces
         group = self.groups[SEP.join(hdf_path.split(SEP)[:-1])]  # group is already stored
@@ -311,6 +314,7 @@ class HdfMap:
             shape=hdf_dataset.shape,
             attrs=attrs2dict(hdf_dataset),
             parent=group,
+            external_file=external
         )
         if hdf_dataset.ndim > 0:
             if is_image(hdf_dataset.shape):
@@ -353,17 +357,18 @@ class HdfMap:
             # New: store all paths in file, useful for checking if anything was missed, but might be slow
             self.all_paths.append(hdf_path)
             name = generate_identifier(hdf_path)
+            external_file = link.filename if isinstance(link, h5py.ExternalLink) else None
             logger.debug(f"{hdf_path}:  {name}, link={repr(link)}")
 
             # Group
             if isinstance(obj, h5py.Group):
-                nx_class = self._store_group(obj, hdf_path, name)
+                nx_class = self._store_group(obj, hdf_path, name, external_file)
                 if recursive and (key in groups or nx_class in groups if groups else True):
                     self._populate(obj, hdf_path, recursive)
 
             # Dataset
             elif isinstance(obj, h5py.Dataset): #18 remove link omission
-                self._store_dataset(obj, hdf_path, name)
+                self._store_dataset(obj, hdf_path, name, external_file)
 
     def add_local(self, **kwargs):
         """Add value to the local namespace, used in eval"""
@@ -742,6 +747,24 @@ class HdfMap:
         if match_case:
             return [name for name in self.combined if string in name]
         return [name for name in self.combined if string.lower() in name.lower()]
+
+    def find_links(self, *names_or_classes: str) -> dict[str, str]:
+        """
+        Find datasets and groups within the hdfmap that are links to external files
+        :param names_or_classes: if names is given, only return links to these names
+        :return: dict[hdf_path, 'external_filename']
+        """
+        if names_or_classes:
+            group_paths = self.find_groups(*names_or_classes)
+            dataset_paths = self.find_datasets(*names_or_classes)
+            groups = {path: self.groups[path] for path in group_paths}
+            datasets = {path: self.datasets[path] for path in dataset_paths}
+        else:
+            groups = self.groups
+            datasets = self.datasets
+        group_links = {path: group.external_file for path, group in groups.items() if group.external_file}
+        dataset_links = {path: ds.external_file for path, ds in datasets.items() if ds.external_file}
+        return {**group_links, **dataset_links}
 
     def find_attr(self, attr_name: str) -> list[str]:
         """

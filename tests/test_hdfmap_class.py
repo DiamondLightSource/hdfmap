@@ -119,6 +119,18 @@ def test_save_load(hdf_map):
     assert save == new_save
 
 
+def test_find_links(hdf_map):
+    links = hdf_map.find_links()
+    assert links == {
+        '/entry1/instrument/pil3_100k/data': '1049598-pilatus3_100k-files/1049598.hdf',
+        '/entry1/pil3_100k/data': '1049598-pilatus3_100k-files/1049598.hdf'
+    }
+    links = hdf_map.find_links('NXdetector')
+    assert links == {
+        '/entry1/instrument/pil3_100k/data': '1049598-pilatus3_100k-files/1049598.hdf',
+    }
+
+
 "--------------------------------------------------------"
 "---------------------- FILE READERS --------------------"
 "--------------------------------------------------------"
