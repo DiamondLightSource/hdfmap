@@ -1,5 +1,6 @@
 import os
-from time import perf_counter
+from time import perf_counter, ctime
+from subprocess import check_output
 import hdfmap
 
 from . import only_dls_file_system
@@ -7,6 +8,7 @@ from . import only_dls_file_system
 # Folder with over 1000 files
 THOUSAND_FILES = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/cm37262-1'
 NFILES = 1332  # number of files to test (max 1332)
+TIME_FILE = 'hdfmap_timing.txt'  # local storage, don't commit
 # FORMAT_STRING = """#{entry_identifier}\ncmd: {scan_command}\n"""
 FORMAT_STRING = '#{entry_identifier}: {start_time} : E={incident_energy:.3f} keV : {scan_command}'
 
@@ -15,6 +17,13 @@ LOCAL_FILES = [
     DATA_FOLDER + '/1040323.nxs',  # new nexus format
     DATA_FOLDER + '/i06-353130.nxs',  # new nexus format
 ]
+
+
+def append_time_file(string):
+    time = ctime()
+    git_branch = check_output('git branch --show-current'.split(), text=True).strip()
+    with open(TIME_FILE, 'a') as f:
+        f.write('\n' + '\n'.join(f"{time} {git_branch} {_s}" for _s in string.splitlines()))
 
 
 def test_use_local_data():
@@ -32,6 +41,7 @@ def test_population_time():
     # Use the i06 file as the i16 file is very large
     n_tries = 10
     population_time = [0, 0]
+    out = []
     for n, filename in enumerate(LOCAL_FILES):
         with hdfmap.load_hdf(filename) as hdf:
             mymap = hdfmap.NexusMap()
@@ -41,8 +51,10 @@ def test_population_time():
                 mymap.populate(hdf)
             stop = perf_counter()
         population_time[n] = (stop - start) / n_tries
-        print(f"Population time ('{os.path.basename(filename)}'): {population_time[n]:.3f} s")
-    print(f"Large i16 file takes {population_time[0] / population_time[1]:.2%} longer than i06 file")
+        out.append(f"Population time ('{os.path.basename(filename)}'): {population_time[n]:.3f} s")
+    out.append(f"Large i16 file takes {population_time[0] / population_time[1]:.2%} longer than i06 file")
+    print('\n'.join(out))
+    append_time_file('\n'.join(out))
     assert population_time[0] / population_time[1] < 5
 
 
@@ -84,10 +96,12 @@ def test_compare_time_for_many_files():
     stop = perf_counter()
     single_time2 = stop - start
 
-    print(f"\nRead single entry from {len(files)} files in: {single_time:.3f} s")
-    print(f"Read multi entry from {len(files)} files in: {multi_time:.3f} s")
-    print(f"Read single entry from {len(files)} files in: {single_time2:.3f} s")
-    print(f"Performance factor: {((multi_time-single_time2) / single_time2):+.1%} of direct access time")
+    s = f"Read single entry from {len(files)} files in: {single_time:.3f} s\n"
+    s += f"Read multi entry from {len(files)} files in: {multi_time:.3f} s\n"
+    s += f"Read single entry from {len(files)} files in: {single_time2:.3f} s\n"
+    s += f"Performance factor: {((multi_time-single_time2) / single_time2):+.1%} of direct access time\n"
+    print(s)
+    append_time_file(s)
     # Typically around 40% slower
     assert multi_time < 1.5 * single_time2, "mult-read is much slower than direct read"
 
