@@ -68,6 +68,10 @@ def test_get_path(hdf_map):
     assert hdf_map.get_path('NXdata') == '/entry1/measurement', 'class is wrong'
 
 
+def test_get_default_name(hdf_map):
+    assert hdf_map.get_default_name('measurement_sum') == 'sum'
+
+
 def test_get_group_path(hdf_map):
     assert hdf_map.get_group_path('sum') == '/entry1/pil3_100k'
 

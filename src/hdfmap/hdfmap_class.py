@@ -621,7 +621,16 @@ class HdfMap:
         last = {name: self.scannables[name] for name in scannable_names[::-1][:last_n]}
         return first, last
 
-    def get_path(self, name_or_path):
+    def get_default_name(self, name_or_path: str) -> str | None:
+        """Return the default name of a dataset or group identifier"""
+        path = self.get_path(name_or_path)
+        if path and path in self.datasets:
+            return self.datasets[path].name
+        elif path and path in self.groups:
+            return self.groups[path].name
+        return None
+
+    def get_path(self, name_or_path) -> str | None:
         """Return hdf path of object in HdfMap"""
         if name_or_path in self.datasets or name_or_path in self.groups:
             return name_or_path

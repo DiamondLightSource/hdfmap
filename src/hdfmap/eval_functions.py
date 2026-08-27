@@ -385,6 +385,9 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
     :param replace_names: dict of {'variable_name': expression}
     :return: str expression
     """
+    #TODO: remove hdf from this function, replace with dict of Dataset objects.
+    #TODO: Move Dataset objects into seperate file that can be improted
+
     # replace names with expressions
     expression = replace_expression_vars(expression, replace_names)
 
