@@ -312,21 +312,36 @@ class NexusMap(HdfMap):
         :return: {'axes name: 'hdf_path', ...}, {'signal name: 'hdf_path', ...}
         """
         axes_paths, signal_paths = self.nexus_default_paths()
+        if len(axes_paths) != len(self.scannables_shape()):
+            # If file doesn't contain defaults, or defaults are the wrong shape,
+            # use first and last scannables
+            logger.warning(f"default axes dimensions({len(axes_paths)}) does not match scannables dimensions({len(self.scannables_shape())})")
+            return self.first_last_scannables()
         axes_names = [self.datasets[path].name for path in axes_paths]
         signal_names = [self.datasets[path].name for path in signal_paths]
+        if not self.scannables:
+            # If scannables not populated, return array paths
+            axes_dict = {name: self.arrays[name] for name in axes_names}
+            signal_dict = {name: self.arrays[name] for name in signal_names}
+            return axes_dict, signal_dict
+
         alt_names = {
             self.datasets[path].name: self.datasets[path].names
             for path in axes_paths + signal_paths
         }
         scannable_names = list(self.scannables)
 
-        for name in axes_names:
+        for n, name in enumerate(axes_names):
             if name not in self.scannables:
                 if name in self.arrays and self.datasets[self.arrays[name]].shape == self.scannables_shape():
                     logger.warning(f"axes '{name}' not found in scannables, appending '{name}' to scannables")
                     self.scannables[name] = self.arrays[name]
                 else:
-                    raise KeyError(f"axes '{name}' not found in scannables")
+                    logger.warning(
+                        f"axes '{name}' not found in scannables, " +
+                        f"switching to '{scannable_names[n]}'"
+                    )
+                    axes_names[n] = scannable_names[n]
         for n, name in enumerate(signal_names):
             scannable_name = next(
                 (alt_name for alt_name in alt_names[name] if alt_name in scannable_names),
@@ -495,6 +510,15 @@ class NexusMap(HdfMap):
             if len(self.scannables) < len(self.scannables_shape()):
                 logger.warning('Less scannables than most common shape dimensions, removing scannables')
                 self.scannables = {}
+        # if default axes/ signal are not available, define using scannables
+        if self.scannables and NX_AXES not in self.arrays:
+            first_names, last_names = self.first_last_scannables()
+            self.arrays[NX_AXES] = next(iter(first_names.values()))
+            self.arrays[NX_SIGNAL] = next(iter(last_names.values()))
+            for n, name in enumerate(first_names):
+                self.arrays[f"{NX_AXES}{n}"] = first_names[name]
+            for n, name in enumerate(last_names):
+                self.arrays[f"{NX_SIGNAL}{n}"] = last_names[name]
         # find the NXdetector group and assign the image data
         self.generate_image_data_from_nxdetector()
         # finalise map with combined namespace
