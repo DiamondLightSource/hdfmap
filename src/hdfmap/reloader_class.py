@@ -1,14 +1,20 @@
 """
 Reloader class
+The ReLoader class is an object that contains a HdfMap and a filename,
+allowing the file to be opened only when data is requested.
 """
 
 import os
 import h5py
 import numpy as np
+from typing import Any
 
 from . import load_hdf, HdfMap, NexusMap
 from .file_functions import create_hdf_map, create_nexus_map
 from .eval_functions import DEFAULT
+
+
+Index = int | tuple | slice
 
 
 class HdfLoader:
@@ -96,7 +102,7 @@ class HdfLoader:
         """
         return self.map.find_names(string)
 
-    def get_data(self, *name_or_path, index: slice = (), default=None, direct_load=False):
+    def get_data(self, *name_or_path, index: Index = (), default=None, direct_load=False):
         """
         Return data from dataset in file, converted into either datetime, str or squeezed numpy.array objects
         See hdfmap.eval_functions.dataset2data for more information.
@@ -112,7 +118,7 @@ class HdfLoader:
             return out[0]
         return out
 
-    def get_string(self, *name_or_path, index: slice = (), default='', units=False):
+    def get_string(self, *name_or_path, index: Index = (), default='', units=False):
         """
         Return data from dataset in file, converted into summary string
         See hdfmap.eval_functions.dataset2data for more information.
@@ -128,7 +134,7 @@ class HdfLoader:
             return out[0]
         return out
 
-    def get_image(self, index: slice = None) -> np.ndarray:
+    def get_image(self, index: Index | None = None) -> np.ndarray | None:
         """
         Get image data from file, using default image path
         :param index: (slice,) or None to take the middle image
@@ -150,6 +156,36 @@ class HdfLoader:
         """Return string summary of datasets"""
         with self._load() as hdf:
             return self.map.create_dataset_summary(hdf)
+
+    def generate_expression(self, expression: str, default=DEFAULT,
+                            prefer_local: bool | None = None) -> tuple[str, dict[str, Any]]:
+        """
+        Evaluate an expression using the namespace of the hdf file,
+        returning the evaluated expression and dictionary of data for identifiers
+
+            expression, data = self.generate_eval_expression('signal / (monitor|ic1monitor)')
+
+        This function serves as a useful way to debug expressions for the eval_hdf function.
+        Note that the hdf file object must be included as the way the expression is evaluated
+        means individual expression components are checked against the HdfMap namespace and
+        the hdf file, allowing lazy loading of data (loading only the data needed).
+
+        :param expression: str expression to be evaluated
+        :param default: returned if varname not in namespace
+        :param prefer_local: uses values in local_data first if available when True
+        :return: expression, dict - data namespace
+        """
+        prefer_local = self._prefer_local_data if prefer_local is None else prefer_local
+        if prefer_local and expression in self._local_data:
+            return expression, {expression: self._local_data[expression]}
+        with self._load() as hdf:
+            return self.map.generate_eval_expression(
+                hdf_file=hdf,
+                expression=expression,
+                default=default,
+                local_data=self._local_data,
+                prefer_local=prefer_local,
+            )
 
     def eval(self, expression: str, default=DEFAULT, prefer_local: bool | None = None, raise_errors: bool = True):
         """
