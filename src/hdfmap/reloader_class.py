@@ -5,14 +5,15 @@ allowing the file to be opened only when data is requested.
 """
 
 import os
+from typing import Any
+
 import h5py
 import numpy as np
-from typing import Any
+from asteval import Interpreter
 
 from . import load_hdf, HdfMap, NexusMap
 from .file_functions import create_hdf_map, create_nexus_map
-from .eval_functions import DEFAULT
-
+from .eval_functions import DEFAULT, prepare_expression_load_data
 
 Index = int | tuple | slice
 
@@ -277,3 +278,44 @@ class NexusLoader(HdfLoader):
         """Return dict of useful plot data"""
         with self._load() as hdf:
             return self.map.get_plot_data(hdf)
+
+
+class HdfMapInterpreter(Interpreter):
+    """
+    HdfMap implementation of asteval.Interpreter
+
+    Expression is parsed for patterns and loads HDF data before evaluation.
+
+        ii = HdfMapInterpreter('file.nxs', replace_names={}, default='', **kwargs)
+        out = ii.eval('expression')
+
+    :param filename: path to HDF file
+    :param hdfmap: HdfMap instance
+    :param replace_names: dict of {'variable_name': expression}
+    :param default: returned if varname not in namespace
+    :param kwargs: keyword arguments passed to asteval.Interpreter
+    """
+    def __init__(self, filename: str, hdfmap: HdfMap | NexusMap | None = None,
+                 replace_names: dict[str, str] | None = None,
+                 default: Any = DEFAULT, **kws):
+        super().__init__(**kws)
+        self.filename = filename
+        if hdfmap is None:
+            hdfmap = create_nexus_map(filename) if filename.endswith('.nxs') else create_hdf_map(filename)
+        self.hdfmap = hdfmap
+        self.replace_names: dict[str, str] = replace_names or {}
+        self.default_value = default
+        self.use_stored_data = False
+
+    def eval(self, expr, lineno=0, show_errors=True, raise_errors=False):
+        with load_hdf(self.filename) as hdf:
+            new_expression = prepare_expression_load_data(
+                hdf_file=hdf,
+                expression=expr,
+                hdf_namespace=self.hdfmap.combined,
+                data_namespace=self.symtable or {},
+                replace_names=self.replace_names,
+                default=self.default_value,
+                use_stored_data=self.use_stored_data
+            )
+        return super().eval(new_expression, lineno, show_errors, raise_errors)

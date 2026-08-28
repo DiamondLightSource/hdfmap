@@ -11,7 +11,7 @@ import h5py
 from . import load_hdf
 from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
-from .eval_functions import (extra_hdf_data, eval_hdf, HdfMapInterpreter, prepare_expression_load_data,
+from .eval_functions import (extra_hdf_data, eval_hdf, prepare_expression_load_data,
                              format_hdf, dataset2data, dataset2str, is_image, attrs2dict,
                              DEFAULT, SEP, generate_identifier, build_hdf_path, generate_alt_name)
 from .objects import Group, Dataset
@@ -1119,31 +1119,6 @@ class HdfMap:
             use_stored_data=self._use_local_data if prefer_local is None else prefer_local,
             raise_errors=raise_errors
         )
-
-    def create_interpreter(self, default=DEFAULT, local_data: dict | None = None, prefer_local: bool | None = None) -> HdfMapInterpreter:
-        """
-        Create an interpreter object for the current file
-        The interpreter is a sub-class of asteval.Interpreter that parses expressions for hdfmap eval patters
-        and loads data when required.
-
-        The hdf file self.filename is used to extract data and is only opened during evaluation.
-
-            ii = HdfMap.create_interpreter()
-            out = ii.eval('expression')
-
-        :param default: returned if varname not in namespace
-        :param local_data: replaces the HdfMap local_data attribute for this file
-        :param prefer_local: uses values in local_data first if available when True
-        """
-        interpreter = HdfMapInterpreter(
-            hdfmap=self,
-            replace_names=self.alternate_names,
-            default=default,
-            user_symbols=self._local_data if local_data is None else local_data,
-            use_numpy=True
-        )
-        interpreter.use_stored_data = self._use_local_data if prefer_local is None else prefer_local
-        return interpreter
 
     def generate_eval_expression(self, hdf_file: h5py.File, expression: str, default=DEFAULT,
                                  local_data: dict | None = None, prefer_local: bool | None = None) -> tuple[str, dict[str, typing.Any]]:

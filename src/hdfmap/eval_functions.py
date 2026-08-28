@@ -558,37 +558,3 @@ def format_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, st
     )
 
 
-class HdfMapInterpreter(asteval.Interpreter):
-    """
-    HdfMap implementation of asteval.Interpreter
-
-    Expression is parsed for patterns and loads HDF data before evaluation
-
-        m = HdfMap('file.nxs')
-        ii = HdfMapInterpreter(m, replace_names={}, default='', **kwargs)
-        out = ii.eval('expression')
-
-    :param hdfmap: HdfMap instance (including hdfmap.filename pointing to the HDF file)
-    :param replace_names: dict of {'variable_name': expression}
-    :param default: returned if varname not in namespace
-    :param kwargs: keyword arguments passed to asteval.Interpreter
-    """
-    def __init__(self, hdfmap, replace_names: dict[str, str], default: typing.Any = DEFAULT, **kws):
-        super().__init__(**kws)
-        self.hdfmap = hdfmap
-        self.replace_names = replace_names
-        self.default_value = default
-        self.use_stored_data = False
-
-    def eval(self, expr, lineno=0, show_errors=True, raise_errors=False):
-        with self.hdfmap.load_hdf() as hdf:
-            new_expression = prepare_expression_load_data(
-                hdf_file=hdf,
-                expression=expr,
-                hdf_namespace=self.hdfmap.combined,
-                data_namespace=self.symtable,
-                replace_names=self.replace_names,
-                default=self.default_value,
-                use_stored_data=self.use_stored_data
-            )
-        return super().eval(new_expression, lineno, show_errors, raise_errors)

@@ -328,12 +328,6 @@ def test_roi(hdf_map):
         assert abs(out - 195839) < 0.001, "ROI rmbkg gives wrong result"
 
 
-def test_interpreter(hdf_map):
-    ii = hdf_map.create_interpreter()
-    assert abs(ii('abs(mean(max(roi2_sum)))') - 359573) < 0.001, "Expression output gives wrong result"
-    assert 'hkl' in ii('scan_command'), 'Expression output gives wrong result'
-
-
 def test_generate_eval_expression(hdf_map):
 
     expression = 'signal / (transmission|Transmission) / count_time'
