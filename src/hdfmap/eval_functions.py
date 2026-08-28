@@ -489,6 +489,8 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
     expression = replace_defaults(expression, hdf_namespace)
     # find alternate names '(opt1|opt2|opt3)'
     expression = replace_or_expressions(expression, hdf_namespace, hdf_file, attributes)
+    # find values with defaults '..?(..)'
+    expression = replace_defaults(expression, hdf_namespace)
     return expression
 
 

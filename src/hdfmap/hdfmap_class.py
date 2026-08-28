@@ -609,6 +609,7 @@ class HdfMap:
             return self.get_default_name(expression) or expression
         expression = replace_defaults(expression, self.combined)
         expression = replace_or_expressions(expression, self.combined, self.datasets, {})
+        expression = replace_defaults(expression, self.combined)
         ids = find_identifiers(expression)
         if not ids:
             return expression

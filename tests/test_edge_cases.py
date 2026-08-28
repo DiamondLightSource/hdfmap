@@ -243,3 +243,15 @@ def test_complex_eval():
         assert m.eval(hdf, '_cmd') == 'flyscancn eta_fly 0.005 61 pil3_100k 0.1 0.5 roi1 roi2'
         assert m.eval(hdf, 'max(signal / Transmission / (rc/300.) / _t)') == approx(1215483134.5953412)
         assert m.eval(hdf, 'cmd') == 'flyscancn eta_fly 0.005 61 pil3_100k 0.1 0.5 roi1 roi2'
+
+
+@only_dls_file_system
+def test_another_complex_eval():
+    f = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1109527.nxs'
+    m = hdfmap.create_nexus_map(f)
+    m.add_named_expression(count_time='(count_time|counttime|t?(1.0))')
+
+    assert m.merge_default_names('count_time?(0.5)') == 'count_time'
+
+    with m.load_hdf() as hdf:
+        assert sum(m.eval(hdf, 'count_time?(0.5)')) == approx(6.1)
