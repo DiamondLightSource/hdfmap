@@ -4,6 +4,7 @@ Specific tests for eval_functions.py
 
 import os
 import hdfmap
+from hdfmap.objects import Dataset, Group
 from hdfmap.eval_functions import replace_expression_vars, prepare_expression_load_data
 
 
@@ -34,9 +35,12 @@ def test_prepare_expression_load_data():
         'x': 'a',
     }
     hdf_map = {'idgap': '/entry/instrument/insertion_device/gap'}
+    grp = Group('insertion_device', '.', {}, [], None, False, None)
+    ds = Dataset('idgap', [], 31, (31, ), {'units': 'mm'}, grp, None)
+    dataset_map = {'idgap': ds}
     data = {}
     with hdfmap.load_hdf(FILE_HKL) as hdf:
-        new_expr = prepare_expression_load_data(hdf, expression, hdf_map, data, repl)
+        new_expr = prepare_expression_load_data(hdf, expression, hdf_map, dataset_map, data, repl)
     assert new_expr == "attr__idgap_units, a*y"
     assert data['attr__idgap_units'] == 'mm'
 

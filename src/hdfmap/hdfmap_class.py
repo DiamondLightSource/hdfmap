@@ -11,7 +11,7 @@ import h5py
 from . import load_hdf
 from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
-from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf, HdfMapInterpreter,
+from .eval_functions import (extra_hdf_data, eval_hdf, HdfMapInterpreter, prepare_expression_load_data,
                              format_hdf, dataset2data, dataset2str, is_image, attrs2dict,
                              DEFAULT, SEP, generate_identifier, build_hdf_path, generate_alt_name)
 from .objects import Group, Dataset
@@ -1072,6 +1072,10 @@ class HdfMap:
         scannables['metadata'] = DataHolder(**metadata)
         return DataHolder(**scannables)
 
+    def _get_datasets_in_file(self, hdf_file: h5py.File) -> dict[str, Dataset]:
+        """get {name: Dataset} dict for Datasets available in File"""
+        return {name: self.datasets[path] for name, path in self.combined.items() if path in hdf_file}
+
     def eval(self, hdf_file: h5py.File, expression: str, default=DEFAULT,
              local_data: dict | None = None, prefer_local: bool | None = None,
              raise_errors: bool = True) -> typing.Any:
@@ -1089,6 +1093,7 @@ class HdfMap:
             hdf_file=hdf_file,
             expression=expression,
             hdf_namespace=self.combined,
+            dataset_namespace=self._get_datasets_in_file(hdf_file),
             data_namespace=self._local_data if local_data is None else local_data,
             replace_names=self.alternate_names,
             default=default,
@@ -1113,6 +1118,7 @@ class HdfMap:
             hdf_file=hdf_file,
             expression=expression,
             hdf_namespace=self.combined,
+            dataset_namespace=self._get_datasets_in_file(hdf_file),
             data_namespace=self._local_data if local_data is None else local_data,
             replace_names=self.alternate_names,
             default=default,
@@ -1144,6 +1150,36 @@ class HdfMap:
         )
         interpreter.use_stored_data = self._use_local_data if prefer_local is None else prefer_local
         return interpreter
+
+    def generate_eval_expression(self, hdf_file: h5py.File, expression: str, default=DEFAULT,
+             local_data: dict | None = None, prefer_local: bool | None = None) -> tuple[str, dict[str, typing.Any]]:
+        """
+        Evaluate an expression using the namespace of the hdf file,
+        returning the evaluated expression and dictionary of data for identifiers
+
+            expression, data = HdfMap.generate_eval_expression(hdf, 'signal / (monitor|ic1monitor)')
+
+        This function serves as a useful way to debug expressions for the eval_hdf function.
+
+        :param hdf_file: h5py.File object
+        :param expression: str expression to be evaluated
+        :param default: returned if varname not in namespace
+        :param local_data: dict of additional data to pass to the expression, as {'varname': data}
+        :param prefer_local: uses values in local_data first if available when True
+        :return: expression, dict - data namespace
+        """
+        local_data = self._local_data.copy() if local_data is None else local_data.copy()
+        new_expression = prepare_expression_load_data(
+            hdf_file=hdf_file,
+            expression=expression,
+            hdf_namespace=self.combined,
+            dataset_namespace=self._get_datasets_in_file(hdf_file),
+            data_namespace=local_data,
+            replace_names=self.alternate_names,
+            default=default,
+            use_stored_data=self._use_local_data if prefer_local is None else prefer_local,
+        )
+        return new_expression, local_data
 
     def create_dataset_summary(self, hdf_file: h5py.File) -> str:
         """Create summary of all datasets in file"""

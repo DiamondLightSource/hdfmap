@@ -1,9 +1,11 @@
-import h5py
+
 import pytest
 import sys
 import os
 import datetime
 import hdfmap
+from unittest.mock import ANY
+from pytest import approx
 
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
 FILE_HKL = DATA_FOLDER + "/1049598.nxs"  # hkl scan, pilatus
@@ -332,3 +334,27 @@ def test_interpreter(hdf_map):
     ii = hdf_map.create_interpreter()
     assert abs(ii('abs(mean(max(roi2_sum)))') - 359573) < 0.001, "Expression output gives wrong result"
     assert 'hkl' in ii('scan_command'), 'Expression output gives wrong result'
+
+
+def test_generate_eval_expression(hdf_map):
+
+    expression = 'signal / (transmission|Transmission) / count_time'
+    hdf_map.add_named_expression(count_time='int(mean((count_time|counttime|t?(0.5))))')
+
+    with hdfmap.load_hdf(FILE_HKL) as hdf:
+        new_expression, data = hdf_map.generate_eval_expression(
+            hdf_file=hdf,
+            expression=expression,
+            default=0,
+            local_data={'Transmission': 0.1},
+            prefer_local=False,
+        )
+    print(new_expression)
+    print(data)
+    assert new_expression == 'signal / Transmission / int(mean(count_time))'
+    assert len(data) == 5
+    assert data.get('Transmission') == approx(1)
+    assert data.get('signal') == approx(0)  # signal not defined for HdfMap
+    assert sum(data.get('count_time', 0)) == approx(101)
+    assert data.get('filename') == '1049598.nxs'
+
