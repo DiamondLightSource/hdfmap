@@ -815,15 +815,19 @@ class HdfMap:
         Will return the path identifier of the given name if the name is in the namespace,
         otherwise a valid identifier will be generated.
 
-            xlabel, ylabel = generate_axis_labels('axes', 'signal')
-            generate_axis_labels('my/data/label', modify_missing=True) #-> ['label', ]
-            generate_axis_labels('(x-y)/y', modify_missing=False) #-> ['(x-y)/y', ]
+            xlabel, ylabel = generate_ids('axes', 'signal')
+            generate_ids('my/data/label', modify_missing=True) #-> ['label', ]
+            generate_ids('(x-y)/y', modify_missing=False) #-> ['(x-y)/y', ]
+
+        See also: get_default_name
+
+        Both generate_ids and get_default_name return names from paths or alternate names,
+        however generate_ids just takes the last element of the path.
 
         :param names: names to generate axis labels for
         :param modify_missing: if True, modifies names even if they are not in namespace
         :return: list of axis labels as valid identifiers
         """
-        #TODO: use get_default_names or similar here, or leave it as different
         return [
             generate_identifier(self.combined.get(name, name)) if modify_missing else (
                 generate_identifier(self.combined[name]) if name in self.combined else name
