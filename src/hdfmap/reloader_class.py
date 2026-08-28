@@ -186,7 +186,7 @@ class HdfLoader:
                 hdf_file=hdf,
                 expression=expression,
                 default=default,
-                local_data=self._local_data,
+                local_data=self._local_data,  # doesn't update local data
                 prefer_local=prefer_local,
             )
 

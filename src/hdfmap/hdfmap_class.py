@@ -3,6 +3,7 @@ hdfmap class definition
 """
 import json
 import typing
+import re
 from collections import defaultdict
 
 import numpy as np
@@ -13,7 +14,9 @@ from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
 from .eval_functions import (extra_hdf_data, eval_hdf, prepare_expression_load_data,
                              format_hdf, dataset2data, dataset2str, is_image, attrs2dict,
-                             DEFAULT, SEP, generate_identifier, build_hdf_path, generate_alt_name)
+                             DEFAULT, SEP, generate_identifier, build_hdf_path, generate_alt_name,
+                             replace_or_expressions, replace_expression_vars, replace_defaults,
+                             find_identifiers)
 from .objects import Group, Dataset
 
 # parameters
@@ -598,6 +601,20 @@ class HdfMap:
         elif path and path in self.groups:
             return self.groups[path].name
         return None
+
+    def merge_default_names(self, expression: str) -> str:
+        """Replace names in the expression with dataset default names"""
+        expression = replace_expression_vars(expression, self.alternate_names)
+        if expression.startswith('/'):
+            return self.get_default_name(expression) or expression
+        expression = replace_defaults(expression, self.combined)
+        expression = replace_or_expressions(expression, self.combined, self.datasets, {})
+        ids = find_identifiers(expression)
+        if not ids:
+            return expression
+        default_ids = {name: self.get_default_name(name) or name for name in ids}
+        re_ids = re.compile("|".join(default_ids))
+        return re_ids.sub(lambda m: default_ids[m.group(0)], expression)
 
     def get_path(self, name_or_path) -> str | None:
         """Return hdf path of object in HdfMap"""

@@ -13,6 +13,7 @@ import numpy as np
 import h5py
 from types import EllipsisType
 
+from .objects import Dataset
 from .logging import create_logger
 
 # parameters
@@ -234,7 +235,7 @@ def dataset2str(dataset: h5py.Dataset, index: int | slice | tuple[slice, ...] = 
             return str(np.squeeze(dataset[index]))  # other np.ndarray
 
 
-def dataset_attribute(dataset: h5py.Dataset, attribute: str) -> str:
+def dataset_attribute(dataset: h5py.Dataset | Dataset, attribute: str) -> str:
     """
     Return attribute of dataset
     """
@@ -277,6 +278,36 @@ def find_or_expressions(expr: str) -> set[str]:
     return set(alternates)
 
 
+def replace_or_expressions(expr: str, path_map: dict[str, str], path_check: h5py.File | list | dict,
+                           data: dict[str, typing.Any]) -> str:
+    """
+    Replaces instances of (a|b|c)-OR-expressions within the string.
+    The first item of the OR-expression that is found in data or if the
+    associated path is found in path_check will replace the expression.
+
+        path_map = {'x': '/entry/data/x', 'y': '/entry/data/y'}
+        path_check = h5py.File('mydata.h5')  # file contains x path but not y path
+        expression = '(y|x)'
+        new = replace_or_expressions(expression, path_map, path_check, {})
+        # new == 'x'
+
+    :param expr: string expression with components to replace
+    :param path_map: dict mapping from variable name to path as found in path_check
+    :param path_check: Hdf file to check path in, or could be a list or dict of paths.
+    :param data: dict mapping of variable name to data
+    :return: expression with replaced components
+    """
+    while or_expressions := find_or_expressions(expr):
+        for or_exp in or_expressions:
+            names = or_exp.strip('()').split('|')
+            name = next(
+                (n for n in names if n in data),
+                next((n for n in names if path_map.get(n, '') in path_check), names[-1])
+            )
+            expr = expr.replace(or_exp, name)
+    return expr
+
+
 def replace_expression_vars(expr: str, mapping: dict[str, str]) -> str:
     """
     Replace variable names in an expression
@@ -302,6 +333,57 @@ def replace_expression_vars(expr: str, mapping: dict[str, str]) -> str:
     for n, sub_str in enumerate(sub_expr):
         expr = expr.replace(f"__ALT{n}__", sub_str)
     return expr
+
+
+def replace_defaults(expr: str, path_map: dict[str, str]) -> str:
+    """
+    Replace default specifiers in an expression
+    A default specifier is given as 'a?(b)', where a will be
+    returned if 'a' is in path_map, otherwise 'b' is returned.
+
+        path_map = {'x': '/entry/data/x', 'y': '/entry/data/y'}
+        expression = 'x + y?(10) + z?(20)'
+        result = replace_defaults(expression, path_map)
+        # result == 'x + y + 20'
+
+    :param expr: string expression with components to replace
+    :param path_map: dict mapping from variable name to path
+    :return: expression with replaced components
+    """
+    for match in re_dataset_default.finditer(expr):
+        name, name_default = match.groups()
+        if name not in path_map:
+            expr = expr.replace(match.group(), name_default)
+        else:
+            expr = expr.replace(match.group(), name)
+    return expr
+
+
+def replace_attributes(expr: str, path_map: dict[str, str],
+                       hdf_file: h5py.File | dict[str, Dataset]) -> tuple[str, dict]:
+    """
+    Find sub-strings of the form 'name@attribute', and replace this with
+    the attribute associated with the dataset specified by name.
+
+        path_map = {'x': '/entry/data/x', 'y': '/entry/data/y'}
+        hdf_file = h5py.File('mydata.h5'), where dataset('/entry/data/x') as attribute 'units'='mm'
+        expression = 'x x@units'
+        result = replace_attributes(expression, path_map, hdf_file)
+        # result == 'x mm'
+
+    :param expr: string expression with components to replace
+    :param path_map: dict mapping from variable name to path
+    :param hdf_file: h5py.File object
+    :return: expression with replaced components
+    """
+    attributes = {
+        f"attr__{name}_{attr}": dataset_attribute(hdf_file[path], attr)
+        for name, attr in re_dataset_attributes.findall(expr)  # name@attr
+        if (path := path_map.get(name, '')) in hdf_file
+    }
+    # replace name@attribute in expression
+    expr = re_dataset_attributes.sub(r'attr__\g<1>_\g<2>', expr)
+    return expr, attributes
 
 
 def extra_hdf_data(hdf_file: h5py.File) -> dict:
@@ -396,39 +478,17 @@ def prepare_expression(hdf_file: h5py.File, expression: str, hdf_namespace: dict
     :param replace_names: dict of {'variable_name': expression}
     :return: str expression
     """
-    #TODO: remove hdf from this function, replace with dict of Dataset objects.
-    #TODO: Move Dataset objects into seperate file that can be improted
-
+    if data_namespace is None:
+        data_namespace = {}  # note the link to the parent namespace must be preserved
     # replace names with expressions
     expression = replace_expression_vars(expression, replace_names)
-
-    if data_namespace is None:
-        data_namespace = {}
-    # find name@attribute in expression
-    attributes = {
-        f"attr__{name}_{attr}": dataset_attribute(hdf_file[path], attr)
-        for name, attr in re_dataset_attributes.findall(expression)  # name@attr
-        if (path := hdf_namespace.get(name, '')) in hdf_file
-    }
+    # replace name@attribute in expression and add values to data_namespace
+    expression, attributes = replace_attributes(expression, hdf_namespace, hdf_file)
     data_namespace.update(attributes)  # adds data in the parent function
-    # replace name@attribute in expression
-    expression = re_dataset_attributes.sub(r'attr__\g<1>_\g<2>', expression)
     # find values with defaults '..?(..)'
-    for match in re_dataset_default.finditer(expression):
-        name, name_default = match.groups()
-        if name not in hdf_namespace:
-            expression = expression.replace(match.group(), name_default)
-        else:
-            expression = expression.replace(match.group(), name)
+    expression = replace_defaults(expression, hdf_namespace)
     # find alternate names '(opt1|opt2|opt3)'
-    while or_expressions := find_or_expressions(expression):
-        for or_exp in or_expressions:
-            names = or_exp.strip('()').split('|')
-            name = next(
-                (n for n in names if n in attributes),
-                next((n for n in names if hdf_namespace.get(n, '') in hdf_file), names[-1])
-            )
-            expression = expression.replace(or_exp, name)
+    expression = replace_or_expressions(expression, hdf_namespace, hdf_file, attributes)
     return expression
 
 

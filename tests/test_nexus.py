@@ -127,6 +127,10 @@ def test_generate_ids(hdf_map):
     assert expression == 'signal/Transmission'
 
 
+def test_merge_default_names(hdf_map):
+    assert hdf_map.merge_default_names('signal/gains_atten_Transmission') == 'rc/Transmission'
+
+
 def test_info_nexus(hdf_map):
     info = hdf_map.info_nexus()
     assert 'NXmx: [\'/entry\']' in info

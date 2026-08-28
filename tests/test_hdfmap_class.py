@@ -72,6 +72,14 @@ def test_get_default_name(hdf_map):
     assert hdf_map.get_default_name('measurement_sum') == 'sum'
 
 
+def test_merge_default_names(hdf_map):
+    assert hdf_map.merge_default_names('measurement_kth') == 'kth'
+    assert hdf_map.merge_default_names('(asdf|ddfj|kphi)') == 'kphi'
+    assert hdf_map.merge_default_names('(asdf|ddfj|bob?(22))') == '22'
+    assert hdf_map.merge_default_names('mirrors_m2pitch, roi2_h') == 'm2pitch, h'
+    assert hdf_map.merge_default_names('/entry1/pil3_100k/sum') == 'sum'
+
+
 def test_get_group_path(hdf_map):
     assert hdf_map.get_group_path('sum') == '/entry1/pil3_100k'
 
