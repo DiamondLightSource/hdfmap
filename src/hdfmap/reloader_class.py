@@ -23,12 +23,14 @@ class HdfLoader:
     namespace, allowing data to be called from the file using variable names, loading only the required datasets
     for each operation.
 
-    ### E.G.
         hdf = HdfLoader('file.hdf')
         [data1, data2] = hdf.get_data(*['dataset_name_1', 'dataset_name_2'])
         data = hdf.eval('dataset_name_1 * 100 + 2')
         string = hdf.format('my data is {dataset_name_1:.2f}')
         print(hdf.summary())
+
+    :param hdf_filename: path to HDF file
+    :param hdf_map: HdfMap instance
     """
 
     def __init__(self, hdf_filename: str, hdf_map: HdfMap | NexusMap | None = None):
@@ -255,11 +257,14 @@ class NexusLoader(HdfLoader):
     contains the filename and hdfmap for a NeXus file, the hdfmap contains all the dataset paths and a
     namespace, allowing data to be called from the file using variable names, loading only the required datasets
     for each operation.
-    E.G.
+
         hdf = NexusLoader('file.hdf')
         [data1, data2] = hdf.get_data(['dataset_name_1', 'dataset_name_2'])
         data = hdf.eval('dataset_name_1 * 100 + 2')
         string = hdf.format('my data is {dataset_name_1:.2f}')
+
+    :param nxs_filename: path to HDF file
+    :param hdf_map: NexusMap instance, or None to generate
     """
     map: NexusMap
 
