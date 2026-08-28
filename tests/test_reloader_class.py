@@ -1,7 +1,9 @@
 import os
-from hdfmap import HdfLoader, NexusLoader
+from hdfmap import HdfLoader, NexusLoader, NexusMap
+from hdfmap.reloader_class import HdfMapInterpreter
 
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
+FILE_HKL = DATA_FOLDER + "/1049598.nxs"  # hkl scan, pilatus
 FILE_NEW_NEXUS = DATA_FOLDER + '/1040323.nxs'  # new nexus format
 FILE_3D_NEXUS = DATA_FOLDER + '/i06-353130.nxs'  # new nexus format
 
@@ -40,3 +42,8 @@ def test_nexus_reloader():
             'signal_data', 'axes_labels', 'signal_labels', 'data', 'title'}
     assert data.keys() >= KEYS
 
+
+def test_interpreter():
+    ii = HdfMapInterpreter(filename=FILE_HKL)
+    assert abs(ii('abs(mean(max(roi2_sum)))') - 359573) < 0.001, "Expression output gives wrong result"
+    assert 'hkl' in ii('scan_command'), 'Expression output gives wrong result'

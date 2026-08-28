@@ -1,14 +1,21 @@
 """
 Reloader class
+The ReLoader class is an object that contains a HdfMap and a filename,
+allowing the file to be opened only when data is requested.
 """
 
 import os
+from typing import Any
+
 import h5py
 import numpy as np
+from asteval import Interpreter
 
 from . import load_hdf, HdfMap, NexusMap
 from .file_functions import create_hdf_map, create_nexus_map
-from .eval_functions import DEFAULT
+from .eval_functions import DEFAULT, prepare_expression_load_data
+
+Index = int | tuple | slice
 
 
 class HdfLoader:
@@ -17,12 +24,14 @@ class HdfLoader:
     namespace, allowing data to be called from the file using variable names, loading only the required datasets
     for each operation.
 
-    ### E.G.
         hdf = HdfLoader('file.hdf')
         [data1, data2] = hdf.get_data(*['dataset_name_1', 'dataset_name_2'])
         data = hdf.eval('dataset_name_1 * 100 + 2')
         string = hdf.format('my data is {dataset_name_1:.2f}')
         print(hdf.summary())
+
+    :param hdf_filename: path to HDF file
+    :param hdf_map: HdfMap instance
     """
 
     def __init__(self, hdf_filename: str, hdf_map: HdfMap | NexusMap | None = None):
@@ -96,7 +105,7 @@ class HdfLoader:
         """
         return self.map.find_names(string)
 
-    def get_data(self, *name_or_path, index: slice = (), default=None, direct_load=False):
+    def get_data(self, *name_or_path, index: Index = (), default=None, direct_load=False):
         """
         Return data from dataset in file, converted into either datetime, str or squeezed numpy.array objects
         See hdfmap.eval_functions.dataset2data for more information.
@@ -112,7 +121,7 @@ class HdfLoader:
             return out[0]
         return out
 
-    def get_string(self, *name_or_path, index: slice = (), default='', units=False):
+    def get_string(self, *name_or_path, index: Index = (), default='', units=False):
         """
         Return data from dataset in file, converted into summary string
         See hdfmap.eval_functions.dataset2data for more information.
@@ -128,7 +137,7 @@ class HdfLoader:
             return out[0]
         return out
 
-    def get_image(self, index: slice = None) -> np.ndarray:
+    def get_image(self, index: Index | None = None) -> np.ndarray | None:
         """
         Get image data from file, using default image path
         :param index: (slice,) or None to take the middle image
@@ -150,6 +159,36 @@ class HdfLoader:
         """Return string summary of datasets"""
         with self._load() as hdf:
             return self.map.create_dataset_summary(hdf)
+
+    def generate_expression(self, expression: str, default=DEFAULT,
+                            prefer_local: bool | None = None) -> tuple[str, dict[str, Any]]:
+        """
+        Evaluate an expression using the namespace of the hdf file,
+        returning the evaluated expression and dictionary of data for identifiers
+
+            expression, data = self.generate_eval_expression('signal / (monitor|ic1monitor)')
+
+        This function serves as a useful way to debug expressions for the eval_hdf function.
+        Note that the hdf file object must be included as the way the expression is evaluated
+        means individual expression components are checked against the HdfMap namespace and
+        the hdf file, allowing lazy loading of data (loading only the data needed).
+
+        :param expression: str expression to be evaluated
+        :param default: returned if varname not in namespace
+        :param prefer_local: uses values in local_data first if available when True
+        :return: expression, dict - data namespace
+        """
+        prefer_local = self._prefer_local_data if prefer_local is None else prefer_local
+        if prefer_local and expression in self._local_data:
+            return expression, {expression: self._local_data[expression]}
+        with self._load() as hdf:
+            return self.map.generate_eval_expression(
+                hdf_file=hdf,
+                expression=expression,
+                default=default,
+                local_data=self._local_data,  # doesn't update local data
+                prefer_local=prefer_local,
+            )
 
     def eval(self, expression: str, default=DEFAULT, prefer_local: bool | None = None, raise_errors: bool = True):
         """
@@ -219,11 +258,14 @@ class NexusLoader(HdfLoader):
     contains the filename and hdfmap for a NeXus file, the hdfmap contains all the dataset paths and a
     namespace, allowing data to be called from the file using variable names, loading only the required datasets
     for each operation.
-    E.G.
+
         hdf = NexusLoader('file.hdf')
         [data1, data2] = hdf.get_data(['dataset_name_1', 'dataset_name_2'])
         data = hdf.eval('dataset_name_1 * 100 + 2')
         string = hdf.format('my data is {dataset_name_1:.2f}')
+
+    :param nxs_filename: path to HDF file
+    :param hdf_map: NexusMap instance, or None to generate
     """
     map: NexusMap
 
@@ -236,3 +278,44 @@ class NexusLoader(HdfLoader):
         """Return dict of useful plot data"""
         with self._load() as hdf:
             return self.map.get_plot_data(hdf)
+
+
+class HdfMapInterpreter(Interpreter):
+    """
+    HdfMap implementation of asteval.Interpreter
+
+    Expression is parsed for patterns and loads HDF data before evaluation.
+
+        ii = HdfMapInterpreter('file.nxs', replace_names={}, default='', **kwargs)
+        out = ii.eval('expression')
+
+    :param filename: path to HDF file
+    :param hdfmap: HdfMap instance
+    :param replace_names: dict of {'variable_name': expression}
+    :param default: returned if varname not in namespace
+    :param kwargs: keyword arguments passed to asteval.Interpreter
+    """
+    def __init__(self, filename: str, hdfmap: HdfMap | NexusMap | None = None,
+                 replace_names: dict[str, str] | None = None,
+                 default: Any = DEFAULT, **kws):
+        super().__init__(**kws)
+        self.filename = filename
+        if hdfmap is None:
+            hdfmap = create_nexus_map(filename) if filename.endswith('.nxs') else create_hdf_map(filename)
+        self.hdfmap = hdfmap
+        self.replace_names: dict[str, str] = replace_names or {}
+        self.default_value = default
+        self.use_stored_data = False
+
+    def eval(self, expr, lineno=0, show_errors=True, raise_errors=False):
+        with load_hdf(self.filename) as hdf:
+            new_expression = prepare_expression_load_data(
+                hdf_file=hdf,
+                expression=expr,
+                hdf_namespace=self.hdfmap.combined,
+                data_namespace=self.symtable or {},
+                replace_names=self.replace_names,
+                default=self.default_value,
+                use_stored_data=self.use_stored_data
+            )
+        return super().eval(new_expression, lineno, show_errors, raise_errors)

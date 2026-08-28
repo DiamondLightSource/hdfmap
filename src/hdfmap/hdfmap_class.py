@@ -3,6 +3,7 @@ hdfmap class definition
 """
 import json
 import typing
+import re
 from collections import defaultdict
 
 import numpy as np
@@ -11,47 +12,18 @@ import h5py
 from . import load_hdf
 from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
-from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf, HdfMapInterpreter,
+from .eval_functions import (extra_hdf_data, eval_hdf, prepare_expression_load_data,
                              format_hdf, dataset2data, dataset2str, is_image, attrs2dict,
-                             DEFAULT, SEP, generate_identifier, build_hdf_path)
-
+                             DEFAULT, SEP, generate_identifier, build_hdf_path, generate_alt_name,
+                             replace_or_expressions, replace_expression_vars, replace_defaults,
+                             find_identifiers)
+from .objects import Group, Dataset
 
 # parameters
-LOCAL_NAME = 'local_name'  # dataset attribute name for alt_name
 IMAGE_DATA = 'IMAGE'  # namespace name for default image data
 
 # logger
 logger = create_logger(__name__)
-
-
-class Group(typing.NamedTuple):
-    nx_class: str
-    name: str
-    attrs: dict
-    datasets: list[str]
-    parent: "Group | None"
-    default: bool
-    external_file: str | None
-
-
-class Dataset(typing.NamedTuple):
-    name: str
-    names: list[str]
-    size: int
-    shape: tuple[int]
-    attrs: dict
-    parent: Group
-    external_file: str | None
-
-
-def generate_alt_name(hdf_dataset: h5py.Dataset) -> str | None:
-    """Generate alt_name of dataset if 'local_name' in attributes"""
-    if LOCAL_NAME in hdf_dataset.attrs:
-        alt_name = hdf_dataset.attrs[LOCAL_NAME]
-        if hasattr(alt_name, 'decode'):
-            alt_name = alt_name.decode()
-        return expression_safe_name(alt_name.split('.')[-1])
-    return None
 
 
 class HdfMap:
@@ -621,7 +593,30 @@ class HdfMap:
         last = {name: self.scannables[name] for name in scannable_names[::-1][:last_n]}
         return first, last
 
-    def get_path(self, name_or_path):
+    def get_default_name(self, name_or_path: str) -> str | None:
+        """Return the default name of a dataset or group identifier"""
+        path = self.get_path(name_or_path)
+        if path and path in self.datasets:
+            return self.datasets[path].name
+        elif path and path in self.groups:
+            return self.groups[path].name
+        return None
+
+    def merge_default_names(self, expression: str) -> str:
+        """Replace names in the expression with dataset default names"""
+        expression = replace_expression_vars(expression, self.alternate_names)
+        if expression.startswith('/'):
+            return self.get_default_name(expression) or expression
+        expression = replace_defaults(expression, self.combined)
+        expression = replace_or_expressions(expression, self.combined, self.datasets, {})
+        ids = find_identifiers(expression)
+        if not ids:
+            return expression
+        default_ids = {name: self.get_default_name(name) or name for name in ids}
+        re_ids = re.compile("|".join(default_ids))
+        return re_ids.sub(lambda m: default_ids[m.group(0)], expression)
+
+    def get_path(self, name_or_path) -> str | None:
         """Return hdf path of object in HdfMap"""
         if name_or_path in self.datasets or name_or_path in self.groups:
             return name_or_path
@@ -837,9 +832,14 @@ class HdfMap:
         Will return the path identifier of the given name if the name is in the namespace,
         otherwise a valid identifier will be generated.
 
-            xlabel, ylabel = generate_axis_labels('axes', 'signal')
-            generate_axis_labels('my/data/label', modify_missing=True) #-> ['label', ]
-            generate_axis_labels('(x-y)/y', modify_missing=False) #-> ['(x-y)/y', ]
+            xlabel, ylabel = generate_ids('axes', 'signal')
+            generate_ids('my/data/label', modify_missing=True) #-> ['label', ]
+            generate_ids('(x-y)/y', modify_missing=False) #-> ['(x-y)/y', ]
+
+        See also: get_default_name
+
+        Both generate_ids and get_default_name return names from paths or alternate names,
+        however generate_ids just takes the last element of the path.
 
         :param names: names to generate axis labels for
         :param modify_missing: if True, modifies names even if they are not in namespace
@@ -1095,7 +1095,7 @@ class HdfMap:
 
     def eval(self, hdf_file: h5py.File, expression: str, default=DEFAULT,
              local_data: dict | None = None, prefer_local: bool | None = None,
-             raise_errors: bool = True):
+             raise_errors: bool = True) -> typing.Any:
         """
         Evaluate an expression using the namespace of the hdf file
         :param hdf_file: h5py.File object
@@ -1141,30 +1141,37 @@ class HdfMap:
             raise_errors=raise_errors
         )
 
-    def create_interpreter(self, default=DEFAULT, local_data: dict | None = None, prefer_local: bool | None = None):
+    def generate_eval_expression(self, hdf_file: h5py.File, expression: str, default=DEFAULT,
+                                 local_data: dict | None = None, prefer_local: bool | None = None) -> tuple[str, dict[str, typing.Any]]:
         """
-        Create an interpreter object for the current file
-        The interpreter is a sub-class of asteval.Interpreter that parses expressions for hdfmap eval patters
-        and loads data when required.
+        Evaluate an expression using the namespace of the hdf file,
+        returning the evaluated expression and dictionary of data for identifiers
 
-        The hdf file self.filename is used to extract data and is only opened during evaluation.
+            expression, data = HdfMap.generate_eval_expression(hdf, 'signal / (monitor|ic1monitor)')
 
-            ii = HdfMap.create_interpreter()
-            out = ii.eval('expression')
+        This function serves as a useful way to debug expressions for the eval_hdf function.
+        Note that the hdf file object must be included as the way the expression is evaluated
+        means individual expression components are checked against the HdfMap namespace and
+        the hdf file, allowing lazy loading of data (loading only the data needed).
 
+        :param hdf_file: h5py.File object
+        :param expression: str expression to be evaluated
         :param default: returned if varname not in namespace
-        :param local_data: replaces the HdfMap local_data attribute for this file
+        :param local_data: dict of additional data to pass to the expression, as {'varname': data}
         :param prefer_local: uses values in local_data first if available when True
+        :return: expression, dict - data namespace
         """
-        interpreter = HdfMapInterpreter(
-            hdfmap=self,
+        local_data = self._local_data.copy() if local_data is None else local_data.copy()
+        new_expression = prepare_expression_load_data(
+            hdf_file=hdf_file,
+            expression=expression,
+            hdf_namespace=self.combined,
+            data_namespace=local_data,
             replace_names=self.alternate_names,
             default=default,
-            user_symbols=self._local_data if local_data is None else local_data,
-            use_numpy=True
+            use_stored_data=self._use_local_data if prefer_local is None else prefer_local,
         )
-        interpreter.use_stored_data = self._use_local_data if prefer_local is None else prefer_local
-        return interpreter
+        return new_expression, local_data
 
     def create_dataset_summary(self, hdf_file: h5py.File) -> str:
         """Create summary of all datasets in file"""
