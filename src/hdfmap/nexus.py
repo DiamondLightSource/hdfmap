@@ -335,7 +335,8 @@ class NexusMap(HdfMap):
             if name not in self.scannables:
                 if name in self.arrays and self.datasets[self.arrays[name]].shape == self.scannables_shape():
                     logger.warning(f"axes '{name}' not found in scannables, appending '{name}' to scannables")
-                    self.scannables[name] = self.arrays[name]
+                    # self.scannables[name] = self.arrays[name]
+                    self.scannables = {name: self.arrays[name], **self.scannables}
                 else:
                     logger.warning(
                         f"axes '{name}' not found in scannables, " +

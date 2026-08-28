@@ -224,7 +224,8 @@ def test_i06_pol_scan():
     axes_names, signal_names = m.nexus_default_names()
 
     assert len(axes_paths) == len(axes_names)
-    # assert axes_names[1] == 'ds'
+    assert axes_names == {'pol': '/entry/medipix/pol', 'ds': '/entry/medipix/ds'}
+    assert signal_names == {'YDriver1_meanvalue': '/entry/instrument/medipix/YDriver1_meanvalue'}
 
 
 @only_dls_file_system
