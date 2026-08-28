@@ -130,6 +130,9 @@ def test_generate_ids(hdf_map):
 def test_merge_default_names(hdf_map):
     assert hdf_map.merge_default_names('signal/gains_atten_Transmission') == 'rc/Transmission'
 
+    hdf_map.add_named_expression(signal='sum')
+    assert hdf_map.merge_default_names('signal/gains_atten_Transmission') == 'sum/Transmission'
+
 
 def test_info_nexus(hdf_map):
     info = hdf_map.info_nexus()
