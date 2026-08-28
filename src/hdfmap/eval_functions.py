@@ -352,10 +352,10 @@ def replace_defaults(expr: str, path_map: dict[str, str]) -> str:
     """
     for match in re_dataset_default.finditer(expr):
         name, name_default = match.groups()
-        if name not in path_map:
-            expr = expr.replace(match.group(), name_default)
-        else:
+        if name.isnumeric() or name in path_map:
             expr = expr.replace(match.group(), name)
+        else:
+            expr = expr.replace(match.group(), name_default)
     return expr
 
 

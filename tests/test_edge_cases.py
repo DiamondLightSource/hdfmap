@@ -1,5 +1,6 @@
 from os import path
 import json
+import numpy as np
 import hdfmap
 import hdfmap.hdf_loader
 from pytest import approx
@@ -247,11 +248,16 @@ def test_complex_eval():
 
 @only_dls_file_system
 def test_another_complex_eval():
-    f = '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1109527.nxs'
-    m = hdfmap.create_nexus_map(f)
-    m.add_named_expression(count_time='(count_time|counttime|t?(1.0))')
+    for f, output, array_sum in zip([
+        '/dls/science/groups/das/ExampleData/hdfmap_tests/i16/1109527.nxs',  # contains count_time
+        "/dls/science/groups/das/ExampleData/hdfmap_tests/i06/i06-1-372210.nxs",  # doesnt have count_time
+        ], ['count_time', '1.0'], [6.1, 1]):
+        print(f)
+        m = hdfmap.create_nexus_map(f)
+        m.add_named_expression(count_time='(count_time|counttime|t?(1.0))')
 
-    assert m.merge_default_names('count_time?(0.5)') == 'count_time'
+        assert m.merge_default_names('count_time?(0.5)') == output
 
-    with m.load_hdf() as hdf:
-        assert sum(m.eval(hdf, 'count_time?(0.5)')) == approx(6.1)
+        with m.load_hdf() as hdf:
+            assert np.sum(m.eval(hdf, 'count_time?(0.5)')) == approx(array_sum)
+
