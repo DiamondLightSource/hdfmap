@@ -20,6 +20,7 @@ GLOBALS_NAMELIST = asteval.make_symbol_table(use_numpy=True).keys()
 DEFAULT: typing.Any = np.array('--')  # default return in eval
 SEP = '/'  # HDF path separator
 OMIT = ['/value', '/data']  # omit these names in paths when determining identifier
+LOCAL_NAME = 'local_name'  # dataset attribute name for alt_name (DLS specific)
 logger = create_logger(__name__)
 # regex patterns
 re_special_characters = re.compile(r'\W')  # finds all special non-alphanumberic characters
@@ -31,6 +32,16 @@ datetime_converter = np.vectorize(lambda x: datetime.datetime.fromisoformat(x.de
 
 if sys.version_info < (3, 11, 0):
     logger.warning("Nexus timestamps are not convertable by datetime.fromisoformat in python version <3.11")
+
+
+def generate_alt_name(hdf_dataset: h5py.Dataset) -> str | None:
+    """Generate alt_name of dataset if 'local_name' in attributes"""
+    if LOCAL_NAME in hdf_dataset.attrs:
+        alt_name = hdf_dataset.attrs[LOCAL_NAME]
+        if hasattr(alt_name, 'decode'):
+            alt_name = alt_name.decode()
+        return expression_safe_name(alt_name.split('.')[-1])
+    return None
 
 
 def generate_identifier(hdf_path: str | bytes) -> str:

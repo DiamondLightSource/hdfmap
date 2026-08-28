@@ -13,45 +13,14 @@ from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
 from .eval_functions import (expression_safe_name, extra_hdf_data, eval_hdf, HdfMapInterpreter,
                              format_hdf, dataset2data, dataset2str, is_image, attrs2dict,
-                             DEFAULT, SEP, generate_identifier, build_hdf_path)
-
+                             DEFAULT, SEP, generate_identifier, build_hdf_path, generate_alt_name)
+from .objects import Group, Dataset
 
 # parameters
-LOCAL_NAME = 'local_name'  # dataset attribute name for alt_name
 IMAGE_DATA = 'IMAGE'  # namespace name for default image data
 
 # logger
 logger = create_logger(__name__)
-
-
-class Group(typing.NamedTuple):
-    nx_class: str
-    name: str
-    attrs: dict
-    datasets: list[str]
-    parent: "Group | None"
-    default: bool
-    external_file: str | None
-
-
-class Dataset(typing.NamedTuple):
-    name: str
-    names: list[str]
-    size: int
-    shape: tuple[int]
-    attrs: dict
-    parent: Group
-    external_file: str | None
-
-
-def generate_alt_name(hdf_dataset: h5py.Dataset) -> str | None:
-    """Generate alt_name of dataset if 'local_name' in attributes"""
-    if LOCAL_NAME in hdf_dataset.attrs:
-        alt_name = hdf_dataset.attrs[LOCAL_NAME]
-        if hasattr(alt_name, 'decode'):
-            alt_name = alt_name.decode()
-        return expression_safe_name(alt_name.split('.')[-1])
-    return None
 
 
 class HdfMap:
@@ -854,6 +823,7 @@ class HdfMap:
         :param modify_missing: if True, modifies names even if they are not in namespace
         :return: list of axis labels as valid identifiers
         """
+        #TODO: use get_default_names or similar here, or leave it as different
         return [
             generate_identifier(self.combined.get(name, name)) if modify_missing else (
                 generate_identifier(self.combined[name]) if name in self.combined else name
@@ -1104,7 +1074,7 @@ class HdfMap:
 
     def eval(self, hdf_file: h5py.File, expression: str, default=DEFAULT,
              local_data: dict | None = None, prefer_local: bool | None = None,
-             raise_errors: bool = True):
+             raise_errors: bool = True) -> typing.Any:
         """
         Evaluate an expression using the namespace of the hdf file
         :param hdf_file: h5py.File object
@@ -1150,7 +1120,7 @@ class HdfMap:
             raise_errors=raise_errors
         )
 
-    def create_interpreter(self, default=DEFAULT, local_data: dict | None = None, prefer_local: bool | None = None):
+    def create_interpreter(self, default=DEFAULT, local_data: dict | None = None, prefer_local: bool | None = None) -> HdfMapInterpreter:
         """
         Create an interpreter object for the current file
         The interpreter is a sub-class of asteval.Interpreter that parses expressions for hdfmap eval patters
