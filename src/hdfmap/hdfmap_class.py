@@ -13,10 +13,10 @@ from . import load_hdf
 from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
 from .eval_functions import (extra_hdf_data, eval_hdf, prepare_expression_load_data,
-                             format_hdf, dataset2data, dataset2str, is_image, attrs2dict,
-                             DEFAULT, SEP, generate_identifier, build_hdf_path, generate_alt_name,
-                             replace_or_expressions, replace_expression_vars, replace_defaults,
+                             format_hdf, DEFAULT, replace_or_expressions, replace_expression_vars, replace_defaults,
                              find_identifiers)
+from .base_functions import generate_alt_name, generate_identifier, build_hdf_path, is_image, attrs2dict, dataset2data, \
+    dataset2str, SEP
 from .objects import Group, Dataset
 
 # parameters
