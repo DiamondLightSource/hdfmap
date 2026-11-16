@@ -449,6 +449,7 @@ class HdfMap:
         """Populate all datasets from file"""
         self.filename = hdf_file.filename
         self._local_data.update(extra_hdf_data(hdf_file))
+        self._store_group(hdf_file, '', 'file', None)
         self._populate(hdf_file)
         size = self.most_common_size()
         self.generate_scannables(size)
