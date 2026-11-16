@@ -262,6 +262,7 @@ def test_another_complex_eval():
             assert np.sum(m.eval(hdf, 'count_time?(0.5)')) == approx(array_sum)
 
 
+@only_dls_file_system
 def test_p51_panda():
     f = "/dls/science/groups/das/ExampleData/hdfmap_tests/p51/3336.nxs"
     m = hdfmap.create_nexus_map(f)
