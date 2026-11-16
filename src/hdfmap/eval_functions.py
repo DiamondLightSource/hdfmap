@@ -17,6 +17,7 @@ from .logging import create_logger
 
 # parameters
 GLOBALS_NAMELIST = asteval.make_symbol_table(use_numpy=True).keys()
+PROTECTED = ['filepath', 'filename']
 DEFAULT: typing.Any = np.array('--')  # default return in eval
 logger = create_logger(__name__)
 # regex patterns
