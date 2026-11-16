@@ -10,6 +10,7 @@ import re
 import typing
 import numpy as np
 import h5py
+from textwrap import dedent
 
 from .base_functions import generate_identifier, dataset2data, dataset2str, dataset_attribute
 from .objects import Dataset
@@ -21,6 +22,7 @@ PROTECTED = ['filepath', 'filename']
 DEFAULT: typing.Any = np.array('--')  # default return in eval
 logger = create_logger(__name__)
 # regex patterns
+re_header = re.compile(r'\n?\*\*\*(.+?)\*\*\*\n?', re.DOTALL)
 re_dataset_attributes = re.compile(r'([a-zA-Z_]\w*)@([a-zA-Z_]\w*)')  # finds 'name@attribute' in expressions
 re_dataset_default = re.compile(r'(\w+)\?\((.+?)\)')  # finds 'name?('noname'), return (name, 'noname')
 # fromisoformat requires python 3.11+
@@ -32,6 +34,26 @@ if sys.version_info < (3, 11, 0):
 def find_identifiers(expression: str) -> list[str]:
     """Returns list of variable names in expression"""
     return [name for name in asteval.get_ast_names(ast.parse(expression))]
+
+
+def find_header(expr: str) -> tuple[str, str]:
+    """
+    Returns any header lines from expression.
+
+    Header lines are encapsulated as: ***code***
+    and will not be included in replacements during evaluation.
+
+    :param expr: string expression
+    :return: header, expr : string inside encapsulated header, expr with header removed.
+    """
+    # prepare expression by removing indentations and blank lines
+    expr = dedent(expr).strip()
+    header = ''
+    match = re_header.search(expr)
+    if match:
+        header = match.group(1)
+        expr = re_header.sub('', expr).strip()
+    return header, expr
 
 
 def find_or_expressions(expr: str) -> set[str]:
@@ -347,6 +369,13 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
 
     Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
 
+    A header section can be encapsulated like '***code***' to provide code that will not
+    be evaluated as if it is a variable from the file, allowing variables and functions
+    to be defined. Multi-line strings are allowed providing a result is given on the last line.
+
+    Asteval.Intepreter is used to provide a safe evaluation of expressions, providing
+    much of basic python and numpy functionality.
+
     :param hdf_file: h5py.File object
     :param expression: str expression to be evaluated
     :param hdf_namespace: dict of {'variable name': '/hdf/dataset/path'}
@@ -359,6 +388,8 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     """
     if not expression.strip():  # don't evaluate empty strings
         return expression
+    # remove header
+    header, expression = find_header(expression)
     # replace names with expressions
     expression = replace_expression_vars(expression, replace_names)
     # if expression is a hdf path, just return the data
@@ -369,6 +400,7 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     logger.debug(f"evaluating expression: '{expression}'")
     # evaluate expression within namespace
     safe_eval = asteval.Interpreter(user_symbols=data_namespace, use_numpy=True)
+    safe_eval(header, raise_errors=raise_errors)  # evaluate header first
     result = safe_eval(expression, raise_errors=raise_errors)
     if safe_eval.error_msg:
         logger.error(f"Expression: {expression} gives error message: {safe_eval.error_msg}")

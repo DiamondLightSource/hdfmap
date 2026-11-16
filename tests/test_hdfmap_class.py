@@ -317,6 +317,20 @@ def test_eval_named_expression(hdf_map):
         assert kth == pytest.approx(81.122, 0.001), "kth has been changed incorrectly"
 
 
+def test_header_expression(hdf_map):
+    expr = """
+    *** # header
+    def pkroi(array,wid_j, wid_k):
+        _, j, k = unravel_index(argmax(array), array.shape)
+        return array[:, j - wid_j//2:j + wid_j//2, k - wid_k//2:k + wid_k//2]
+    ***
+    pkroi(IMAGE, 30, 40)
+    """
+    with hdfmap.load_hdf(FILE_HKL) as hdf:
+        vol = hdf_map.eval(hdf, expr)
+    assert vol.shape == (101, 30, 40)
+
+
 def test_roi(hdf_map):
     hdf_map.add_roi('nroi1', 'pil3_centre_j', 'pil3_centre_i', 101, 21)
     with hdfmap.load_hdf(FILE_HKL) as hdf:

@@ -206,6 +206,17 @@ class HdfLoader:
          - '(name1|name2|name3)': returns the first available of the names
          - '(name1|name2?(default))': returns the first available name or default
 
+        Additional variables can be added to the evaluation local namespace using data_namespace.
+
+        Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
+
+        A header section can be encapsulated like '***code***' to provide code that will not
+        be evaluated as if it is a variable from the file, allowing variables and functions
+        to be defined. Multi-line strings are allowed providing a result is given on the last line.
+
+        Asteval.Intepreter is used to provide a safe evaluation of expressions, providing
+        much of basic python and numpy functionality.
+
         :param expression: str expression to be evaluated
         :param default: returned if varname not in namespace
         :param prefer_local: if True, uses values in local_data first if available

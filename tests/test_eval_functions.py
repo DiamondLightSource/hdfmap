@@ -4,7 +4,8 @@ Specific tests for eval_functions.py
 
 import os
 import hdfmap
-from hdfmap.eval_functions import replace_expression_vars, prepare_expression_load_data
+from hdfmap.eval_functions import (replace_expression_vars, prepare_expression_load_data,
+                                   eval_hdf, find_header)
 
 
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
@@ -41,4 +42,32 @@ def test_prepare_expression_load_data():
     assert data['attr__idgap_units'] == 'mm'
 
 
+def test_find_header():
+    expression = """
+    ***
+    def myfun(a, b):
+        return arange(a, b)
+    ***
+    myfun(5, 6).tolist()
+    """
+    header, expr = find_header(expression)
+    assert expr == 'myfun(5, 6).tolist()'
+
+
+def test_header_expression():
+    expression = """
+    ***
+    def myfun(a, b):
+        return arange(a, b)
+    ***
+    myfun(5, 10).tolist()
+    """
+    hdf_map = {'idgap': '/entry/instrument/insertion_device/gap'}
+    repl = {
+        'a': 'x',
+    }
+    data = {}
+    with hdfmap.load_hdf(FILE_HKL) as hdf:
+        result = eval_hdf(hdf, expression, hdf_map, data, repl)
+    assert result == [5, 6, 7, 8, 9]
 
