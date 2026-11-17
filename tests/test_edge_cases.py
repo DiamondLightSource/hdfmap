@@ -272,3 +272,12 @@ def test_p51_panda():
     m = hdfmap.create_hdf_map(f)
     assert m
 
+
+# @only_dls_file_system
+# def test_i22_pipeline():
+#     f = "/dls/i22/data/2026/cm44173-2/xml/templates/waxs_Transmission_IvsQ_Pipeline.nxs"
+#     # TODO: Fix this! Issue #66
+#     m = hdfmap.create_hdf_map(f)
+#     assert m
+#     m = hdfmap.create_nexus_map(f)
+#     assert m
