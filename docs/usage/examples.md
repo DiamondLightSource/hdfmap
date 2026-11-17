@@ -64,6 +64,7 @@ The seconds step evaluates the modified expression in the data namespace.
  - '*name*?(*default*)': returns default if *name* doesn't exist
  - '(name1|name2|name3)': returns the first available of the names
  - '(name1|name2?(default))': returns the first available name or default
+ - '***header code***': code inside stars is not converted to HDF paths and can include assignments.
 
 
 #### New in V0.8.1: local variables in eval/format
@@ -183,6 +184,27 @@ roi_volume = m('my_roi1')  # shape: (n, 31, 21)
 roi_total = m('my_roi1_total')  # shape: (n, )
 ```
 
+#### New in V1.4.1: Headers in expressions
+A header section can be encapsulated between three stars, like '***code***' to 
+provide code that will not be evaluated as if it is a variable from the file, 
+allowing variables and functions to be defined. 
+Multi-line strings are allowed providing a result is given on the last line.
+
+```python
+from hdfmap import create_nexus_map
+
+m = create_nexus_map('file.nxs')
+expression = """
+*** # header
+def pkroi(array,wid_j, wid_k):
+    _, j, k = unravel_index(argmax(array), array.shape)
+    return array[:, j - wid_j//2:j + wid_j//2, k - wid_k//2:k + wid_k//2]
+***
+pkroi(IMAGE, 30, 40)
+"""
+with m.load_hdf() as hdf:
+    roi = m.eval(hdf, expression)  # roi has shape (n, 30, 40)
+```
 
 ### formatted strings from metadata
 Format strings can also be parsed to obtain data from the hdf files. 

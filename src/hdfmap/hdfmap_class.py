@@ -13,10 +13,10 @@ from . import load_hdf
 from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
 from .eval_functions import (extra_hdf_data, eval_hdf, prepare_expression_load_data,
-                             format_hdf, dataset2data, dataset2str, is_image, attrs2dict,
-                             DEFAULT, SEP, generate_identifier, build_hdf_path, generate_alt_name,
-                             replace_or_expressions, replace_expression_vars, replace_defaults,
+                             format_hdf, DEFAULT, replace_or_expressions, replace_expression_vars, replace_defaults,
                              find_identifiers)
+from .base_functions import generate_alt_name, generate_identifier, build_hdf_path, is_image, attrs2dict, dataset2data, \
+    dataset2str, SEP
 from .objects import Group, Dataset
 
 # parameters
@@ -391,6 +391,7 @@ class HdfMap:
         :param wid_j: full width along second dimension, in pixels
         :param image_name: string name of the image
         """
+        # TODO: perhaps this should be moved th mmg_toolbox as it is too science specific
         # TODO: set cen-wid<0 == 0, cen+wid>image == image.shape (this is not easy!)
         wid_i = abs(wid_i) // 2
         wid_j = abs(wid_j) // 2
@@ -448,6 +449,7 @@ class HdfMap:
         """Populate all datasets from file"""
         self.filename = hdf_file.filename
         self._local_data.update(extra_hdf_data(hdf_file))
+        self._store_group(hdf_file, '', 'file', None)
         self._populate(hdf_file)
         size = self.most_common_size()
         self.generate_scannables(size)
@@ -1099,13 +1101,37 @@ class HdfMap:
              raise_errors: bool = True) -> typing.Any:
         """
         Evaluate an expression using the namespace of the hdf file
+
+        The following patterns are allowed:
+         - 'filename': str, name of hdf_file
+         - 'filepath': str, full path of hdf_file
+         - '_*name*': str hdf path of *name*
+         - '__*name*': str internal name of *name* (e.g. for 'axes')
+         - 's_*name*': string representation of dataset (includes units if available)
+         - 'd_*name*': return dataset object. **warning**: may result in file not closing on completion
+         - '*name*@attr': returns attribute of dataset *name*
+         - '*name*?(default)': returns default if *name* doesn't exist
+         - '(name1|name2|name3)': returns the first available of the names
+         - '(name1|name2?(default))': returns the first available name or default
+
+        Additional variables can be added to the evaluation local namespace using data_namespace.
+
+        Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
+
+        A header section can be encapsulated like '***code***' to provide code that will not
+        be evaluated as if it is a variable from the file, allowing variables and functions
+        to be defined. Multi-line strings are allowed providing a result is given on the last line.
+
+        Asteval.Intepreter is used to provide a safe evaluation of expressions, providing
+        much of basic python and numpy functionality.
+
         :param hdf_file: h5py.File object
         :param expression: str expression to be evaluated
         :param default: returned if varname not in namespace
         :param local_data: replaces the HdfMap local_data attribute for this file
         :param prefer_local: uses values in local_data first if available when True
         :param raise_errors: raise exceptions if True, otherwise return str error message as result and log the error
-        :return: eval(expression)
+        :return: result of eval(expression)
         """
         return eval_hdf(
             hdf_file=hdf_file,
@@ -1123,6 +1149,30 @@ class HdfMap:
                    raise_errors: bool = True) -> str:
         """
         Evaluate a formatted string expression using the namespace of the hdf file
+
+        The following patterns are allowed:
+         - 'filename': str, name of hdf_file
+         - 'filepath': str, full path of hdf_file
+         - '_*name*': str hdf path of *name*
+         - '__*name*': str internal name of *name* (e.g. for 'axes')
+         - 's_*name*': string representation of dataset (includes units if available)
+         - 'd_*name*': return dataset object. **warning**: may result in file not closing on completion
+         - '*name*@attr': returns attribute of dataset *name*
+         - '*name*?(default)': returns default if *name* doesn't exist
+         - '(name1|name2|name3)': returns the first available of the names
+         - '(name1|name2?(default))': returns the first available name or default
+
+        Additional variables can be added to the evaluation local namespace using data_namespace.
+
+        Shorthand variables for expressions can be assigned using replace_names = {'new_name': 'favorite*expression'}
+
+        A header section can be encapsulated like '***code***' to provide code that will not
+        be evaluated as if it is a variable from the file, allowing variables and functions
+        to be defined. Multi-line strings are allowed providing a result is given on the last line.
+
+        Asteval.Intepreter is used to provide a safe evaluation of expressions, providing
+        much of basic python and numpy functionality.
+
         :param hdf_file: h5py.File object
         :param expression: str expression using {name} format specifiers
         :param default: returned if varname not in namespace

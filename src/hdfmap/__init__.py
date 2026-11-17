@@ -66,8 +66,8 @@ __all__ = [
     'set_all_logging_level', 'version_info', 'module_info'
 ]
 
-__version__ = "1.4.0"
-__date__ = "2026/08/28"
+__version__ = "1.4.1"
+__date__ = "2026/11/16"
 __author__ = "Dan Porter"
 
 
