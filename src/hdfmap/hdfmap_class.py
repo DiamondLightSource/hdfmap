@@ -14,7 +14,7 @@ from .data_holder import disp_dict, DataHolder
 from .logging import create_logger
 from .eval_functions import (extra_hdf_data, eval_hdf, prepare_expression_load_data,
                              format_hdf, DEFAULT, replace_or_expressions, replace_expression_vars, replace_defaults,
-                             find_identifiers)
+                             find_identifiers, find_header)
 from .base_functions import generate_alt_name, generate_identifier, build_hdf_path, is_image, attrs2dict, dataset2data, \
     dataset2str, SEP
 from .objects import Group, Dataset
@@ -368,6 +368,7 @@ class HdfMap:
         """
         self.alternate_names.update(kwargs)
 
+    # TODO: this can be removed in the future as it is replicated in mmg_toolbox
     def add_roi(self, name: str, cen_i: int | str, cen_j: int | str,
                 wid_i: int = 30, wid_j: int = 30, image_name: str = 'IMAGE'):
         """
@@ -609,6 +610,7 @@ class HdfMap:
         expression = replace_expression_vars(expression, self.alternate_names)
         if expression.startswith('/'):
             return self.get_default_name(expression) or expression
+        _, expression = find_header(expression)
         expression = replace_defaults(expression, self.combined)
         expression = replace_or_expressions(expression, self.combined, self.datasets, {})
         expression = replace_defaults(expression, self.combined)

@@ -51,7 +51,7 @@ def find_header(expr: str) -> tuple[str, str]:
     header = ''
     match = re_header.search(expr)
     if match:
-        header = match.group(1)
+        header = dedent(match.group(1))
         expr = re_header.sub('', expr).strip()
     return header, expr
 

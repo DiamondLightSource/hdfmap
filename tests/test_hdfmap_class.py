@@ -326,9 +326,12 @@ def test_header_expression(hdf_map):
     ***
     pkroi(IMAGE, 30, 40)
     """
+    hdf_map.add_named_expression(peakroi=expr)
     with hdfmap.load_hdf(FILE_HKL) as hdf:
         vol = hdf_map.eval(hdf, expr)
-    assert vol.shape == (101, 30, 40)
+        vol2 = hdf_map.eval(hdf, 'peakroi')
+    assert vol.shape == vol2.shape == (101, 30, 40)
+    assert hdf_map.merge_default_names('peakroi') == 'pkroi(pil3_100k, 30, 40)'
 
 
 def test_roi(hdf_map):
