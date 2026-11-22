@@ -51,7 +51,7 @@ def find_header(expr: str) -> tuple[str, str]:
     header = ''
     match = re_header.search(expr)
     if match:
-        header = match.group(1)
+        header = dedent(match.group(1))
         expr = re_header.sub('', expr).strip()
     return header, expr
 
@@ -388,13 +388,14 @@ def eval_hdf(hdf_file: h5py.File, expression: str, hdf_namespace: dict[str, str]
     """
     if not expression.strip():  # don't evaluate empty strings
         return expression
-    # remove header
-    header, expression = find_header(expression)
     # replace names with expressions
     expression = replace_expression_vars(expression, replace_names)
     # if expression is a hdf path, just return the data
     if expression in hdf_file:
         return dataset2data(hdf_file[expression])
+    # remove header
+    header, expression = find_header(expression)
+    # replace identifiers and special commands
     expression = prepare_expression_load_data(hdf_file, expression, hdf_namespace, data_namespace,
                                               replace_names, default, use_stored_data)
     logger.debug(f"evaluating expression: '{expression}'")
